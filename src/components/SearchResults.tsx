@@ -1,7 +1,9 @@
 import { Fragment, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
+import { SearchX } from 'lucide-react';
 import type { Folder } from '../types';
 import { normalizeText, type SearchResult } from '../lib/search';
+import EmptyState from './EmptyState';
 
 // Biểu tượng theo loại tài liệu (đồng bộ với DocsAllPage).
 const BADGE: Record<string, string> = { note: 'note', markdown: 'markdown' };
@@ -47,9 +49,11 @@ export default function SearchResults({
 }: Props) {
   if (results.length === 0) {
     return (
-      <p className="muted empty">
-        Không tìm thấy tài liệu nào khớp “{query.trim()}”.
-      </p>
+      <EmptyState
+        icon={<SearchX size={40} aria-hidden="true" />}
+        title="Không tìm thấy kết quả"
+        description={`Không có tài liệu nào khớp “${query.trim()}”.`}
+      />
     );
   }
 

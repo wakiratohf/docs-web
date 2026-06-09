@@ -1,11 +1,14 @@
 import { useEffect, useState, type CSSProperties } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { get, ref } from 'firebase/database';
+import { Download, FileX } from 'lucide-react';
 import { db } from '../lib/firebase';
 import type { DocItem } from '../types';
 import HtmlContent from '../components/HtmlContent';
 import MarkdownPreview from '../components/MarkdownPreview';
 import ThemeToggle from '../components/ThemeToggle';
+import Spinner from '../components/Spinner';
+import EmptyState from '../components/EmptyState';
 import { useFontScale } from '../components/FontSizeControl';
 import { downloadDocument } from '../lib/downloadHelpers';
 import { formatDate } from '../lib/formatDate';
@@ -61,11 +64,11 @@ export default function SharePage() {
           {state === 'ready' && doc && (
             <button
               type="button"
-              className="share-download-btn"
+              className="share-download-btn btn-icon"
               onClick={() => downloadDocument(doc)}
               title="Tải tài liệu này về máy"
             >
-              ⬇ Tải về
+              <Download size={16} aria-hidden="true" /> Tải về
             </button>
           )}
           <ThemeToggle />
@@ -73,14 +76,16 @@ export default function SharePage() {
         </div>
       </header>
 
-      {state === 'loading' && <p className="muted">Đang tải…</p>}
+      {state === 'loading' && <Spinner />}
       {state === 'error' && (
         <p className="warn">Không tải được tài liệu (cấu hình Firebase hoặc mạng).</p>
       )}
       {state === 'notfound' && (
-        <p className="muted empty">
-          Tài liệu không tồn tại hoặc chủ sở hữu đã ngừng chia sẻ.
-        </p>
+        <EmptyState
+          icon={<FileX size={40} aria-hidden="true" />}
+          title="Tài liệu không khả dụng"
+          description="Tài liệu không tồn tại hoặc chủ sở hữu đã ngừng chia sẻ."
+        />
       )}
       {state === 'ready' && doc && (
         <article className="share-doc">

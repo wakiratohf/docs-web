@@ -418,7 +418,8 @@ a:hover {
 /* Trang document full màn hình: dùng hết chiều rộng + chiều cao viewport,
    vùng soạn thảo co giãn và tự cuộn bên trong. */
 .doc-page {
-  height: 100vh;
+  height: 100vh; /* fallback cho trình duyệt cũ */
+  height: 100dvh; /* dvh: trừ thanh địa chỉ động trên iOS Safari */
   display: flex;
   flex-direction: column;
   padding: 12px 20px 16px;
@@ -493,8 +494,12 @@ a:hover {
 .toolbar button {
   padding: 5px 9px;
   font-size: 13px;
+  font-weight: 600;
   border-radius: 6px;
   min-width: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 .toolbar .sep {
   width: 1px;
@@ -712,8 +717,10 @@ a:hover {
   width: 28px;
   height: 28px;
   padding: 0;
-  font-size: 15px;
-  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text);
   border: none;
   border-radius: 50%;
   background: var(--card);
@@ -780,9 +787,10 @@ a:hover {
   flex: 1;
 }
 .doc-remove {
-  padding: 8px 12px;
-  font-size: 16px;
-  line-height: 1;
+  padding: 8px 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: 10px;
@@ -915,9 +923,12 @@ a:hover {
 .search-icon {
   position: absolute;
   left: 14px;
-  font-size: 15px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  color: var(--muted);
   pointer-events: none;
-  opacity: 0.7;
+  opacity: 0.8;
 }
 .search-input {
   width: 100%;
@@ -938,9 +949,11 @@ a:hover {
 .search-clear {
   position: absolute;
   right: 8px;
-  padding: 6px 10px;
-  font-size: 13px;
-  line-height: 1;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  padding: 6px;
   color: var(--muted);
   background: transparent;
   border: none;
@@ -987,4 +1000,305 @@ mark {
 [data-theme='dark'] mark {
   background: #92750f;
   color: #fff;
+}
+
+/* ============================================================
+   Feedback: Toast, Modal, Spinner, Empty state, Save indicator
+   (tự build, dùng biến theme nên tự đổi theo sáng/tối)
+   ============================================================ */
+
+/* ---------- Spinner ---------- */
+.spinner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 0;
+  color: var(--muted);
+}
+.spinner-label {
+  font-size: 14px;
+}
+.spin {
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ---------- Toast ---------- */
+.toast-viewport {
+  position: fixed;
+  right: 16px;
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: min(360px, calc(100vw - 32px));
+  pointer-events: none; /* chỉ từng toast nhận click, vùng bao thì không chặn */
+}
+.toast {
+  pointer-events: auto;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  background: var(--card);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--primary);
+  border-radius: 10px;
+  padding: 12px 14px;
+  box-shadow: 0 6px 24px var(--shadow);
+  animation: toast-in 0.2s ease;
+}
+.toast-success {
+  border-left-color: #16a34a;
+}
+.toast-success .toast-icon {
+  color: #16a34a;
+}
+.toast-error {
+  border-left-color: var(--danger);
+}
+.toast-error .toast-icon {
+  color: var(--danger);
+}
+.toast-info {
+  border-left-color: var(--primary);
+}
+.toast-info .toast-icon {
+  color: var(--primary);
+}
+.toast-icon {
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+.toast-msg {
+  flex: 1;
+  font-size: 14px;
+  line-height: 1.4;
+}
+.toast-close {
+  flex-shrink: 0;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  padding: 2px;
+  border-radius: 6px;
+  display: flex;
+}
+.toast-close:hover {
+  background: var(--hover-bg);
+}
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* ---------- Modal (confirm / prompt) ---------- */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 9000;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  animation: backdrop-in 0.15s ease;
+}
+.modal {
+  width: 100%;
+  max-width: 420px;
+  background: var(--card);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 22px;
+  box-shadow: 0 12px 40px var(--shadow);
+  animation: modal-in 0.18s ease;
+}
+.modal-title {
+  margin: 0 0 8px;
+  font-size: 18px;
+}
+.modal-message {
+  margin: 0 0 14px;
+  color: var(--text);
+  line-height: 1.5;
+  white-space: pre-line;
+}
+.modal-input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 14px;
+  margin-bottom: 16px;
+}
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+@keyframes backdrop-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes modal-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* ---------- Empty state (có minh hoạ) ---------- */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+.empty-icon {
+  color: var(--muted);
+  opacity: 0.7;
+  display: flex;
+}
+.empty-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+.empty-desc {
+  margin: 0;
+  font-size: 14px;
+  max-width: 420px;
+}
+.empty-action {
+  margin-top: 8px;
+}
+
+/* ---------- Auto-save indicator (trên thanh editor) ---------- */
+.save-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.save-indicator.is-saved {
+  color: #16a34a;
+}
+
+/* ============================================================
+   Nút có icon (icon + chữ thẳng hàng) — dùng lucide-react
+   ============================================================ */
+.btn-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+.btn-icon svg {
+  flex-shrink: 0;
+}
+/* Link "Mở" trong share-bar trông như nút cho đồng bộ */
+a.btn-icon {
+  padding: 8px 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--card);
+}
+a.btn-icon:hover {
+  background: var(--hover-bg);
+  text-decoration: none;
+}
+
+/* ============================================================
+   Hiệu ứng: tôn trọng người dùng tắt chuyển động (a11y)
+   ============================================================ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ============================================================
+   Mobile (màn hình hẹp) — trước đây repo CHƯA có @media nào
+   ============================================================ */
+@media (max-width: 600px) {
+  .container {
+    padding: 16px 14px 48px;
+  }
+  .app-header h1 {
+    font-size: 18px;
+  }
+  /* Lưới tile thu nhỏ để vừa điện thoại */
+  .home-grid {
+    grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+    gap: 24px 12px;
+    margin-top: 20px;
+  }
+  .tile-icon,
+  .folder-icon-box {
+    width: 84px;
+    height: 84px;
+    border-radius: 20px;
+  }
+  .tile-icon {
+    font-size: 40px;
+  }
+  .tile-label {
+    font-size: 14px;
+    max-width: 100px;
+  }
+  /* Tiêu đề editor chiếm trọn 1 hàng, các select/nút wrap xuống dưới */
+  .title-input {
+    min-width: 0;
+    flex-basis: 100%;
+  }
+  .doc-page {
+    padding: 8px 12px 12px;
+  }
+  /* Ẩn cột ngày để dòng tài liệu gọn trên màn hình nhỏ */
+  .doc-dates {
+    display: none;
+  }
+  /* Toast trải gần hết bề ngang cho dễ đọc */
+  .toast-viewport {
+    left: 12px;
+    right: 12px;
+    max-width: none;
+  }
+  /* Vùng chạm tối thiểu ~40px cho dễ bấm bằng ngón tay */
+  .toolbar button {
+    min-height: 38px;
+  }
+  .search-clear,
+  .doc-remove {
+    min-height: 40px;
+  }
 }

@@ -1,8 +1,10 @@
 import { useRef, useState, type ChangeEvent, type DragEvent } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
+import { X } from 'lucide-react';
 import { useDocuments } from '../context/DocumentsContext';
 import { useUploadDocuments } from '../hooks/useUploadDocuments';
+import { useToast } from '../context/ToastContext';
 import { detectType, extractHtmlBody, stripExt } from '../lib/uploadHelpers';
 import ThemeToggle from '../components/ThemeToggle';
 import type { DocumentType } from '../types';
@@ -19,6 +21,7 @@ interface PickedItem {
 export default function BatchUploadPage() {
   const { folders } = useDocuments();
   const { commitItems } = useUploadDocuments();
+  const { toastSuccess, toastInfo } = useToast();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
@@ -81,9 +84,17 @@ export default function BatchUploadPage() {
           it.type === 'note' ? extractHtmlBody(contents[i]) : contents[i],
       }));
       // commitItems lo việc hỏi thay thế khi trùng tên rồi tạo/ghi đè.
-      const res = commitItems(payload, folderId || undefined);
-      if (res.created + res.replaced > 0) {
+      const res = await commitItems(payload, folderId || undefined);
+      const done = res.created + res.replaced;
+      if (done > 0) {
+        const parts: string[] = [];
+        if (res.created) parts.push(`tạo mới ${res.created}`);
+        if (res.replaced) parts.push(`ghi đè ${res.replaced}`);
+        if (res.skipped) parts.push(`bỏ qua ${res.skipped}`);
+        toastSuccess(`Đã tải lên: ${parts.join(', ')} tài liệu.`);
         navigate(folderId ? `/docs/folder/${folderId}` : '/docs');
+      } else if (res.skipped > 0) {
+        toastInfo(`Đã bỏ qua ${res.skipped} tài liệu trùng tên.`);
       }
     } finally {
       setUploading(false);
@@ -132,6 +143,7 @@ export default function BatchUploadPage() {
         className={`drop-zone${dragOver ? ' drag-over' : ''}`}
         role="button"
         tabIndex={0}
+        aria-label="Chọn file để tải lên"
         onClick={() => inputRef.current?.click()}
         onKeyDown={(e) => {
           if (e.key === 'Enter' || e.key === ' ') inputRef.current?.click();
@@ -195,9 +207,10 @@ export default function BatchUploadPage() {
                   type="button"
                   className="doc-remove"
                   title="Bỏ file này khỏi danh sách"
+                  aria-label="Bỏ file này khỏi danh sách"
                   onClick={() => removeItem(it.key)}
                 >
-                  ✕
+                  <X size={16} aria-hidden="true" />
                 </button>
               </li>
             ))}

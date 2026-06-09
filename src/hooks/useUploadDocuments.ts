@@ -1,5 +1,6 @@
 import { useCallback } from 'react';
 import { useDocuments } from '../context/DocumentsContext';
+import { useConfirm } from '../context/ConfirmContext';
 import { filesToItems, type UploadItem } from '../lib/uploadHelpers';
 
 // Kết quả một lần tải lên, để nơi gọi báo lại cho người dùng nếu cần.
@@ -20,10 +21,11 @@ export interface UploadResult {
  */
 export function useUploadDocuments() {
   const { documents, addDocuments, updateDocument } = useDocuments();
+  const confirm = useConfirm();
 
   // Ghi danh sách item đã đọc sẵn nội dung vào folder đích.
   const commitItems = useCallback(
-    (items: UploadItem[], folderId?: string): UploadResult => {
+    async (items: UploadItem[], folderId?: string): Promise<UploadResult> => {
       const result: UploadResult = { created: 0, replaced: 0, skipped: 0 };
       if (items.length === 0) return result;
 
@@ -48,11 +50,15 @@ export function useUploadDocuments() {
       let replace = false;
       if (dupes.length > 0) {
         const names = dupes.map((d) => d.item.title).join(', ');
-        replace = window.confirm(
-          `Đã có ${dupes.length} tài liệu trùng tên trong thư mục đích:\n${names}\n\n` +
+        replace = await confirm({
+          title: 'Tài liệu trùng tên',
+          message:
+            `Đã có ${dupes.length} tài liệu trùng tên trong thư mục đích:\n${names}\n\n` +
             `Thay thế nội dung các tài liệu này?\n` +
-            `OK = thay thế · Cancel = bỏ qua các file trùng.`,
-        );
+            `“Thay thế” = ghi đè · “Bỏ qua” = giữ nguyên các file trùng.`,
+          confirmText: 'Thay thế',
+          cancelText: 'Bỏ qua',
+        });
       }
 
       // Tạo mới các file không trùng.
@@ -76,7 +82,7 @@ export function useUploadDocuments() {
       }
       return result;
     },
-    [documents, addDocuments, updateDocument],
+    [documents, addDocuments, updateDocument, confirm],
   );
 
   // Đọc nội dung các file rồi ghi vào folder đích (dùng cho kéo-thả trực tiếp).
@@ -88,7 +94,7 @@ export function useUploadDocuments() {
       const arr = Array.from(files);
       if (arr.length === 0) return { created: 0, replaced: 0, skipped: 0 };
       const items = await filesToItems(arr);
-      return commitItems(items, folderId);
+      return await commitItems(items, folderId);
     },
     [commitItems],
   );

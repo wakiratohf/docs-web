@@ -1,9 +1,28 @@
 import { useMemo, useState, type DragEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
+import {
+  Pin,
+  Link2,
+  Share2,
+  Pencil,
+  Trash2,
+  Upload,
+  Search,
+  X,
+  CornerUpLeft,
+  Copy,
+  ExternalLink,
+  Plus,
+  Inbox,
+} from 'lucide-react';
 import { useDocuments } from '../context/DocumentsContext';
 import { useUploadDocuments } from '../hooks/useUploadDocuments';
+import { useToast } from '../context/ToastContext';
+import { useConfirm } from '../context/ConfirmContext';
 import ThemeToggle from '../components/ThemeToggle';
 import SearchResults from '../components/SearchResults';
+import Spinner from '../components/Spinner';
+import EmptyState from '../components/EmptyState';
 import { searchDocs } from '../lib/search';
 import type { DocumentType } from '../types';
 
@@ -26,6 +45,8 @@ export default function FolderPage() {
     moveDocument,
   } = useDocuments();
   const { uploadFiles } = useUploadDocuments();
+  const { toastSuccess, toastError } = useToast();
+  const confirm = useConfirm();
   const navigate = useNavigate();
 
   const folder = folders.find((f) => f.id === folderId);
@@ -36,7 +57,6 @@ export default function FolderPage() {
 
   const [editing, setEditing] = useState(false);
   const [editName, setEditName] = useState('');
-  const [copied, setCopied] = useState(false);
   // Đang kéo file từ máy qua trang (để làm nổi vùng thả).
   const [fileDragOver, setFileDragOver] = useState(false);
 
@@ -58,7 +78,7 @@ export default function FolderPage() {
     return (
       <div className="container">
         {backBar}
-        <p className="muted">Đang tải…</p>
+        <Spinner />
       </div>
     );
   }
@@ -86,13 +106,19 @@ export default function FolderPage() {
     setEditing(false);
   };
 
-  const onDelete = () => {
+  const onDelete = async () => {
     const n = docs.length;
     const msg =
       n > 0
         ? `Xóa folder "${folder.name}" và ${n} tài liệu bên trong? Thao tác không thể hoàn tác.`
         : `Xóa folder "${folder.name}"?`;
-    if (window.confirm(msg)) {
+    const ok = await confirm({
+      title: 'Xóa folder',
+      message: msg,
+      confirmText: 'Xóa',
+      danger: true,
+    });
+    if (ok) {
       deleteFolder(folder.id);
       navigate('/docs');
     }
@@ -123,10 +149,9 @@ export default function FolderPage() {
   const onCopyShare = async () => {
     try {
       await navigator.clipboard.writeText(shareUrl);
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 1500);
+      toastSuccess('Đã copy link chia sẻ');
     } catch {
-      setCopied(false);
+      toastError('Không copy được link');
     }
   };
 
@@ -170,22 +195,27 @@ export default function FolderPage() {
           <ThemeToggle />
           <button
             type="button"
-            className={folder.isPinned ? 'primary' : ''}
+            className={`btn-icon ${folder.isPinned ? 'primary' : ''}`}
             onClick={() => togglePinFolder(folder.id)}
             title="Bật/tắt ghim folder (ưu tiên hiển thị trên cùng)"
           >
-            {folder.isPinned ? '📌 Đã ghim' : 'Ghim folder'}
+            <Pin size={16} aria-hidden="true" /> {folder.isPinned ? 'Đã ghim' : 'Ghim folder'}
           </button>
           <button
             type="button"
-            className={folder.isShared ? 'primary' : ''}
+            className={`btn-icon ${folder.isShared ? 'primary' : ''}`}
             onClick={() => toggleShareFolder(folder.id)}
             title="Bật/tắt chia sẻ công khai cả folder"
           >
-            {folder.isShared ? '🔗 Đang chia sẻ' : 'Chia sẻ folder'}
+            {folder.isShared ? <Link2 size={16} aria-hidden="true" /> : <Share2 size={16} aria-hidden="true" />}{' '}
+            {folder.isShared ? 'Đang chia sẻ' : 'Chia sẻ folder'}
           </button>
-          <button type="button" onClick={startRename}>✏️ Đổi tên</button>
-          <button type="button" className="danger" onClick={onDelete}>🗑️ Xóa folder</button>
+          <button type="button" className="btn-icon" onClick={startRename}>
+            <Pencil size={16} aria-hidden="true" /> Đổi tên
+          </button>
+          <button type="button" className="btn-icon danger" onClick={onDelete}>
+            <Trash2 size={16} aria-hidden="true" /> Xóa folder
+          </button>
         </div>
       </header>
 
@@ -200,31 +230,34 @@ export default function FolderPage() {
             value={shareUrl}
             onFocus={(e) => e.target.select()}
           />
-          <button type="button" onClick={onCopyShare}>
-            {copied ? 'Đã copy ✓' : 'Copy'}
+          <button type="button" className="btn-icon" onClick={onCopyShare}>
+            <Copy size={16} aria-hidden="true" /> Copy
           </button>
-          <a href={shareUrl} target="_blank" rel="noreferrer">Mở</a>
+          <a className="btn-icon" href={shareUrl} target="_blank" rel="noreferrer">
+            <ExternalLink size={16} aria-hidden="true" /> Mở
+          </a>
         </div>
       )}
 
       <div className="actions">
-        <button type="button" className="primary" onClick={() => create('note')}>
-          + New note
+        <button type="button" className="btn-icon primary" onClick={() => create('note')}>
+          <Plus size={16} aria-hidden="true" /> New note
         </button>
-        <button type="button" className="primary" onClick={() => create('markdown')}>
-          + New markdown
+        <button type="button" className="btn-icon primary" onClick={() => create('markdown')}>
+          <Plus size={16} aria-hidden="true" /> New markdown
         </button>
         <button
           type="button"
+          className="btn-icon"
           onClick={() => navigate(`/docs/upload?folder=${folder.id}`)}
         >
-          ⬆️ Tải lên hàng loạt
+          <Upload size={16} aria-hidden="true" /> Tải lên hàng loạt
         </button>
       </div>
 
       {docs.length > 0 && (
         <div className="search-bar-wrap">
-          <span className="search-icon" aria-hidden="true">🔍</span>
+          <Search className="search-icon" size={16} aria-hidden="true" />
           <input
             type="search"
             className="search-input"
@@ -237,9 +270,10 @@ export default function FolderPage() {
               type="button"
               className="search-clear"
               title="Xóa tìm kiếm"
+              aria-label="Xóa tìm kiếm"
               onClick={() => setQuery('')}
             >
-              ✕
+              <X size={16} aria-hidden="true" />
             </button>
           )}
         </div>
@@ -248,10 +282,11 @@ export default function FolderPage() {
       {searching ? (
         <SearchResults results={results} query={query} />
       ) : docs.length === 0 ? (
-        <p className="muted empty">
-          Folder trống. Bấm nút phía trên để tạo tài liệu, hoặc kéo tài liệu vào folder
-          này từ trang chủ.
-        </p>
+        <EmptyState
+          icon={<Inbox size={40} aria-hidden="true" />}
+          title="Folder trống"
+          description="Bấm nút phía trên để tạo tài liệu, hoặc kéo tài liệu vào folder này từ trang chủ."
+        />
       ) : (
         <ul className="doc-list">
           {docs.map((d) => (
@@ -275,9 +310,10 @@ export default function FolderPage() {
                 type="button"
                 className="doc-remove"
                 title="Đưa tài liệu ra khỏi folder"
+                aria-label="Đưa tài liệu ra khỏi folder"
                 onClick={() => moveDocument(d.id, undefined)}
               >
-                ⤴
+                <CornerUpLeft size={16} aria-hidden="true" />
               </button>
             </li>
           ))}

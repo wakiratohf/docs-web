@@ -11,6 +11,7 @@ import { ref, onValue, set, update } from 'firebase/database';
 import { v4 as uuidv4 } from 'uuid';
 import { db } from '../lib/firebase';
 import { useAuth } from '../auth/useAuth';
+import { useToast } from './ToastContext';
 import type { DocItem, DocumentType, Folder } from '../types';
 
 type DocUpdates = Partial<Pick<DocItem, 'title' | 'content' | 'type'>>;
@@ -57,10 +58,31 @@ const DocumentsContext = createContext<DocumentsState | null>(null);
 export function DocumentsProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const uid = user?.uid;
+  const { toastError } = useToast();
 
   const [documents, setDocuments] = useState<DocItem[]>([]);
   const [folders, setFolders] = useState<Folder[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Ghi dữ liệu lên Firebase. Trước đây lỗi mạng bị nuốt im lặng; giờ báo toast.
+  // KHÔNG await (giữ mutator đồng bộ, không đổi chữ ký) — chỉ thêm nhánh .catch.
+  // db! an toàn vì mọi mutator đã chặn `if (!db || !uid) return;` ở đầu.
+  const commit = useCallback(
+    (writes: Record<string, unknown>) => {
+      update(ref(db!), writes).catch(() =>
+        toastError('Lưu thất bại — kiểm tra kết nối mạng.'),
+      );
+    },
+    [toastError],
+  );
+  const commitSet = useCallback(
+    (path: string, value: unknown) => {
+      set(ref(db!, path), value).catch(() =>
+        toastError('Lưu thất bại — kiểm tra kết nối mạng.'),
+      );
+    },
+    [toastError],
+  );
 
   // Luôn giữ bản state mới nhất để các mutator đọc từ đây (KHÔNG đọc closure),
   // tránh lỗi "tạo hàng loạt chỉ lưu được item cuối".
@@ -135,10 +157,10 @@ export function DocumentsProvider({ children }: { children: ReactNode }) {
       if (findSharedFolder(stateRef.current.folders, folderId)) {
         writes[`shared/f/${folderId}/documents/${created.id}`] = created;
       }
-      update(ref(db), writes);
+      commit(writes);
       return created;
     },
-    [uid],
+    [uid, commit],
   );
 
   const addDocuments = useCallback(
@@ -174,10 +196,10 @@ export function DocumentsProvider({ children }: { children: ReactNode }) {
           writes[`shared/f/${folderId}/documents/${doc.id}`] = doc;
         }
       });
-      update(ref(db), writes);
+      commit(writes);
       return created;
     },
-    [uid],
+    [uid, commit],
   );
 
   const updateDocument = useCallback(
@@ -202,9 +224,9 @@ export function DocumentsProvider({ children }: { children: ReactNode }) {
         const merged: DocItem = { ...cur, ...updates, updatedAt: now };
         writes[`shared/f/${cur.folderId}/documents/${id}`] = merged;
       }
-      update(ref(db), writes);
+      commit(writes);
     },
-    [uid],
+    [uid, commit],
   );
 
   const deleteDocument = useCallback(
@@ -220,9 +242,9 @@ export function DocumentsProvider({ children }: { children: ReactNode }) {
       if (cur && findSharedFolder(stateRef.current.folders, cur.folderId)) {
         writes[`shared/f/${cur.folderId}/documents/${id}`] = null;
       }
-      update(ref(db), writes);
+      commit(writes);
     },
-    [uid],
+    [uid, commit],
   );
 
   const toggleShareDocument = useCallback(
@@ -241,9 +263,9 @@ export function DocumentsProvider({ children }: { children: ReactNode }) {
         // Tắt chia sẻ → xóa bản công khai.
         writes[`shared/d/${id}`] = null;
       }
-      update(ref(db), writes);
+      commit(writes);
     },
-    [uid],
+    [uid, commit],
   );
 
   const addFolder = useCallback(
@@ -257,10 +279,10 @@ export function DocumentsProvider({ children }: { children: ReactNode }) {
         order: cur.length,
         createdAt: now,
       };
-      set(ref(db, `users/${uid}/folders/${created.id}`), created);
+      commitSet(`users/${uid}/folders/${created.id}`, created);
       return created;
     },
-    [uid],
+    [uid, commitSet],
   );
 
   const renameFolder = useCallback(
@@ -273,9 +295,9 @@ export function DocumentsProvider({ children }: { children: ReactNode }) {
       if (findSharedFolder(stateRef.current.folders, id)) {
         writes[`shared/f/${id}/folder/name`] = name;
       }
-      update(ref(db), writes);
+      commit(writes);
     },
-    [uid],
+    [uid, commit],
   );
 
   const deleteFolder = useCallback(
@@ -296,9 +318,9 @@ export function DocumentsProvider({ children }: { children: ReactNode }) {
           if (d.isShared) writes[`shared/d/${d.id}`] = null;
         }
       }
-      update(ref(db), writes);
+      commit(writes);
     },
-    [uid],
+    [uid, commit],
   );
 
   const toggleShareFolder = useCallback(
@@ -325,9 +347,9 @@ export function DocumentsProvider({ children }: { children: ReactNode }) {
         // Tắt chia sẻ → xóa cả cụm công khai.
         writes[`shared/f/${id}`] = null;
       }
-      update(ref(db), writes);
+      commit(writes);
     },
-    [uid],
+    [uid, commit],
   );
 
   const togglePinFolder = useCallback(
@@ -337,9 +359,9 @@ export function DocumentsProvider({ children }: { children: ReactNode }) {
       if (!folder) return;
       // Ghim là tùy chọn sắp xếp CỦA RIÊNG chủ sở hữu → chỉ ghi bản riêng tư,
       // KHÔNG đồng bộ vào bản công khai shared/f/{id} (người xem không quan tâm thứ tự này).
-      set(ref(db, `users/${uid}/folders/${id}/isPinned`), !folder.isPinned);
+      commitSet(`users/${uid}/folders/${id}/isPinned`, !folder.isPinned);
     },
-    [uid],
+    [uid, commitSet],
   );
 
   const moveDocument = useCallback(
@@ -380,9 +402,9 @@ export function DocumentsProvider({ children }: { children: ReactNode }) {
         };
         writes[`shared/f/${folderId}/documents/${id}`] = moved;
       }
-      update(ref(db), writes);
+      commit(writes);
     },
-    [uid],
+    [uid, commit],
   );
 
   return (

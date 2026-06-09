@@ -1,11 +1,14 @@
 import { useEffect, useState, type CSSProperties } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { get, ref } from 'firebase/database';
+import { Download, FolderX, Inbox } from 'lucide-react';
 import { db } from '../lib/firebase';
 import type { DocItem, Folder } from '../types';
 import HtmlContent from '../components/HtmlContent';
 import MarkdownPreview from '../components/MarkdownPreview';
 import ThemeToggle from '../components/ThemeToggle';
+import Spinner from '../components/Spinner';
+import EmptyState from '../components/EmptyState';
 import { useFontScale } from '../components/FontSizeControl';
 import { downloadDocument } from '../lib/downloadHelpers';
 import { formatDate } from '../lib/formatDate';
@@ -74,11 +77,11 @@ export default function SharedFolderPage() {
           {state === 'ready' && current && (
             <button
               type="button"
-              className="share-download-btn"
+              className="share-download-btn btn-icon"
               onClick={() => downloadDocument(current)}
               title="Tải tài liệu này về máy"
             >
-              ⬇ Tải về
+              <Download size={16} aria-hidden="true" /> Tải về
             </button>
           )}
           <ThemeToggle />
@@ -86,14 +89,16 @@ export default function SharedFolderPage() {
         </div>
       </header>
 
-      {state === 'loading' && <p className="muted">Đang tải…</p>}
+      {state === 'loading' && <Spinner />}
       {state === 'error' && (
         <p className="warn">Không tải được folder (cấu hình Firebase hoặc mạng).</p>
       )}
       {state === 'notfound' && (
-        <p className="muted empty">
-          Folder không tồn tại hoặc chủ sở hữu đã ngừng chia sẻ.
-        </p>
+        <EmptyState
+          icon={<FolderX size={40} aria-hidden="true" />}
+          title="Folder không khả dụng"
+          description="Folder không tồn tại hoặc chủ sở hữu đã ngừng chia sẻ."
+        />
       )}
 
       {state === 'ready' && payload && (
@@ -132,7 +137,10 @@ export default function SharedFolderPage() {
             )
           ) : docs.length === 0 ? (
             // Danh sách tài liệu của folder
-            <p className="muted empty">Folder này chưa có tài liệu nào.</p>
+            <EmptyState
+              icon={<Inbox size={40} aria-hidden="true" />}
+              title="Folder này chưa có tài liệu nào"
+            />
           ) : (
             <ul className="share-folder-list">
               {docs.map((d) => (

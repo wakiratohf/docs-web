@@ -1,10 +1,21 @@
 import { useMemo, useState, type DragEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import {
+  Plus,
+  FolderPlus,
+  Upload,
+  Search,
+  X,
+  Pin,
+  FolderOpen,
+} from 'lucide-react';
 import { useDocuments } from '../context/DocumentsContext';
 import { useUploadDocuments } from '../hooks/useUploadDocuments';
 import { useAuth } from '../auth/useAuth';
 import ThemeToggle from '../components/ThemeToggle';
 import SearchResults from '../components/SearchResults';
+import Spinner from '../components/Spinner';
+import EmptyState from '../components/EmptyState';
 import { searchDocs } from '../lib/search';
 import type { DocItem, DocumentType, Folder } from '../types';
 
@@ -108,20 +119,22 @@ export default function DocsAllPage() {
       </header>
 
       <div className="actions">
-        <button type="button" className="primary" onClick={() => create('note')}>
-          + New note
+        <button type="button" className="btn-icon primary" onClick={() => create('note')}>
+          <Plus size={16} aria-hidden="true" /> New note
         </button>
-        <button type="button" className="primary" onClick={() => create('markdown')}>
-          + New markdown
+        <button type="button" className="btn-icon primary" onClick={() => create('markdown')}>
+          <Plus size={16} aria-hidden="true" /> New markdown
         </button>
-        <button type="button" onClick={() => addFolder()}>+ New folder</button>
-        <button type="button" onClick={() => navigate('/docs/upload')}>
-          ⬆️ Tải lên hàng loạt
+        <button type="button" className="btn-icon" onClick={() => addFolder()}>
+          <FolderPlus size={16} aria-hidden="true" /> New folder
+        </button>
+        <button type="button" className="btn-icon" onClick={() => navigate('/docs/upload')}>
+          <Upload size={16} aria-hidden="true" /> Tải lên hàng loạt
         </button>
       </div>
 
       <div className="search-bar-wrap">
-        <span className="search-icon" aria-hidden="true">🔍</span>
+        <Search className="search-icon" size={16} aria-hidden="true" />
         <input
           type="search"
           className="search-input"
@@ -134,15 +147,16 @@ export default function DocsAllPage() {
             type="button"
             className="search-clear"
             title="Xóa tìm kiếm"
+            aria-label="Xóa tìm kiếm"
             onClick={() => setQuery('')}
           >
-            ✕
+            <X size={16} aria-hidden="true" />
           </button>
         )}
       </div>
 
       {loading ? (
-        <p className="muted">Đang tải…</p>
+        <Spinner />
       ) : searching ? (
         <SearchResults
           results={results}
@@ -151,9 +165,16 @@ export default function DocsAllPage() {
           showFolder
         />
       ) : folders.length === 0 && documents.length === 0 ? (
-        <p className="muted empty">
-          Chưa có gì. Bấm “+ New folder” hoặc “+ New note” để bắt đầu.
-        </p>
+        <EmptyState
+          icon={<FolderOpen size={40} aria-hidden="true" />}
+          title="Chưa có tài liệu nào"
+          description="Tạo ghi chú, tài liệu Markdown hoặc folder để bắt đầu."
+          action={
+            <button type="button" className="btn-icon primary" onClick={() => create('note')}>
+              <Plus size={16} aria-hidden="true" /> New note
+            </button>
+          }
+        />
       ) : (
         <div className="home-grid">
           {/* Ô folder — bấm để mở trang chi tiết */}
@@ -165,6 +186,7 @@ export default function DocsAllPage() {
               }`}
               role="button"
               tabIndex={0}
+              aria-label={`Mở folder ${f.name}`}
               onClick={() => openFolder(f)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' || e.key === ' ') openFolder(f);
@@ -180,13 +202,14 @@ export default function DocsAllPage() {
                   type="button"
                   className="folder-pin"
                   title={f.isPinned ? 'Bỏ ghim folder' : 'Ghim folder lên đầu'}
+                  aria-label={f.isPinned ? 'Bỏ ghim folder' : 'Ghim folder lên đầu'}
                   aria-pressed={f.isPinned ? true : false}
                   onClick={(e) => {
                     e.stopPropagation();
                     togglePinFolder(f.id);
                   }}
                 >
-                  📌
+                  <Pin size={14} aria-hidden="true" />
                 </button>
                 {f.isShared && (
                   <span className="tile-share" title="Đang chia sẻ công khai">🔗</span>

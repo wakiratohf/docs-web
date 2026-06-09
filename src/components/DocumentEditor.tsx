@@ -1,7 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Share2, Link2, Trash2, Copy, ExternalLink, Loader2, Check } from 'lucide-react';
 import type { DocItem, DocumentType } from '../types';
 import { useDocuments } from '../context/DocumentsContext';
+import { useToast } from '../context/ToastContext';
+import { useConfirm } from '../context/ConfirmContext';
 import NoteEditor from './NoteEditor';
 import MarkdownPreview from './MarkdownPreview';
 
@@ -15,6 +18,8 @@ export default function DocumentEditor({ doc }: { doc: DocItem }) {
     folders,
     moveDocument,
   } = useDocuments();
+  const { toastSuccess, toastError } = useToast();
+  const confirm = useConfirm();
   const navigate = useNavigate();
 
   const [title, setTitle] = useState(doc.title);
@@ -24,17 +29,17 @@ export default function DocumentEditor({ doc }: { doc: DocItem }) {
   const [tab, setTab] = useState<'edit' | 'preview'>(
     doc.content.trim() ? 'preview' : 'edit',
   );
-  const [copied, setCopied] = useState(false);
+  // Trạng thái auto-save để hiển thị "Đang lưu…" / "Đã lưu".
+  const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved'>('idle');
 
   const shareUrl = `${window.location.origin}/share/d/${doc.id}`;
 
   const onCopyShare = async () => {
     try {
       await navigator.clipboard.writeText(shareUrl);
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 1500);
+      toastSuccess('Đã copy link chia sẻ');
     } catch {
-      setCopied(false);
+      toastError('Không copy được link');
     }
   };
 
@@ -50,8 +55,10 @@ export default function DocumentEditor({ doc }: { doc: DocItem }) {
 
   // Auto-save có debounce ~600ms.
   const timer = useRef<number | undefined>(undefined);
+  const savedTimer = useRef<number | undefined>(undefined);
   const pending = useRef<DocUpdates | null>(null);
 
+  // Ghi nốt thay đổi còn treo (không đụng tới UI, dùng cả lúc unmount).
   const flush = () => {
     if (pending.current) {
       updateDocument(doc.id, pending.current);
@@ -61,14 +68,22 @@ export default function DocumentEditor({ doc }: { doc: DocItem }) {
 
   const debounceSave = (updates: DocUpdates) => {
     pending.current = { ...(pending.current ?? {}), ...updates };
+    setSaveState('saving');
     window.clearTimeout(timer.current);
-    timer.current = window.setTimeout(flush, 600);
+    timer.current = window.setTimeout(() => {
+      flush();
+      setSaveState('saved');
+      window.clearTimeout(savedTimer.current);
+      // Sau 2s đưa chỉ báo về ẩn.
+      savedTimer.current = window.setTimeout(() => setSaveState('idle'), 2000);
+    }, 600);
   };
 
-  // Lưu nốt thay đổi còn treo khi rời tài liệu.
+  // Lưu nốt thay đổi còn treo khi rời tài liệu (chỉ ghi, không setState).
   useEffect(() => {
     return () => {
       window.clearTimeout(timer.current);
+      window.clearTimeout(savedTimer.current);
       flush();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -84,13 +99,30 @@ export default function DocumentEditor({ doc }: { doc: DocItem }) {
     debounceSave({ content: v });
   };
 
-  const onChangeType = (v: DocumentType) => {
+  const onChangeType = async (v: DocumentType) => {
+    if (v === type) return;
+    // Đổi loại không tự chuyển định dạng → cảnh báo nếu đang có nội dung.
+    if (content.trim()) {
+      const ok = await confirm({
+        title: 'Đổi loại tài liệu',
+        message:
+          'Đổi loại có thể làm nội dung hiển thị khác đi (định dạng không tự chuyển). Tiếp tục?',
+        confirmText: 'Đổi',
+      });
+      if (!ok) return; // select controlled tự về giá trị cũ
+    }
     setType(v);
     updateDocument(doc.id, { type: v });
   };
 
-  const onDelete = () => {
-    if (!window.confirm('Xóa tài liệu này? Hành động không thể hoàn tác.')) return;
+  const onDelete = async () => {
+    const ok = await confirm({
+      title: 'Xóa tài liệu',
+      message: 'Xóa tài liệu này? Hành động không thể hoàn tác.',
+      confirmText: 'Xóa',
+      danger: true,
+    });
+    if (!ok) return;
     deleteDocument(doc.id);
     navigate('/docs');
   };
@@ -104,6 +136,22 @@ export default function DocumentEditor({ doc }: { doc: DocItem }) {
           onChange={(e) => onTitle(e.target.value)}
           placeholder="Tiêu đề tài liệu"
         />
+        {saveState !== 'idle' && (
+          <span
+            className={`save-indicator ${saveState === 'saved' ? 'is-saved' : ''}`}
+            aria-live="polite"
+          >
+            {saveState === 'saving' ? (
+              <>
+                <Loader2 className="spin" size={14} aria-hidden="true" /> Đang lưu…
+              </>
+            ) : (
+              <>
+                <Check size={14} aria-hidden="true" /> Đã lưu
+              </>
+            )}
+          </span>
+        )}
         <select
           className="type-select"
           value={type}
@@ -127,14 +175,22 @@ export default function DocumentEditor({ doc }: { doc: DocItem }) {
         </select>
         <button
           type="button"
-          className={doc.isShared ? 'primary' : ''}
+          className={`btn-icon ${doc.isShared ? 'primary' : ''}`}
           onClick={() => toggleShareDocument(doc.id)}
           title="Bật/tắt chia sẻ công khai"
         >
-          {doc.isShared ? '🔗 Đang chia sẻ' : 'Chia sẻ'}
+          {doc.isShared ? (
+            <>
+              <Link2 size={16} aria-hidden="true" /> Đang chia sẻ
+            </>
+          ) : (
+            <>
+              <Share2 size={16} aria-hidden="true" /> Chia sẻ
+            </>
+          )}
         </button>
-        <button type="button" className="danger" onClick={onDelete}>
-          Xóa
+        <button type="button" className="btn-icon danger" onClick={onDelete}>
+          <Trash2 size={16} aria-hidden="true" /> Xóa
         </button>
       </div>
 
@@ -142,10 +198,12 @@ export default function DocumentEditor({ doc }: { doc: DocItem }) {
         <div className="share-bar">
           <span className="muted">Link công khai (ai có link đều xem được):</span>
           <input className="share-url" readOnly value={shareUrl} onFocus={(e) => e.target.select()} />
-          <button type="button" onClick={onCopyShare}>
-            {copied ? 'Đã copy ✓' : 'Copy'}
+          <button type="button" className="btn-icon" onClick={onCopyShare}>
+            <Copy size={16} aria-hidden="true" /> Copy
           </button>
-          <a href={shareUrl} target="_blank" rel="noreferrer">Mở</a>
+          <a className="btn-icon" href={shareUrl} target="_blank" rel="noreferrer">
+            <ExternalLink size={16} aria-hidden="true" /> Mở
+          </a>
         </div>
       )}
 

@@ -1,6 +1,9 @@
 import { Link, useParams } from 'react-router-dom';
+import { FileQuestion } from 'lucide-react';
 import { useDocuments } from '../context/DocumentsContext';
 import DocumentEditor from '../components/DocumentEditor';
+import Spinner from '../components/Spinner';
+import EmptyState from '../components/EmptyState';
 
 export default function DocViewerPage() {
   const { id } = useParams();
@@ -14,9 +17,13 @@ export default function DocViewerPage() {
       </div>
 
       {loading ? (
-        <p className="muted">Đang tải…</p>
+        <Spinner />
       ) : !doc ? (
-        <p className="muted">Không tìm thấy tài liệu này.</p>
+        <EmptyState
+          icon={<FileQuestion size={40} aria-hidden="true" />}
+          title="Không tìm thấy tài liệu này"
+          description={<Link to="/docs">← Quay lại danh sách</Link>}
+        />
       ) : (
         <DocumentEditor key={doc.id} doc={doc} />
       )}
