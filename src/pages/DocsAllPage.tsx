@@ -12,8 +12,15 @@ import type { DocItem, DocumentType, Folder } from '../types';
 const GLYPH: Record<DocumentType, string> = { note: '✏️', markdown: '#' };
 
 export default function DocsAllPage() {
-  const { documents, folders, loading, addDocument, addFolder, moveDocument } =
-    useDocuments();
+  const {
+    documents,
+    folders,
+    loading,
+    addDocument,
+    addFolder,
+    moveDocument,
+    togglePinFolder,
+  } = useDocuments();
   const { uploadFiles } = useUploadDocuments();
   const { user, signOutUser } = useAuth();
   const navigate = useNavigate();
@@ -153,7 +160,9 @@ export default function DocsAllPage() {
           {folders.map((f) => (
             <div
               key={f.id}
-              className={`tile folder-tile${dragOver === f.id ? ' drop-over' : ''}`}
+              className={`tile folder-tile${dragOver === f.id ? ' drop-over' : ''}${
+                f.isPinned ? ' is-pinned' : ''
+              }`}
               role="button"
               tabIndex={0}
               onClick={() => openFolder(f)}
@@ -166,6 +175,19 @@ export default function DocsAllPage() {
               title={f.name}
             >
               <span className="folder-icon-box">
+                {/* Nút ghim: bấm để ghim/bỏ ghim, chặn nổi bọt để không mở folder */}
+                <button
+                  type="button"
+                  className="folder-pin"
+                  title={f.isPinned ? 'Bỏ ghim folder' : 'Ghim folder lên đầu'}
+                  aria-pressed={f.isPinned ? true : false}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    togglePinFolder(f.id);
+                  }}
+                >
+                  📌
+                </button>
                 {f.isShared && (
                   <span className="tile-share" title="Đang chia sẻ công khai">🔗</span>
                 )}

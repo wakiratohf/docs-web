@@ -7,6 +7,8 @@ export interface Folder {
   createdAt: string;
   /** true = đã bật chia sẻ công khai, có bản sao tại shared/f/{id} */
   isShared?: boolean;
+  /** true = folder được ghim, ưu tiên hiển thị trên cùng (tùy chọn cá nhân, không lộ ra bản công khai) */
+  isPinned?: boolean;
 }
 
 export interface DocItem {

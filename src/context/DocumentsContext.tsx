@@ -46,6 +46,8 @@ interface DocumentsState {
   renameFolder: (id: string, name: string) => void;
   deleteFolder: (id: string) => void;
   toggleShareFolder: (id: string) => void;
+  /** Bật/tắt ghim folder (ưu tiên hiển thị trên cùng) */
+  togglePinFolder: (id: string) => void;
   /** folderId = undefined ⇒ đưa tài liệu ra ngoài (không folder) */
   moveDocument: (id: string, folderId: string | undefined) => void;
 }
@@ -93,8 +95,12 @@ export function DocumentsProvider({ children }: { children: ReactNode }) {
     const unsubFolders = onValue(foldersRef, (snap) => {
       const val = snap.val() as Record<string, Folder> | null;
       const list = val ? Object.values(val) : [];
+      // Folder được ghim luôn lên đầu; trong mỗi nhóm vẫn theo order rồi createdAt.
       list.sort(
-        (a, b) => a.order - b.order || a.createdAt.localeCompare(b.createdAt),
+        (a, b) =>
+          Number(b.isPinned ?? false) - Number(a.isPinned ?? false) ||
+          a.order - b.order ||
+          a.createdAt.localeCompare(b.createdAt),
       );
       setFolders(list);
     });
@@ -324,6 +330,18 @@ export function DocumentsProvider({ children }: { children: ReactNode }) {
     [uid],
   );
 
+  const togglePinFolder = useCallback(
+    (id: string) => {
+      if (!db || !uid) return;
+      const folder = stateRef.current.folders.find((f) => f.id === id);
+      if (!folder) return;
+      // Ghim là tùy chọn sắp xếp CỦA RIÊNG chủ sở hữu → chỉ ghi bản riêng tư,
+      // KHÔNG đồng bộ vào bản công khai shared/f/{id} (người xem không quan tâm thứ tự này).
+      set(ref(db, `users/${uid}/folders/${id}/isPinned`), !folder.isPinned);
+    },
+    [uid],
+  );
+
   const moveDocument = useCallback(
     (id: string, folderId: string | undefined) => {
       if (!db || !uid) return;
@@ -382,6 +400,7 @@ export function DocumentsProvider({ children }: { children: ReactNode }) {
         renameFolder,
         deleteFolder,
         toggleShareFolder,
+        togglePinFolder,
         moveDocument,
       }}
     >

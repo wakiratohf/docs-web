@@ -22,6 +22,7 @@ export default function FolderPage() {
     renameFolder,
     deleteFolder,
     toggleShareFolder,
+    togglePinFolder,
     moveDocument,
   } = useDocuments();
   const { uploadFiles } = useUploadDocuments();
@@ -167,6 +168,14 @@ export default function FolderPage() {
         </h1>
         <div className="user-box">
           <ThemeToggle />
+          <button
+            type="button"
+            className={folder.isPinned ? 'primary' : ''}
+            onClick={() => togglePinFolder(folder.id)}
+            title="Bật/tắt ghim folder (ưu tiên hiển thị trên cùng)"
+          >
+            {folder.isPinned ? '📌 Đã ghim' : 'Ghim folder'}
+          </button>
           <button
             type="button"
             className={folder.isShared ? 'primary' : ''}
