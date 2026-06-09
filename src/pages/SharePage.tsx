@@ -8,6 +8,7 @@ import MarkdownPreview from '../components/MarkdownPreview';
 import ThemeToggle from '../components/ThemeToggle';
 import { useFontScale } from '../components/FontSizeControl';
 import { downloadDocument } from '../lib/downloadHelpers';
+import { formatDate } from '../lib/formatDate';
 
 interface SharedPayload {
   document: DocItem;
@@ -84,6 +85,14 @@ export default function SharePage() {
       {state === 'ready' && doc && (
         <article className="share-doc">
           <h1>{doc.title || '(không tiêu đề)'}</h1>
+          <p className="share-doc-dates muted">
+            <span className="doc-date" title="Thời gian cập nhật gần nhất">
+              Sửa: {formatDate(doc.updatedAt)}
+            </span>
+            <span className="doc-date" title="Thời gian tạo">
+              Tạo: {formatDate(doc.createdAt)}
+            </span>
+          </p>
           {doc.type === 'note' ? (
             <HtmlContent value={doc.content} />
           ) : (

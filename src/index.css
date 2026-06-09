@@ -298,6 +298,16 @@ a:hover {
 .share-doc h1 {
   margin-top: 0;
 }
+/* Cụm ngày tạo/cập nhật dưới tiêu đề tài liệu chia sẻ (hàng ngang) */
+.share-doc-dates {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin: -8px 0 18px;
+}
+.share-doc-dates .doc-date {
+  font-size: 13px;
+}
 .note-content.readonly {
   min-height: auto;
   padding: 0;

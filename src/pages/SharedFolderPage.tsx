@@ -8,6 +8,7 @@ import MarkdownPreview from '../components/MarkdownPreview';
 import ThemeToggle from '../components/ThemeToggle';
 import { useFontScale } from '../components/FontSizeControl';
 import { downloadDocument } from '../lib/downloadHelpers';
+import { formatDate } from '../lib/formatDate';
 
 // Bản công khai của một folder: metadata folder + toàn bộ tài liệu bên trong.
 interface SharedFolderPayload {
@@ -109,6 +110,14 @@ export default function SharedFolderPage() {
                   ← Quay lại folder
                 </Link>
                 <h2>{current.title || '(không tiêu đề)'}</h2>
+                <p className="share-doc-dates muted">
+                  <span className="doc-date" title="Thời gian cập nhật gần nhất">
+                    Sửa: {formatDate(current.updatedAt)}
+                  </span>
+                  <span className="doc-date" title="Thời gian tạo">
+                    Tạo: {formatDate(current.createdAt)}
+                  </span>
+                </p>
                 {current.type === 'note' ? (
                   <HtmlContent value={current.content} />
                 ) : (
@@ -132,6 +141,14 @@ export default function SharedFolderPage() {
                     <span className="share-folder-glyph">{GLYPH[d.type]}</span>
                     <span className="share-folder-name">
                       {d.title || '(không tiêu đề)'}
+                    </span>
+                    <span className="doc-dates muted">
+                      <span className="doc-date" title="Thời gian cập nhật gần nhất">
+                        Sửa: {formatDate(d.updatedAt)}
+                      </span>
+                      <span className="doc-date" title="Thời gian tạo">
+                        Tạo: {formatDate(d.createdAt)}
+                      </span>
                     </span>
                     <span className="share-folder-arrow">→</span>
                   </Link>
