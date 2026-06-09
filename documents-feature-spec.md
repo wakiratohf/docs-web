@@ -1,9 +1,9 @@
 # Chức năng "Documents" — spec để dựng lại trong web tool khác
 
 > **Tài liệu này dùng để làm gì?**
-> Đây là bản **đặc tả (spec)** đầy đủ của tính năng **Documents** — quản lý tài liệu nhiều định dạng — rút ra từ một dự án React + TypeScript + Firebase đang chạy. Đưa file này cho **Claude Code** (hoặc một lập trình viên), họ có thể dựng lại y hệt tính năng trong một web tool khác.
+> Đây là bản **đặc tả (spec)** đầy đủ của tính năng **Documents** — quản lý & chia sẻ tài liệu — rút ra **nguyên văn từ source code của dự án `docs-web`** (Vite + React 19 + TypeScript + Firebase). Đưa file này cho **Claude Code** (hoặc một lập trình viên), họ có thể dựng lại y hệt tính năng trong một web tool khác.
 >
-> Mọi đoạn code/đường dẫn được trích nguyên văn để dùng lại được ngay.
+> Mọi đoạn code/đường dẫn được trích nguyên văn từ thư mục `src/` để dùng lại được ngay.
 
 ---
 
@@ -13,424 +13,453 @@
 2. [Yêu cầu nền tảng](#2-yêu-cầu-nền-tảng)
 3. [Mô hình dữ liệu](#3-mô-hình-dữ-liệu)
 4. [Lưu trữ & các hàm sửa đổi (mutator)](#4-lưu-trữ--các-hàm-sửa-đổi-mutator)
-5. [Chi tiết 5 loại tài liệu](#5-chi-tiết-5-loại-tài-liệu)
-6. [Giao diện & đường dẫn (route)](#6-giao-diện--đường-dẫn-route)
-7. [Chia sẻ công khai](#7-chia-sẻ-công-khai)
-8. [Những cái bẫy hay gặp](#8-những-cái-bẫy-hay-gặp)
-9. [Checklist tái dựng](#9-checklist-tái-dựng)
+5. [Hai loại tài liệu](#5-hai-loại-tài-liệu)
+6. [Folder & kéo-thả](#6-folder--kéo-thả)
+7. [Giao diện & đường dẫn (route)](#7-giao-diện--đường-dẫn-route)
+8. [Chia sẻ công khai](#8-chia-sẻ-công-khai)
+9. [Những cái bẫy hay gặp](#9-những-cái-bẫy-hay-gặp)
+10. [Checklist tái dựng](#10-checklist-tái-dựng)
 
 ---
 
 ## 1. Documents là gì
 
-Documents là kho tài liệu của ứng dụng. Mỗi tài liệu:
+Documents là kho tài liệu cá nhân của ứng dụng. Mỗi tài liệu:
 
-- **Hoặc gắn với một project cụ thể**, **hoặc là tài liệu "General"** (không thuộc project nào).
-- Thuộc một trong **5 loại** — mỗi loại lưu và hiển thị nội dung khác nhau:
+- **Hoặc nằm trong một folder (thư mục)**, **hoặc đứng riêng** (không thuộc folder nào).
+- Thuộc một trong **2 loại** — mỗi loại lưu và hiển thị nội dung khác nhau:
 
 | Loại (`type`) | Mô tả ngắn |
 |---|---|
 | `note` | Văn bản định dạng phong phú (in đậm, tiêu đề, danh sách...). Lưu dưới dạng HTML. |
 | `markdown` | Văn bản viết bằng cú pháp Markdown. Lưu dưới dạng chữ thuần. |
-| `embed` | Nhúng một Google Doc/Sheet/Slides vào trang qua khung iframe. |
-| `link` | Một đường link bên ngoài + ghi chú Markdown đi kèm. |
-| `file` | Tệp tải lên (`.txt` / `.md` / `.pdf`) lưu trong Firebase Storage. |
 
-Người dùng có thể tạo, sửa, xóa, sắp xếp, và **chia sẻ công khai** từng tài liệu qua một đường link ai cũng xem được.
+Người dùng có thể tạo, sửa, xóa, gom vào folder (bằng kéo-thả), và **chia sẻ công khai** từng tài liệu qua một đường link ai cũng xem được.
 
 ---
 
 ## 2. Yêu cầu nền tảng
 
-Tính năng này **cần một nền Firebase đã dựng sẵn** (Authentication để biết `uid` người dùng, Realtime Database để lưu metadata tài liệu, Storage để chứa file tải lên).
+Tính năng này **cần một nền Firebase đã dựng sẵn**:
 
-➡️ **Nếu chưa có nền tảng, đọc file đi kèm `firebase-hosting-setup.md` trước.** Tài liệu đó dựng đầy đủ Hosting + Auth + Realtime Database + Storage.
+- **Authentication** — để biết `uid` của người dùng (dự án dùng đăng nhập Google).
+- **Realtime Database** — để lưu toàn bộ tài liệu, folder và bản chia sẻ công khai.
+
+➡️ **Nếu chưa có nền tảng, đọc file đi kèm `firebase-hosting-setup.md` trước.** Tài liệu đó dựng đầy đủ Hosting + Auth + Realtime Database.
+
+> Lưu ý: dự án **không** dùng Firebase Storage. Mọi nội dung đều là chuỗi văn bản (HTML hoặc Markdown) lưu thẳng trong Realtime Database.
 
 Ngoài ra dùng thêm:
 - `react-markdown` + `remark-gfm` — để hiển thị Markdown.
-- `uuid` — sinh mã định danh cho mỗi tài liệu.
+- `uuid` — sinh mã định danh cho mỗi tài liệu và folder.
+- `react-router-dom` — điều hướng giữa các trang.
 
 ---
 
 ## 3. Mô hình dữ liệu
 
-Định nghĩa kiểu tài liệu (nguyên văn từ `src/types.ts`):
+Định nghĩa kiểu dữ liệu (nguyên văn từ `src/types.ts`):
 
 ```typescript
-export type DocumentType = 'note' | 'markdown' | 'embed' | 'link' | 'file';
+export type DocumentType = 'note' | 'markdown';
 
-export interface Document {
+export interface Folder {
   id: string;
-  /** undefined or empty = General doc, not tied to a project */
-  projectId?: string;
+  name: string;
+  order: number;
+  createdAt: string;
+}
+
+export interface DocItem {
+  id: string;
   type: DocumentType;
   title: string;
+  /** note: chuỗi HTML; markdown: chuỗi Markdown thuần */
   content: string;
   createdAt: string;
   updatedAt: string;
   order: number;
-  /** When true, mirrored to `shared/d/{id}` for public read-only access. */
+  /** true = đã bật chia sẻ công khai, có bản sao tại shared/d/{id} */
   isShared?: boolean;
+  /** undefined/rỗng = tài liệu đứng riêng (không folder); có giá trị = thuộc folder đó */
+  folderId?: string;
 }
 ```
 
-Điểm cốt lõi: **một trường `content` kiểu chuỗi (string) chứa được mọi loại tài liệu** — chỉ là cách diễn giải khác nhau theo `type`:
+Điểm cốt lõi: **một trường `content` kiểu chuỗi (string) chứa được cả hai loại tài liệu** — chỉ là cách diễn giải khác nhau theo `type`:
 
 | `type` | `content` chứa gì |
 |---|---|
 | `note` | Chuỗi **HTML** (từ trình soạn thảo rich-text). |
 | `markdown` | Chuỗi **Markdown** thuần. |
-| `embed` | Một **URL** Google (chuỗi đơn). |
-| `link` | Một chuỗi **JSON** dạng `{ "url": "...", "note": "..." }`. |
-| `file` | Một chuỗi **JSON** mô tả file trong Storage (xem `FileDocContent` ở mục 5.5). |
 
-- `projectId` **không bắt buộc**: bỏ trống = tài liệu General; có giá trị = thuộc project đó.
-- `order` (số) để sắp xếp thứ tự trong danh sách.
-- `isShared` (true/false): bật chia sẻ công khai (mục 7).
-
-### Phân loại theo chủ đề (Topic) — tùy chọn
-
-Để nhóm tài liệu, dự án dùng thêm khái niệm **Topic** (chủ đề), lưu **theo từng người dùng**:
-
-```typescript
-export interface DocumentTopic {
-  id: string;
-  name: string;
-  color?: string;     // mã màu hex
-  icon?: string;      // emoji
-  description?: string;
-  order: number;
-  createdAt: string;
-}
-```
-
-- Danh sách topic lưu tại `users/{uid}/documentTopics_v1/{topicId}`.
-- Việc gán tài liệu vào topic là một **bảng ánh xạ** `docTopicMap` (kiểu `Record<docId, topicId>`) lưu tại `users/{uid}/docTopicMap/{docId}`.
-- Vì topic lưu theo từng user nên cùng một tài liệu có thể được hai người gán vào hai topic khác nhau. Đây là phần **tùy chọn** — bỏ qua được nếu app không cần nhóm tài liệu.
+- `folderId` **không bắt buộc**: bỏ trống = tài liệu đứng riêng; có giá trị = thuộc folder đó.
+- `order` (số) để sắp xếp thứ tự trong danh sách (tính riêng trong từng folder).
+- `isShared` (true/false): bật chia sẻ công khai (mục 8).
+- **Folder** là một thực thể riêng (chỉ có tên + thứ tự), **không lồng nhau** — tài liệu thuộc folder nào nhờ trường `folderId` trỏ tới `id` của folder.
 
 ---
 
 ## 4. Lưu trữ & các hàm sửa đổi (mutator)
 
-Tất cả thao tác lên tài liệu đi qua một lớp lưu trữ trung tâm — trong dự án gốc là `src/context/ProjectContext.tsx`, ghi xuống Realtime Database. Có 4 hàm sửa đổi chính, đều theo cùng một khuôn mẫu.
+Tất cả thao tác đi qua một lớp lưu trữ trung tâm: `src/context/DocumentsContext.tsx`, ghi thẳng xuống Realtime Database. Dữ liệu lưu **theo từng người dùng**:
 
-### `addDocument` — tạo tài liệu mới
+| Đường dẫn | Chứa gì |
+|---|---|
+| `users/{uid}/documents/{docId}` | Một tài liệu (`DocItem`). |
+| `users/{uid}/folders/{folderId}` | Một folder (`Folder`). |
+| `shared/d/{docId}` | Bản sao công khai của tài liệu đang chia sẻ (mục 8). |
+
+### Lắng nghe dữ liệu thời gian thực
+
+Context dùng `onValue` để **tự đồng bộ** mỗi khi dữ liệu đổi, rồi sắp xếp theo `order` (rồi `createdAt` để phá hòa):
+
+```typescript
+const docsRef = ref(db, `users/${uid}/documents`);
+const unsubDocs = onValue(docsRef, (snap) => {
+  const val = snap.val() as Record<string, DocItem> | null;
+  const list = val ? Object.values(val) : [];
+  list.sort(
+    (a, b) => a.order - b.order || a.createdAt.localeCompare(b.createdAt),
+  );
+  setDocuments(list);
+  setLoading(false);
+});
+// ... tương tự cho `users/${uid}/folders` → setFolders(...)
+```
+
+### `stateRef` — luôn đọc bản state mới nhất
+
+Mọi mutator đọc dữ liệu hiện tại qua một `useRef`, **không đọc từ biến closure của React**:
+
+```typescript
+const stateRef = useRef<{ documents: DocItem[]; folders: Folder[] }>({
+  documents: [],
+  folders: [],
+});
+stateRef.current.documents = documents;
+stateRef.current.folders = folders;
+```
+
+> **Vì sao?** Closure của React bị "đóng băng" theo lần render. Nếu lặp tạo nhiều tài liệu liền nhau trong một nhịp mà đọc từ closure thì **chỉ item cuối được lưu đúng** (vì `order` tính sai). `stateRef.current` luôn là bản mới nhất.
+
+### Các mutator tài liệu
+
+**`addDocument`** — tạo tài liệu mới (có thể thuộc folder):
 
 ```typescript
 const addDocument = useCallback(
-  (projectId: string | undefined, type: DocumentType, title?: string): Document => {
-    const curDocs = stateRef.current.documents;
-    const scopeDocs = curDocs.filter(d => (d.projectId ?? '') === (projectId ?? ''));
+  (type: DocumentType, title?: string, folderId?: string): DocItem | null => {
+    if (!db || !uid) return null;
+    const cur = stateRef.current.documents;
+    // order tính trong phạm vi cùng folder (đứng riêng = không folder).
+    const scope = cur.filter((d) => (d.folderId ?? '') === (folderId ?? ''));
     const now = new Date().toISOString();
-    const created: Document = {
+    const created: DocItem = {
       id: uuidv4(),
-      ...(projectId ? { projectId } : {}),
       type,
       title: title ?? (type === 'note' ? 'New note' : 'New document'),
       content: '',
       createdAt: now,
       updatedAt: now,
-      order: scopeDocs.length,
+      order: scope.length,
+      ...(folderId ? { folderId } : {}),
     };
-    pushUndo(`Add ${type} "${created.title}"`, ['documents']);
-    saveToFirebase({ documents: [...curDocs, created] });
+    set(ref(db, `users/${uid}/documents/${created.id}`), created);
     return created;
   },
-  [pushUndo, saveToFirebase]
+  [uid],
 );
 ```
 
-### `updateDocument` — sửa tiêu đề / nội dung / loại
+**`updateDocument`** — sửa tiêu đề / nội dung / loại, dùng **multi-path update** (ghi nhiều đường dẫn cùng lúc từ gốc cây dữ liệu):
 
 ```typescript
 const updateDocument = useCallback(
-  (id: string, updates: Partial<Pick<Document, 'title' | 'content' | 'type'>>) => {
-    const curDocs = stateRef.current.documents;
-    const doc = curDocs.find(d => d.id === id);
-    const next = curDocs.map(d =>
-      d.id === id ? { ...d, ...updates, updatedAt: new Date().toISOString() } : d
-    );
-    pushUndo(`Edit document${doc ? ` "${doc.title}"` : ''}`, ['documents']);
-    saveToFirebase({ documents: next });
+  (id: string, updates: DocUpdates) => {
+    if (!db || !uid) return;
+    const cur = stateRef.current.documents.find((d) => d.id === id);
+    const now = new Date().toISOString();
+    const writes: Record<string, unknown> = {
+      [`users/${uid}/documents/${id}/updatedAt`]: now,
+    };
+    for (const [k, v] of Object.entries(updates)) {
+      writes[`users/${uid}/documents/${id}/${k}`] = v;
+    }
+    // Nếu tài liệu đang chia sẻ công khai, cập nhật luôn bản sao shared/d/{id}.
+    if (cur?.isShared) {
+      const merged: DocItem = { ...cur, ...updates, updatedAt: now };
+      writes[`shared/d/${id}`] = { document: merged, ownerId: uid };
+    }
+    update(ref(db), writes);
   },
-  [pushUndo, saveToFirebase]
+  [uid],
 );
 ```
 
-### `deleteDocument` — xóa (và dọn ánh xạ topic)
+(`DocUpdates` = `Partial<Pick<DocItem, 'title' | 'content' | 'type'>>`.)
+
+**`deleteDocument`** — xóa tài liệu (và bản công khai nếu đang chia sẻ):
 
 ```typescript
 const deleteDocument = useCallback(
-  (id: string): Document | null => {
-    const curDocs = stateRef.current.documents;
-    const removed = curDocs.find(d => d.id === id);
-    if (!removed) return null;
-    const next = curDocs.filter(d => d.id !== id);
-    pushUndo(`Delete document "${removed.title}"`, ['documents']);
-    saveToFirebase({ documents: next });
-    // Xóa luôn ánh xạ topic của tài liệu vừa xóa.
-    if (user && db && docTopicMapRef.current[id]) {
-      update(ref(db!), { [`users/${user.uid}/docTopicMap/${id}`]: null }).catch(...);
-    }
-    return removed;
+  (id: string) => {
+    if (!db || !uid) return;
+    const cur = stateRef.current.documents.find((d) => d.id === id);
+    const writes: Record<string, unknown> = {
+      [`users/${uid}/documents/${id}`]: null,
+    };
+    if (cur?.isShared) writes[`shared/d/${id}`] = null;
+    update(ref(db), writes);
   },
-  [pushUndo, saveToFirebase, user]
+  [uid],
 );
 ```
 
-### `toggleShareDocument` — bật/tắt chia sẻ công khai
+**`toggleShareDocument`** — bật/tắt chia sẻ công khai (chi tiết ở mục 8).
+
+### Hai quy ước phải nhớ khi viết mutator
+
+1. **Đọc dữ liệu hiện tại từ `stateRef.current`, KHÔNG đọc từ biến closure.** (Lý do ở trên.)
+2. **Dùng multi-path update** — gom mọi thay đổi vào một object `writes` rồi gọi `update(ref(db), writes)` **một lần** từ gốc cây. Đặt giá trị `null` để xóa một nhánh. Cách này đảm bảo các thay đổi liên quan (ví dụ xóa tài liệu + xóa bản công khai của nó) xảy ra cùng lúc.
+
+> **Không có undo/redo.** Mỗi mutator ghi thẳng xuống Firebase; không có hàng đợi hoàn tác. Đây là chủ đích để giữ lớp lưu trữ đơn giản.
+
+### Tự lưu khi gõ (auto-save có debounce)
+
+Trình soạn thảo `DocumentEditor` gọi `updateDocument` qua một hàm **debounce ~600ms** — chờ người dùng ngừng gõ một chút mới ghi, tránh ghi liên tục từng phím:
 
 ```typescript
-const toggleShareDocument = useCallback(
-  async (id: string) => {
-    const curDocs = stateRef.current.documents;
-    const doc = curDocs.find(d => d.id === id);
-    if (!doc) return;
-    const enabling = !doc.isShared;
-    const newDocs = curDocs.map(d => (d.id === id ? { ...d, isShared: enabling } : d));
-    pushUndo(`${enabling ? 'Enable' : 'Disable'} document share "${doc.title}"`, ['documents']);
-    saveToFirebase({ documents: newDocs });
-  },
-  [pushUndo, saveToFirebase]
-);
+const debounceSave = (updates: DocUpdates) => {
+  pending.current = { ...(pending.current ?? {}), ...updates };
+  window.clearTimeout(timer.current);
+  timer.current = window.setTimeout(flush, 600);
+};
 ```
 
-**Ba quy ước phải nhớ khi viết các mutator:**
+Khi rời tài liệu, một `useEffect` cleanup sẽ **flush** nốt thay đổi còn treo (gọi `updateDocument` ngay) để không mất dữ liệu.
 
-1. **Đọc dữ liệu hiện tại từ `stateRef.current.documents`, KHÔNG đọc từ biến closure của React.** Lý do: closure bị "đóng băng" theo lần render. Nếu lặp tạo nhiều tài liệu liền nhau trong một nhịp (ví dụ nhập hàng loạt), mà đọc từ closure thì **chỉ tài liệu cuối được lưu**. `stateRef.current` luôn là bản mới nhất.
-2. **`pushUndo(...)` trước khi `saveToFirebase(...)`** để mỗi thao tác có thể hoàn tác (Ctrl+Z). Bỏ qua là mất tính năng undo cho thao tác đó.
-3. **Tài liệu General** (`projectId` bỏ trống) được nhận diện bằng cách so sánh `(d.projectId ?? '') === ''`.
-
-**Tự lưu khi gõ (auto-save có debounce):** ô soạn thảo nên gọi `updateDocument` qua một hàm **debounce** (khoảng 500–1200ms) — tức là chờ người dùng ngừng gõ một chút mới ghi, tránh ghi liên tục từng phím. Lưu ý: chỉ đồng bộ state cục bộ từ props khi **đổi `doc.id`** (mở tài liệu khác), **không** đồng bộ lại khi `doc.content` dội về từ Firebase — nếu không con trỏ sẽ nhảy về đầu khi đang gõ.
+> ⚠️ **Quan trọng:** chỉ đồng bộ state cục bộ từ props khi **đổi `doc.id`** (mở tài liệu khác), **không** đồng bộ lại khi `doc.content` dội về từ Firebase — nếu không con trỏ sẽ nhảy về đầu khi đang gõ. Trong `DocumentEditor`, mảng phụ thuộc của `useEffect` đồng bộ chỉ là `[doc.id]`.
 
 ---
 
-## 5. Chi tiết 5 loại tài liệu
+## 5. Hai loại tài liệu
+
+Trình sửa hợp nhất là `src/components/DocumentEditor.tsx`: gồm ô tiêu đề, ô chọn loại (`note` / `markdown`), nút chia sẻ, nút xóa, và **vùng soạn thảo thay đổi theo `type`**.
 
 ### 5.1. `note` — văn bản định dạng phong phú (rich-text)
 
-Dùng một trình soạn thảo `contentEditable` (một thẻ `div` cho phép gõ và định dạng trực tiếp), lưu kết quả ra **HTML** vào `content`. Trong dự án gốc là `src/components/NoteEditor.tsx`.
+Dùng một trình soạn thảo `contentEditable` (một thẻ `div` cho phép gõ và định dạng trực tiếp), lưu kết quả ra **HTML** vào `content`. File: `src/components/NoteEditor.tsx`.
 
-Đặc điểm cần có:
-- **Thanh công cụ**: in đậm/nghiêng/gạch chân/gạch ngang, tiêu đề H1–H3, danh sách, trích dẫn, khối code, chèn link, xóa định dạng.
-- **"Làm sạch" khi dán (paste hardening)**: khi người dùng dán nội dung từ nơi khác, **lột bỏ mọi định dạng** — lấy `text/plain`, nếu là HTML thô thì parse lấy `textContent`, và lột cả mã BBCode (`[b]...[/b]`, `[user=42]`...). Sau đó chèn lại bằng `document.execCommand('insertText')` để giữ vị trí con trỏ và tích hợp với undo của trình duyệt.
-- Khi lưu, **bỏ các thẻ rỗng** kiểu `<b></b>` (trình duyệt hay để lại khi bật/tắt in đậm trên vùng trống).
-
-**Hiển thị nội dung note** (và mọi nội dung có thể là HTML): phải **kiểm tra xem chuỗi có phải HTML không** rồi mới chọn cách render:
+Đặc điểm:
+- **Thanh công cụ**: in đậm/nghiêng/gạch chân/gạch ngang, tiêu đề H1–H3, đoạn thường, danh sách chấm/số, trích dẫn, khối code, chèn link, xóa định dạng. Mỗi nút gọi `document.execCommand(...)`.
+- **Giữ con trỏ khi bấm nút toolbar**: thanh công cụ chặn `onMouseDown` (`e.preventDefault()`) để vùng soạn thảo không mất selection.
+- **"Làm sạch" khi dán (paste hardening)**: khi dán, **lột bỏ mọi định dạng** — lấy `text/plain`, nếu trống thì parse `text/html` lấy `textContent`, và lột mã BBCode (`[b]...[/b]`, `[user=42]`...). Sau đó chèn lại bằng `document.execCommand('insertText')` để giữ vị trí con trỏ và tích hợp undo của trình duyệt.
 
 ```typescript
-// Nếu giống HTML → render bằng dangerouslySetInnerHTML; ngược lại giữ xuống dòng thuần.
+// Lột mã BBCode kiểu [b]...[/b], [user=42]... khi dán.
+function stripBbcode(text: string): string {
+  return text.replace(/\[\/?[^\]]*\]/g, '');
+}
+
+// Bỏ các thẻ inline rỗng mà trình duyệt hay để lại (vd <b></b>).
+function cleanHtml(html: string): string {
+  return html.replace(/<(b|i|u|strong|em|span)>\s*<\/\1>/gi, '');
+}
+```
+
+- Khi lưu, gọi `cleanHtml` để **bỏ các thẻ rỗng** kiểu `<b></b>` (trình duyệt hay để lại khi bật/tắt in đậm trên vùng trống).
+- **Chỉ nạp nội dung ban đầu một lần khi mount.** Vì `DocViewerPage` remount editor bằng `key={doc.id}`, nội dung được nạp lúc mount; không ghi đè `innerHTML` khi đang gõ → con trỏ không nhảy về đầu.
+
+**Hiển thị nội dung note** (chế độ chỉ đọc, dùng ở trang chia sẻ) — file `src/components/HtmlContent.tsx`: phải **kiểm tra chuỗi có phải HTML không** rồi mới chọn cách render:
+
+```typescript
 const looksLikeHtml = /<[a-z][\s\S]*>/i.test(value);
 ```
 
-> ⚠️ **Bẫy chí mạng:** **không bao giờ** đặt `dangerouslySetInnerHTML` và phần tử con (children) JSX trên **cùng một thẻ** — bản production rút gọn sẽ crash với lỗi React #60.
+> ⚠️ **Bẫy chí mạng:** **không bao giờ** đặt `dangerouslySetInnerHTML` và phần tử con (children) JSX trên **cùng một thẻ** — bản production rút gọn sẽ crash với lỗi React #60. `HtmlContent` tách hẳn hai nhánh `return`: nếu giống HTML → `dangerouslySetInnerHTML`; nếu là chữ thuần → render trực tiếp với `whiteSpace: 'pre-wrap'`.
 
 ### 5.2. `markdown` — văn bản Markdown
 
 - **Sửa**: một ô `<textarea>` đơn giản, lưu chữ thuần vào `content`.
-- **Xem**: render bằng component dùng `react-markdown` + `remark-gfm` (gọi là `MarkdownPreview`).
-- Thường có hai tab **Edit / Preview** để chuyển qua lại.
+- **Xem**: render bằng `src/components/MarkdownPreview.tsx` dùng `react-markdown` + `remark-gfm`.
+- Có hai tab **Edit / Preview** để chuyển qua lại. Khi mở một tài liệu **đã có nội dung**, mặc định mở tab **Preview**; tài liệu vừa tạo (rỗng) mở thẳng tab **Edit**.
 
-### 5.3. `embed` — nhúng Google Doc/Sheet/Slides
-
-`content` chỉ là một URL. Một hàm trợ giúp biến URL Google thành dạng nhúng được vào iframe. Nguyên văn `src/lib/embedUrl.ts`:
-
-```typescript
-export type EmbedKind = 'doc' | 'sheet' | 'slide' | 'drive-file' | 'unknown';
-
-export interface EmbedInfo {
-  kind: EmbedKind;
-  iframeSrc: string;   // URL an toàn để đặt vào <iframe src>
-  openUrl: string;     // URL mở tab mới (bản chỉnh sửa)
-  label: string;
-}
-
-export function toEmbedInfo(rawUrl: string): EmbedInfo | null {
-  const trimmed = (rawUrl || '').trim();
-  if (!trimmed) return null;
-  let url: URL;
-  try { url = new URL(trimmed); } catch { return null; }
-
-  const host = url.hostname.toLowerCase();
-  const path = url.pathname;
-
-  // docs.google.com/document/d/{ID}/...
-  const docMatch = path.match(/^\/document\/d\/([^/]+)/);
-  if (host.includes('docs.google.com') && docMatch) {
-    const id = docMatch[1];
-    return {
-      kind: 'doc',
-      iframeSrc: `https://docs.google.com/document/d/${id}/edit?rm=embedded`,
-      openUrl: `https://docs.google.com/document/d/${id}/edit`,
-      label: 'Google Doc',
-    };
+```tsx
+export default function MarkdownPreview({ content }: { content: string }) {
+  if (!content.trim()) {
+    return <p className="muted">Chưa có nội dung. Gõ Markdown ở tab Edit.</p>;
   }
-  // ... tương tự cho /spreadsheets/d/ (sheet), /presentation/d/ (slide),
-  //     và drive.google.com/file/d/ (drive-file, dùng /preview).
-
-  // Không nhận ra → trả nguyên URL, để người dùng tự quyết có nhúng được không.
-  return { kind: 'unknown', iframeSrc: trimmed, openUrl: trimmed, label: host || 'External page' };
+  return (
+    <div className="markdown-body">
+      <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
+    </div>
+  );
 }
 ```
-
-**Cách dùng**: gọi `toEmbedInfo(content)`, đặt `iframeSrc` vào `<iframe src={...}>`, và một nút "Mở" trỏ tới `openUrl`. Mẹo `?rm=embedded` giúp Google Doc nhúng gọn vào iframe (yêu cầu người xem đã đăng nhập Google và có quyền trên tài liệu đó).
-
-### 5.4. `link` — đường link + ghi chú
-
-`content` là JSON `{ url, note }`. Nguyên văn `src/lib/linkDoc.ts`:
-
-```typescript
-export interface LinkDocContent {
-  url: string;
-  note: string;
-}
-
-export function parseLinkContent(raw: string): LinkDocContent {
-  if (!raw || !raw.trim()) return { url: '', note: '' };
-  try {
-    const parsed = JSON.parse(raw);
-    if (parsed && typeof parsed === 'object' && 'url' in parsed) {
-      return {
-        url: typeof parsed.url === 'string' ? parsed.url : '',
-        note: typeof parsed.note === 'string' ? parsed.note : '',
-      };
-    }
-  } catch {
-    // Dữ liệu cũ dạng chữ thuần → coi toàn bộ là ghi chú.
-  }
-  return { url: '', note: raw };
-}
-
-export function stringifyLinkContent(content: LinkDocContent): string {
-  return JSON.stringify({ url: content.url, note: content.note });
-}
-
-export function safeHostname(url: string): string {
-  try { return new URL(url).hostname; } catch { return ''; }
-}
-```
-
-**Cách dùng**: khi sửa, hiện một ô nhập URL + một ô `textarea` ghi chú; lưu bằng `stringifyLinkContent`. Khi xem, hiện nút mở link (kèm tên miền lấy từ `safeHostname`) và render ghi chú như Markdown.
-
-### 5.5. `file` — tải tệp lên Storage
-
-`content` là JSON mô tả tệp đang nằm trong Storage. Nguyên văn các kiểu và hàm chính trong `src/lib/fileDoc.ts`:
-
-```typescript
-export type FileDocKind = 'txt' | 'md' | 'pdf';
-
-export interface FileDocContent {
-  storagePath: string;   // đường dẫn tệp trong Storage
-  fileName: string;      // tên gốc do người dùng đặt
-  contentType: string;   // 'text/plain' | 'text/markdown' | 'application/pdf'
-  size: number;          // dung lượng (byte)
-  kind: FileDocKind;
-}
-
-// Chuỗi để gắn vào input chọn file, giới hạn định dạng được phép:
-export const FILE_INPUT_ACCEPT = 'text/plain,text/markdown,application/pdf,.txt,.md,.markdown,.pdf';
-```
-
-**Tải tệp lên** (có theo dõi tiến độ, dùng `uploadBytesResumable`):
-
-```typescript
-export function uploadDocFile(
-  uid: string,
-  docId: string,
-  file: File,
-  onProgress?: (p: UploadProgress) => void
-): Promise<UploadResult> {
-  return new Promise((resolve, reject) => {
-    if (!storage) { reject(new Error('Storage not initialized')); return; }
-    const kind = detectFileKind(file);
-    if (!kind) { reject(new Error('Unsupported file type. Use .txt, .md, or .pdf.')); return; }
-
-    const safeName = file.name.replace(/[^\w.\-+]+/g, '_');
-    const path = `users/${uid}/docs/${docId}/${Date.now()}_${safeName}`;
-    const metadata = {
-      contentType:
-        kind === 'pdf' ? 'application/pdf'
-        : kind === 'md' ? 'text/markdown'
-        : 'text/plain',
-    };
-    const task = uploadBytesResumable(storageRef(storage, path), file, metadata);
-    task.on('state_changed',
-      snap => onProgress?.({
-        bytesTransferred: snap.bytesTransferred,
-        totalBytes: snap.totalBytes || file.size || 1,
-        percent: ((snap.bytesTransferred) / (snap.totalBytes || file.size || 1)) * 100,
-      }),
-      err => reject(err),
-      () => resolve({ storagePath: path, contentType: metadata.contentType, fileName: file.name, size: file.size, kind })
-    );
-  });
-}
-```
-
-> **Đường dẫn lưu tệp**: `users/{uid}/docs/{docId}/{timestamp}_{tên_đã_làm_sạch}` — khớp đúng với luật Storage (mục 7 trong `firebase-hosting-setup.md`): chỉ chủ tài khoản ghi được, ≤ 25 MB, đúng định dạng cho phép.
-
-**Đọc nội dung văn bản từ tệp** — phải dùng `getBytes`, **không** dùng `fetch(downloadURL)`:
-
-```typescript
-export async function fetchTextContent(content: FileDocContent): Promise<string> {
-  if (!storage) throw new Error('Storage not initialized');
-  // Dùng SDK getBytes — đi qua kênh chính thức của Firebase với token người dùng,
-  // tránh bị chặn CORS như khi fetch trực tiếp downloadURL công khai.
-  const buf = await getBytes(storageRef(storage, content.storagePath));
-  return new TextDecoder('utf-8').decode(buf);
-}
-```
-
-**Hiển thị tệp PDF**: lấy URL tải về bằng `fetchDocDownloadURL` (gói `getDownloadURL`) rồi đặt vào `<iframe src={url}>`.
-
-**Sửa nội dung tệp txt/md ngay tại chỗ**: ghi đè tệp cũ (giữ nguyên đường dẫn, chỉ cập nhật `size`):
-
-```typescript
-export async function uploadDocText(content: FileDocContent, newText: string): Promise<FileDocContent> {
-  if (!storage) throw new Error('Storage not initialized');
-  if (content.kind !== 'txt' && content.kind !== 'md')
-    throw new Error('Inline editing only supported for .txt / .md files');
-  const blob = new Blob([newText], { type: content.contentType });
-  await uploadBytes(storageRef(storage, content.storagePath), blob, { contentType: content.contentType });
-  return { ...content, size: blob.size };
-}
-```
-
-Các hàm phụ trợ khác trong cùng file: `detectFileKind` (đoán loại từ phần mở rộng/MIME), `parseFileContent`/`stringifyFileContent` (đọc/ghi JSON `content`), `deleteStoredFile` (xóa tệp khỏi Storage khi xóa tài liệu), `fetchDocPublicUrl` (lấy URL có token cho người xem ẩn danh — dùng khi chia sẻ), `humanFileSize` (đổi byte sang "2 MB").
 
 ---
 
-## 6. Giao diện & đường dẫn (route)
+## 6. Folder & kéo-thả
 
-Ba trang chính (trong dự án gốc là `src/pages/`):
+Folder giúp gom tài liệu thành nhóm. Toàn bộ logic folder nằm trong `DocumentsContext.tsx`; giao diện ở `DocsAllPage.tsx` (trang chủ) và `FolderPage.tsx` (trang chi tiết một folder).
+
+### 6.1. Các mutator folder
+
+**`addFolder`** — tạo folder mới:
+
+```typescript
+const addFolder = useCallback(
+  (name?: string): Folder | null => {
+    if (!db || !uid) return null;
+    const cur = stateRef.current.folders;
+    const now = new Date().toISOString();
+    const created: Folder = {
+      id: uuidv4(),
+      name: name ?? 'Folder mới',
+      order: cur.length,
+      createdAt: now,
+    };
+    set(ref(db, `users/${uid}/folders/${created.id}`), created);
+    return created;
+  },
+  [uid],
+);
+```
+
+**`renameFolder`** — đổi tên folder: `set(ref(db, \`users/${uid}/folders/${id}/name\`), name)`.
+
+**`deleteFolder`** — xóa folder **và toàn bộ tài liệu bên trong** (một multi-path update gom tất cả), kèm xóa bản công khai của những tài liệu đang chia sẻ:
+
+```typescript
+const deleteFolder = useCallback(
+  (id: string) => {
+    if (!db || !uid) return;
+    const docs = stateRef.current.documents;
+    const writes: Record<string, unknown> = {
+      [`users/${uid}/folders/${id}`]: null,
+    };
+    for (const d of docs) {
+      if (d.folderId === id) {
+        writes[`users/${uid}/documents/${d.id}`] = null;
+        if (d.isShared) writes[`shared/d/${d.id}`] = null;
+      }
+    }
+    update(ref(db), writes);
+  },
+  [uid],
+);
+```
+
+**`moveDocument`** — chuyển tài liệu vào folder, hoặc đưa ra ngoài (truyền `folderId = undefined`):
+
+```typescript
+const moveDocument = useCallback(
+  (id: string, folderId: string | undefined) => {
+    if (!db || !uid) return;
+    const cur = stateRef.current.documents.find((d) => d.id === id);
+    if (!cur) return;
+    if ((cur.folderId ?? '') === (folderId ?? '')) return; // đã ở đúng chỗ
+    const now = new Date().toISOString();
+    // order = về cuối phạm vi folder đích.
+    const scope = stateRef.current.documents.filter(
+      (d) => d.id !== id && (d.folderId ?? '') === (folderId ?? ''),
+    );
+    const writes: Record<string, unknown> = {
+      // folderId = null để gỡ trường khi đưa ra ngoài (không folder).
+      [`users/${uid}/documents/${id}/folderId`]: folderId ?? null,
+      [`users/${uid}/documents/${id}/order`]: scope.length,
+      [`users/${uid}/documents/${id}/updatedAt`]: now,
+    };
+    if (cur.isShared) {
+      const merged: DocItem = { ...cur, updatedAt: now };
+      if (folderId) merged.folderId = folderId;
+      else delete merged.folderId;
+      writes[`shared/d/${id}`] = { document: merged, ownerId: uid };
+    }
+    update(ref(db), writes);
+  },
+  [uid],
+);
+```
+
+> Quy ước **đưa ra ngoài**: ghi `folderId = null` để **gỡ hẳn trường** khỏi tài liệu (Realtime Database hiểu `null` là xóa khóa đó).
+
+### 6.2. Kéo-thả trên trang chủ (`DocsAllPage`)
+
+Trang chủ hiển thị một lưới gồm các **ô folder** và các **tài liệu đứng riêng** (`looseDocs = documents.filter(d => !d.folderId)`). Dùng kéo-thả HTML5 native: kéo một tài liệu thả vào ô folder → gọi `moveDocument`:
+
+```typescript
+const onDragStart = (e: DragEvent, id: string) => {
+  e.dataTransfer.setData('text/plain', id);
+  e.dataTransfer.effectAllowed = 'move';
+};
+const onDropToFolder = (e: DragEvent, folderId: string) => {
+  e.preventDefault();
+  const id = e.dataTransfer.getData('text/plain');
+  setDragOver(null);
+  if (id) moveDocument(id, folderId);
+};
+```
+
+Ô folder đang được kéo qua sẽ nổi viền (state `dragOver` giữ `id` của folder đó). Bấm vào ô folder → điều hướng tới `/docs/folder/{id}`.
+
+### 6.3. Trang chi tiết folder (`FolderPage`)
+
+Tại `/docs/folder/:folderId`, người dùng:
+- Xem các tài liệu trong folder (`documents.filter(d => d.folderId === folderId)`).
+- **Đổi tên** folder (bấm nút ✏️ hoặc **bấm đúp** vào tên; Enter để lưu, Escape để hủy).
+- **Xóa** folder — có hộp xác nhận cảnh báo số tài liệu sẽ bị xóa kèm theo.
+- Tạo tài liệu mới **ngay trong folder** (`addDocument(type, undefined, folder.id)`).
+- Đưa từng tài liệu **ra khỏi folder** bằng nút ⤴ (`moveDocument(d.id, undefined)`).
+
+---
+
+## 7. Giao diện & đường dẫn (route)
+
+Khai báo route trong `src/App.tsx`. Trang chia sẻ công khai **nằm ngoài** lớp đăng nhập; mọi route còn lại đi qua `AppShell` (yêu cầu đăng nhập):
 
 | Trang | Đường dẫn | Vai trò |
 |---|---|---|
-| `DocsAllPage` | `/docs` | Xem **tất cả tài liệu** xuyên project + General. Có bộ lọc theo loại, theo project, theo topic, theo tag; nhóm theo Project hoặc Topic; lưu trạng thái lọc vào query string của URL (`?project=...&topic=...&groupBy=...`). |
-| `DocsPage` | `/project/:projectId/docs[/:docId]` | Xem tài liệu **trong phạm vi một project**: cột bên trái là danh sách, bên phải là trình sửa. |
-| `DocViewerPage` | `/docs/view/:kind/:id` | Trình **xem/sửa hợp nhất** cho một tài liệu. `kind` có thể là `document` (tài liệu thường) hoặc `brief`/`phasePlan` (nội dung gắn vào thực thể khác — bỏ qua được nếu app không có). |
+| `LoginPage` | (hiện khi chưa đăng nhập) | Nút đăng nhập Google. |
+| `DocsAllPage` | `/docs` | Trang chủ: lưới folder + tài liệu đứng riêng, kéo-thả để gom vào folder. |
+| `FolderPage` | `/docs/folder/:folderId` | Danh sách tài liệu trong một folder; đổi tên/xóa folder. |
+| `DocViewerPage` | `/docs/view/document/:id` | Trình **xem/sửa** một tài liệu (bọc `DocumentEditor`). |
+| `SharePage` | `/share/d/:id` | Trang xem **công khai, chỉ đọc** (ngoài lớp đăng nhập). |
 
-**Trình sửa tài liệu** (DocumentEditor) gồm: ô tiêu đề, chọn loại, chọn topic, nút chia sẻ, nút xóa, và **thanh công cụ thay đổi theo `type`** (note → NoteEditor; markdown → textarea + preview; link → ô URL + ghi chú; embed → ô URL + iframe; file → tải lên/thay/tải về/sửa + khung xem).
+```tsx
+export default function App() {
+  return (
+    <AuthProvider>
+      <Routes>
+        {/* Trang xem công khai — NẰM NGOÀI lớp đăng nhập */}
+        <Route path="/share/d/:id" element={<SharePage />} />
+        {/* Mọi route còn lại đi qua lớp đăng nhập */}
+        <Route path="/*" element={<AppShell />} />
+      </Routes>
+    </AuthProvider>
+  );
+}
+```
+
+`AppShell` kiểm tra trạng thái đăng nhập: đang tải → hiện "Đang tải…"; chưa đăng nhập → `LoginPage`; đã đăng nhập → bọc `DocumentsProvider` quanh các route con. Mọi đường dẫn lạ được điều hướng (`Navigate`) về `/docs`.
 
 **Luồng tạo tài liệu điển hình:**
-1. Người dùng bấm "+ New {loại}" → gọi `addDocument(projectId, type)`.
+1. Người dùng bấm "+ New note" / "+ New markdown" → gọi `addDocument(type)` (hoặc `addDocument(type, undefined, folderId)` nếu đang trong folder).
 2. Điều hướng tới `/docs/view/document/{docId}`.
-3. Vì `content` còn rỗng → mở thẳng tab Edit.
-4. Người dùng gõ → `updateDocument` (debounce) tự lưu.
-
-> **Lưu ý quan trọng cho trang dạng danh sách xuyên project** (như DocsAllPage): nếu app có khái niệm "không gian làm việc" (workspace) để lọc, hãy lấy danh sách qua hook lọc theo workspace thay vì lấy thẳng toàn bộ. Còn các trang **chi tiết một tài liệu cụ thể** thì lấy thẳng từ context để link sâu (deep-link) luôn mở được.
+3. Vì `content` còn rỗng → `DocumentEditor` mở thẳng tab Edit.
+4. Người dùng gõ → `updateDocument` (debounce 600ms) tự lưu.
 
 ---
 
-## 7. Chia sẻ công khai
+## 8. Chia sẻ công khai
 
-Khi bật `isShared = true` cho một tài liệu, lớp lưu trữ sẽ **sao một bản** sang nhánh công khai `shared/d/{docId}` trong Realtime Database. Theo luật bảo mật, nhánh `shared` cho phép **bất kỳ ai đọc** (kể cả chưa đăng nhập) nhưng chỉ chủ sở hữu mới ghi:
+Khi bật `isShared = true` cho một tài liệu, lớp lưu trữ **sao một bản** sang nhánh công khai `shared/d/{docId}` với cấu trúc `{ document, ownerId }`. Theo luật bảo mật, nhánh `shared` cho phép **bất kỳ ai đọc** (kể cả chưa đăng nhập) nhưng chỉ chủ sở hữu mới ghi:
 
 ```json
 "shared": {
   ".read": true,
   "$type": {
-    ".indexOn": ["ownerId"],
     "$id": {
       ".write": "auth != null && (!data.exists() ? newData.child('ownerId').val() === auth.uid : data.child('ownerId').val() === auth.uid)"
     }
@@ -438,60 +467,64 @@ Khi bật `isShared = true` cho một tài liệu, lớp lưu trữ sẽ **sao m
 }
 ```
 
-Cơ chế sao bản (rút gọn từ `ProjectContext.tsx`): mỗi lần lưu, duyệt các tài liệu — tài liệu nào `isShared` thì ghi payload `{ document, project?, ownerId }` vào `shared/d/{id}`; tài liệu vừa **tắt** chia sẻ thì ghi `null` để xóa bản công khai.
+Hàm bật/tắt chia sẻ (`toggleShareDocument`): bật thì ghi payload `{ document, ownerId }` vào `shared/d/{id}`; tắt thì ghi `null` để xóa bản công khai:
 
 ```typescript
-blob.documents.forEach(d => {
-  const sharedRef = ref(db!, `shared/d/${d.id}`);
-  if (d.isShared) {
-    if (d.type === 'file') {
-      // Với tệp: nhúng sẵn URL tải về có token để người xem ẩn danh tải được
-      // mà không cần đổi luật Storage (token bỏ qua luật).
-      const fc = parseFileContent(d.content);
-      (async () => {
-        const fileDownloadUrl = fc ? await fetchDocPublicUrl(fc.storagePath) : null;
-        set(sharedRef, stripUndefined({ project, document: d, fileDownloadUrl, ownerId: user.uid }));
-      })();
+const toggleShareDocument = useCallback(
+  (id: string) => {
+    if (!db || !uid) return;
+    const cur = stateRef.current.documents.find((d) => d.id === id);
+    if (!cur) return;
+    const enabling = !cur.isShared;
+    const writes: Record<string, unknown> = {
+      [`users/${uid}/documents/${id}/isShared`]: enabling,
+    };
+    if (enabling) {
+      const merged: DocItem = { ...cur, isShared: true };
+      writes[`shared/d/${id}`] = { document: merged, ownerId: uid };
     } else {
-      set(sharedRef, stripUndefined({ project, document: d, ownerId: user.uid }));
+      writes[`shared/d/${id}`] = null; // tắt chia sẻ → xóa bản công khai
     }
-  } else if (prev?.isShared && !d.isShared) {
-    set(sharedRef, null);   // tắt chia sẻ → xóa bản công khai
-  }
-});
+    update(ref(db), writes);
+  },
+  [uid],
+);
 ```
 
-**Trang xem công khai** mount tại đường dẫn `/share/d/:id` (nằm **ngoài** lớp đăng nhập để người chưa đăng nhập vẫn xem được). Nó đọc thẳng `shared/d/{id}` và hiển thị chỉ-đọc. Với tệp, dùng `fileDownloadUrl` đã nhúng sẵn (vì người xem ẩn danh không có quyền gọi `getBytes`).
+> **Phải đồng bộ bản công khai ở MỌI mutator chạm tới tài liệu đang chia sẻ:** `updateDocument`, `moveDocument`, `deleteDocument`, `deleteFolder` đều kiểm tra `isShared` và cập nhật/xóa `shared/d/{id}` tương ứng. Quên một chỗ là bản công khai sẽ lệch với bản gốc.
+
+**Trang xem công khai** (`SharePage`) mount tại `/share/d/:id` (ngoài lớp đăng nhập để người chưa đăng nhập vẫn xem được). Nó đọc thẳng `shared/d/{id}` bằng `get(...)` (đọc một lần, không lắng nghe), rồi hiển thị chỉ-đọc: `note` qua `HtmlContent`, `markdown` qua `MarkdownPreview`. Có ba trạng thái: `loading`, `notfound` (tài liệu không tồn tại hoặc chủ đã ngừng chia sẻ), `error` (lỗi cấu hình/mạng).
+
+Lấy link chia sẻ trong `DocumentEditor`: `${window.location.origin}/share/d/${doc.id}` — kèm nút Copy và nút Mở.
 
 ---
 
-## 8. Những cái bẫy hay gặp
+## 9. Những cái bẫy hay gặp
 
 | Bẫy | Cách tránh |
 |---|---|
-| **Đọc tệp text bị chặn CORS** | Dùng `getBytes(ref)` của SDK, **không** `fetch(downloadURL)`. Kênh SDK được miễn CORS. |
-| **Hiện ra thẻ `<b>` thô khi xem note** | Trước khi render, kiểm tra `/<[a-z][\s\S]*>/i.test(value)`: đúng → `dangerouslySetInnerHTML`; nếu là Markdown → `MarkdownPreview`; nếu chữ thuần → `whiteSpace: pre-wrap`. |
-| **Crash production khi render HTML** | Không đặt `dangerouslySetInnerHTML` cùng children JSX trên cùng một thẻ (lỗi React #60). |
-| **Nhập hàng loạt chỉ lưu được item cuối** | Khi lặp tạo nhiều tài liệu, đọc state từ `stateRef.current.documents`, không đọc biến closure. |
-| **Con trỏ nhảy về đầu khi đang gõ** | Trong auto-save, chỉ đồng bộ state cục bộ từ props khi đổi `doc.id`, không đồng bộ khi `content` dội về từ Firebase. |
-| **Quên rằng `content` của link/file là JSON** | Luôn `parseLinkContent` / `parseFileContent` khi đọc, `stringify...` khi ghi. Đừng dùng chuỗi thô. |
-| **Người xem ẩn danh không tải được tệp chia sẻ** | Nhúng sẵn `fileDownloadUrl` (qua `fetchDocPublicUrl`) vào payload `shared/d/{id}` khi bật chia sẻ. |
+| **Crash production khi render HTML** | Không đặt `dangerouslySetInnerHTML` cùng children JSX trên cùng một thẻ (lỗi React #60). Tách hai nhánh `return` như `HtmlContent`. |
+| **Hiện ra thẻ `<b>` thô khi xem note** | Trước khi render, kiểm tra `/<[a-z][\s\S]*>/i.test(value)`: đúng → `dangerouslySetInnerHTML`; nếu chữ thuần → `whiteSpace: pre-wrap`. |
+| **Nhập hàng loạt chỉ lưu được item cuối** | Khi lặp tạo nhiều tài liệu/folder, đọc state từ `stateRef.current`, không đọc biến closure (vì `order` sẽ tính sai). |
+| **Con trỏ nhảy về đầu khi đang gõ** | Chỉ đồng bộ state cục bộ từ props khi đổi `doc.id`; `NoteEditor` chỉ nạp `innerHTML` một lần lúc mount (parent remount bằng `key={doc.id}`). |
+| **Bản chia sẻ lệch với bản gốc** | Mọi mutator chạm tài liệu đang `isShared` (sửa/di chuyển/xóa/xóa folder) phải cập nhật hoặc xóa `shared/d/{id}` trong cùng multi-path update. |
+| **Xóa folder mà còn sót tài liệu/bản chia sẻ con** | `deleteFolder` phải duyệt mọi tài liệu có `folderId` trùng để xóa luôn (`users/{uid}/documents/{id} = null`, kèm `shared/d/{id} = null` nếu đang chia sẻ). |
+| **Đưa tài liệu ra khỏi folder không sạch** | Ghi `folderId = null` (không phải `undefined`/chuỗi rỗng) để Realtime Database **gỡ hẳn** khóa `folderId`. |
 
 ---
 
-## 9. Checklist tái dựng
+## 10. Checklist tái dựng
 
 Thứ tự dựng lại tính năng từ đầu:
 
-- [ ] **Nền tảng**: có sẵn Firebase Auth + Realtime Database + Storage (xem `firebase-hosting-setup.md`).
-- [ ] **Kiểu dữ liệu**: khai báo `DocumentType` + interface `Document` (và `DocumentTopic` nếu cần nhóm).
-- [ ] **Helper**: `embedUrl.ts` (`toEmbedInfo`), `linkDoc.ts` (`parseLinkContent`/`stringifyLinkContent`/`safeHostname`), `fileDoc.ts` (`uploadDocFile`/`fetchTextContent`/`uploadDocText`/`detectFileKind`/`parseFileContent`...).
-- [ ] **Mutator**: `addDocument` / `updateDocument` / `deleteDocument` / `toggleShareDocument` — nhớ 3 quy ước (đọc `stateRef.current`, gọi `pushUndo`, nhận diện General bằng `projectId ?? ''`).
-- [ ] **Trình soạn thảo**: `NoteEditor` (rich-text HTML + paste hardening) và `MarkdownPreview` (react-markdown + remark-gfm).
-- [ ] **Trang & route**: `/docs` (danh sách + lọc), `/project/:id/docs` (theo project), `/docs/view/:kind/:id` (sửa hợp nhất).
-- [ ] **Hiển thị theo loại**: note (HTML-aware), markdown (preview), embed (iframe + nút mở), link (URL + note), file (PDF iframe / text editor / progress upload).
-- [ ] **Chia sẻ công khai**: sao bản sang `shared/d/{id}` khi `isShared`, trang `/share/d/:id` đọc-công-khai (nhớ nhúng `fileDownloadUrl` cho tệp).
-- [ ] **Luật bảo mật**: nhánh `shared` (`.read: true`), nhánh Storage `users/{uid}/docs/...` cho phép tải lên đúng định dạng/dung lượng.
+- [ ] **Nền tảng**: có sẵn Firebase Auth + Realtime Database (xem `firebase-hosting-setup.md`).
+- [ ] **Kiểu dữ liệu**: khai báo `DocumentType`, interface `Folder` và `DocItem` (`src/types.ts`).
+- [ ] **Context lưu trữ** (`DocumentsContext.tsx`): lắng nghe `users/{uid}/documents` và `users/{uid}/folders` bằng `onValue`; giữ `stateRef`; viết mutator `addDocument` / `updateDocument` / `deleteDocument` / `toggleShareDocument` / `addFolder` / `renameFolder` / `deleteFolder` / `moveDocument` (dùng multi-path update).
+- [ ] **Trình soạn thảo**: `NoteEditor` (rich-text HTML + paste hardening + cleanHtml) và `MarkdownPreview` (react-markdown + remark-gfm); `HtmlContent` (render HTML chỉ-đọc, tách 2 nhánh tránh React #60).
+- [ ] **Trình sửa hợp nhất** `DocumentEditor`: tiêu đề, chọn loại, nút chia sẻ + thanh link, nút xóa, auto-save debounce 600ms.
+- [ ] **Trang & route**: `/docs` (lưới + kéo-thả), `/docs/folder/:folderId` (chi tiết folder), `/docs/view/document/:id` (sửa), `/share/d/:id` (công khai, ngoài lớp đăng nhập).
+- [ ] **Chia sẻ công khai**: sao bản sang `shared/d/{id}` khi `isShared`; đồng bộ ở mọi mutator; `SharePage` đọc-công-khai bằng `get(...)`.
+- [ ] **Luật bảo mật**: nhánh `users/{uid}` (chỉ chính chủ) và `shared` (`.read: true`, chỉ chủ ghi). Xem `database.rules.json`.
 
 ---
 

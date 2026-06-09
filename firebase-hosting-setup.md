@@ -1,9 +1,9 @@
 # Dựng một web app trên Firebase — từ con số 0 đến deploy
 
 > **Tài liệu này dùng để làm gì?**
-> Đọc xong file này, bạn (hoặc Claude Code) có thể tự dựng một web app **React + Vite + TypeScript** chạy trên **Firebase Hosting**, có sẵn **đăng nhập bằng Google** (Authentication), **lưu dữ liệu thời gian thực** (Realtime Database) và **lưu file** (Storage). Đây là nền tảng để chạy các tính năng như "Documents" (xem file `documents-feature-spec.md` đi kèm).
+> Đọc xong file này, bạn (hoặc Claude Code) có thể tự dựng một web app **React + Vite + TypeScript** chạy trên **Firebase Hosting**, có sẵn **đăng nhập bằng Google** (Authentication) và **lưu dữ liệu thời gian thực** (Realtime Database). Đây là nền tảng để chạy các tính năng như "Documents" (xem file `documents-feature-spec.md` đi kèm).
 >
-> Mọi đoạn code/cấu hình trong tài liệu được trích nguyên văn từ một dự án thật đang chạy, nên copy là dùng được ngay.
+> Mọi đoạn code/cấu hình trong tài liệu được trích nguyên văn từ dự án `docs-web` đang chạy, nên copy là dùng được ngay.
 
 ---
 
@@ -31,13 +31,14 @@ Hình dung đơn giản như sau:
 - Khi chạy lệnh `npm run build`, Vite gom toàn bộ code thành một thư mục tĩnh tên là **`dist/`** — chỉ gồm các file `.html`, `.js`, `.css`. Đây là "web đã đóng gói".
 - **Firebase Hosting** chỉ làm một việc: đưa thư mục `dist/` đó lên internet, cho người dùng truy cập qua một địa chỉ kiểu `https://tên-site.web.app`.
 
-Ngoài Hosting (chỉ chứa file tĩnh), web còn cần 3 dịch vụ khác của Firebase để "có hồn":
+Ngoài Hosting (chỉ chứa file tĩnh), web còn cần 2 dịch vụ khác của Firebase để "có hồn":
 
 | Dịch vụ | Vai trò (giải thích dễ hiểu) |
 |---|---|
 | **Authentication** | Cho người dùng đăng nhập (ở đây dùng tài khoản Google). Mỗi người có một mã định danh riêng gọi là `uid`. |
-| **Realtime Database** | Một kho dữ liệu dạng cây (giống một file JSON khổng lồ) lưu trên mây, tự đồng bộ tức thời giữa các máy. Dùng để lưu nội dung người dùng tạo ra. |
-| **Storage** | Kho chứa file (PDF, ảnh, văn bản...). Database chỉ nên giữ chữ và số, file nặng thì để ở đây. |
+| **Realtime Database** | Một kho dữ liệu dạng cây (giống một file JSON khổng lồ) lưu trên mây, tự đồng bộ tức thời giữa các máy. Dùng để lưu toàn bộ nội dung người dùng tạo ra (tài liệu, folder, bản chia sẻ). |
+
+> **Dự án này không dùng Firebase Storage.** Mọi nội dung tài liệu đều là chuỗi văn bản (HTML hoặc Markdown) lưu thẳng trong Realtime Database, nên không cần kho file riêng.
 
 > **Điểm quan trọng về "rewrites":**
 > Web này là kiểu **SPA** (Single Page Application — toàn bộ web là một trang `index.html` duy nhất, việc chuyển trang do JavaScript xử lý chứ không tải lại từ server). Vì thế khi người dùng gõ thẳng một địa chỉ con như `https://tên-site.web.app/docs/abc`, server phải trả về `index.html` để JavaScript tự đọc đường dẫn và hiển thị đúng trang. Cấu hình `rewrites` (mục 6) làm chính việc này. **Thiếu nó thì gõ link con sẽ ra lỗi 404.**
@@ -76,9 +77,6 @@ Làm trên trình duyệt, tại https://console.firebase.google.com:
 
 4. **Tạo Realtime Database**: vào menu **Realtime Database** → **Create Database** → chọn vùng (US / Châu Âu / Singapore tùy bạn) → chọn **Start in locked mode** (an toàn, lát nữa ta sẽ deploy luật riêng). Sau khi tạo, copy **Database URL** (dạng `https://my-web-app-12345-default-rtdb.firebaseio.com`).
 
-5. **Bật Storage**: vào menu **Storage** → **Get started** → chọn production mode → xong.
-   > ⚠️ **Bắt buộc bật Storage qua Console ít nhất một lần** trước khi deploy luật Storage bằng dòng lệnh, nếu không lệnh deploy sẽ báo lỗi.
-
 ---
 
 ## 4. Cấu hình biến môi trường (.env)
@@ -115,6 +113,8 @@ Bảng đối chiếu — mỗi biến lấy giá trị từ đâu:
 | `VITE_FIREBASE_APP_ID` | `firebaseConfig.appId` |
 | `VITE_FIREBASE_DATABASE_URL` | Database URL ở bước 4 (Realtime Database) |
 
+> `VITE_FIREBASE_STORAGE_BUCKET` là một trường chuẩn trong `firebaseConfig` nên vẫn được khai báo, dù dự án này không dùng Storage. Cứ điền đúng giá trị Console đưa ra để config đầy đủ.
+
 > **Vì sao tên biến phải bắt đầu bằng `VITE_`?**
 > Vite (công cụ build) chỉ "nhìn thấy" và nhúng vào web những biến môi trường có tiền tố `VITE_`. Đặt tên khác sẽ không đọc được. Trong code, đọc biến bằng cú pháp `import.meta.env.VITE_...` (xem mục 5).
 
@@ -130,7 +130,6 @@ Tạo một file `src/lib/firebase.ts` để khởi tạo Firebase một lần v
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider } from 'firebase/auth';
 import { getDatabase } from 'firebase/database';
-import { getStorage } from 'firebase/storage';
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -139,35 +138,38 @@ const firebaseConfig = {
   storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
   messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
   appId: import.meta.env.VITE_FIREBASE_APP_ID,
-  databaseURL: import.meta.env.VITE_FIREBASE_DATABASE_URL
+  databaseURL: import.meta.env.VITE_FIREBASE_DATABASE_URL,
 };
 
-// Initialize Firebase only if config is provided
+// Chỉ khởi tạo Firebase khi có đủ config (tránh app crash trắng màn hình
+// khi thiếu file .env). Nếu chưa cấu hình, mọi export là null và nơi dùng
+// phải kiểm tra null trước (vd: if (!db) return;).
 const isConfigured = Boolean(firebaseConfig.apiKey && firebaseConfig.projectId);
 
 export const app = isConfigured ? initializeApp(firebaseConfig) : null;
 export const auth = isConfigured ? getAuth(app!) : null;
 export const db = isConfigured ? getDatabase(app!) : null;
-export const storage = isConfigured ? getStorage(app!) : null;
 export const googleProvider = isConfigured ? new GoogleAuthProvider() : null;
+export const firebaseReady = isConfigured;
 ```
 
 **Giải thích cách hoạt động:**
 
 - `initializeApp` khởi động kết nối tới Firebase bằng config ở trên.
-- `getAuth`, `getDatabase`, `getStorage` lấy ra 3 dịch vụ tương ứng (đăng nhập, database, kho file).
+- `getAuth`, `getDatabase` lấy ra 2 dịch vụ tương ứng (đăng nhập, database).
 - `googleProvider` là "nút đăng nhập Google" để dùng với `signInWithPopup` (mở cửa sổ đăng nhập Google).
+- `firebaseReady` (= `isConfigured`) để giao diện biết đã cấu hình Firebase chưa, từ đó hiện cảnh báo "chưa cấu hình `.env`" và khóa nút đăng nhập khi cần.
 
 > **Mẹo quan trọng — pattern xuất ra `null`:**
-> Biến `isConfigured` kiểm tra xem đã có `apiKey` và `projectId` chưa. Nếu **chưa** (ví dụ quên tạo file `.env`), tất cả `app`/`auth`/`db`/`storage`/`googleProvider` sẽ là `null` thay vì làm cả app **crash trắng màn hình**. Đổi lại, **mọi nơi dùng các biến này đều phải kiểm tra null trước** (ví dụ `if (!db) return;`). Đây là một thói quen tốt nên giữ.
+> Biến `isConfigured` kiểm tra xem đã có `apiKey` và `projectId` chưa. Nếu **chưa** (ví dụ quên tạo file `.env`), tất cả `app`/`auth`/`db`/`googleProvider` sẽ là `null` thay vì làm cả app **crash trắng màn hình**. Đổi lại, **mọi nơi dùng các biến này đều phải kiểm tra null trước** (ví dụ `if (!db) return;`). Đây là một thói quen tốt nên giữ.
 
-Cài thư viện Firebase cho dự án (chỉ cần một gói duy nhất, nó gói sẵn auth/database/storage bên trong):
+Cài thư viện Firebase cho dự án (chỉ cần một gói duy nhất, nó gói sẵn auth/database bên trong):
 
 ```bash
 npm install firebase
 ```
 
-> Dự án gốc dùng `firebase` phiên bản `^12`. Bạn không cần cài riêng từng gói con như `@firebase/auth` — chúng đã nằm trong gói `firebase`.
+> Dự án dùng `firebase` phiên bản `^12`. Bạn không cần cài riêng từng gói con như `@firebase/auth` — chúng đã nằm trong gói `firebase`.
 
 ---
 
@@ -175,18 +177,14 @@ npm install firebase
 
 ### 6.1. `firebase.json` — đặt ở thư mục gốc dự án
 
-File này nói cho Firebase CLI biết: hosting lấy file ở đâu, luật database/storage nằm ở file nào. Nội dung nguyên văn:
+File này nói cho Firebase CLI biết: hosting lấy file ở đâu, luật database nằm ở file nào. Nội dung nguyên văn:
 
 ```json
 {
   "database": {
     "rules": "database.rules.json"
   },
-  "storage": {
-    "rules": "storage.rules"
-  },
   "hosting": {
-    "site": "simplepm",
     "public": "dist",
     "ignore": [
       "firebase.json",
@@ -205,29 +203,26 @@ File này nói cho Firebase CLI biết: hosting lấy file ở đâu, luật dat
 
 Giải thích từng phần:
 
-- **`hosting.site`** = `"simplepm"` — tên **Hosting site**. Địa chỉ web sẽ là `https://simplepm.web.app`. **Bạn phải đổi giá trị này** thành tên site của mình. Tạo site mới bằng lệnh:
-  ```bash
-  firebase hosting:sites:create ten-site-cua-ban
-  ```
-  rồi sửa `"site"` trong `firebase.json` cho khớp.
 - **`hosting.public`** = `"dist"` — thư mục chứa web đã build (Vite mặc định build ra `dist/`). Firebase sẽ đẩy toàn bộ nội dung thư mục này lên.
 - **`hosting.ignore`** — danh sách file **không** đẩy lên: chính file `firebase.json`, mọi file ẩn (`.env`, `.gitignore`...), và `node_modules`.
 - **`hosting.rewrites`** — quy tắc SPA đã nói ở mục 1: **mọi** đường dẫn (`"source": "**"`) đều trả về `/index.html`.
-- **`database.rules`** / **`storage.rules`** — trỏ tới hai file luật bảo mật (mục 7).
+- **`database.rules`** — trỏ tới file luật bảo mật của Realtime Database (mục 7).
+
+> Ở đây không khai báo `hosting.site`, nên Firebase dùng **site mặc định** của project (địa chỉ trùng tên project, ví dụ `https://my-web-app-12345.web.app`). Nếu muốn dùng một site khác, tạo bằng `firebase hosting:sites:create ten-site` rồi thêm `"site": "ten-site"` vào khối `hosting`.
 
 ### 6.2. `.firebaserc` — đặt ở thư mục gốc dự án
 
-File này ghi nhớ Project ID mặc định để khỏi phải gõ lại mỗi lần. Nội dung:
+File này ghi nhớ Project ID mặc định để khỏi phải gõ lại mỗi lần. Nội dung (của dự án `docs-web`):
 
 ```json
 {
   "projects": {
-    "default": "my-web-app-12345"
+    "default": "docs-web-df5bb2"
   }
 }
 ```
 
-Thay `my-web-app-12345` bằng Project ID thật của bạn. Có thể tạo file này tự động bằng:
+Thay `docs-web-df5bb2` bằng Project ID thật của bạn. Có thể tạo file này tự động bằng:
 
 ```bash
 firebase login          # đăng nhập tài khoản Google quản lý Firebase
@@ -240,59 +235,29 @@ firebase use --add      # chọn project và đặt alias "default"
 
 Luật bảo mật quyết định **ai được đọc/ghi dữ liệu nào**. Không có luật đúng thì dữ liệu hoặc bị khóa hết, hoặc mở toang cho bất kỳ ai sửa.
 
-### 7.1. Realtime Database — file `database.rules.json`
+Dự án chỉ dùng Realtime Database nên chỉ có **một file luật**: `database.rules.json`.
 
 Một vài khái niệm để đọc luật dễ hơn:
 
 - `auth` — thông tin người đăng nhập. `auth != null` nghĩa là "đã đăng nhập".
 - `auth.uid` — mã định danh của người đang đăng nhập.
-- `$uid`, `$pid` — "biến đại diện" cho một mảnh đường dẫn bất kỳ (ví dụ `users/$uid` khớp với mọi user).
+- `$uid`, `$type`, `$id` — "biến đại diện" cho một mảnh đường dẫn bất kỳ (ví dụ `users/$uid` khớp với mọi user).
 - `data` = dữ liệu **hiện có**; `newData` = dữ liệu **muốn ghi vào**.
-- `root.child('...')` — đọc một nhánh khác tính từ gốc cây dữ liệu (để kiểm tra điều kiện chéo).
 
-Đây là toàn bộ file luật của dự án gốc (cấu trúc multi-user chia sẻ project). Bạn có thể dùng làm khung và lược bớt nếu app đơn giản hơn:
+Đây là toàn bộ file luật của dự án — đúng nhu cầu "mỗi người một kho riêng" + một nhánh chia sẻ công khai:
 
 ```json
 {
   "rules": {
-    "usersByEmail": {
-      "$emailHash": {
-        ".read": "auth != null",
-        ".write": "auth != null && newData.child('uid').val() === auth.uid"
-      }
-    },
     "users": {
       "$uid": {
         ".read": "auth != null && auth.uid === $uid",
-        ".write": "auth != null && auth.uid === $uid",
-        "projects_v3": {
-          "$pid": {
-            ".write": "auth != null && (auth.uid === $uid || root.child('projects').child($pid).child('members').child(auth.uid).child('role').val() === 'owner')"
-          }
-        }
-      }
-    },
-    "projects": {
-      "$pid": {
-        ".read": "auth != null && data.child('members').child(auth.uid).exists()",
-        ".write": "auth != null && !newData.exists() && (!data.exists() || data.child('members').child(auth.uid).child('role').val() === 'owner')",
-        "meta": {
-          ".write": "auth != null && (root.child('projects').child($pid).child('members').child(auth.uid).child('role').val() === 'owner' || (!data.exists() && newData.child('ownerId').val() === auth.uid))"
-        },
-        "members": {
-          "$memberUid": {
-            ".write": "auth != null && (root.child('projects').child($pid).child('members').child(auth.uid).child('role').val() === 'owner' || (!data.parent().exists() && newData.child('role').val() === 'owner' && $memberUid === auth.uid) || ...)"
-          }
-        },
-        "$collection": {
-          ".write": "auth != null && (root.child('projects').child($pid).child('members').child(auth.uid).child('role').val() === 'owner' || root.child('projects').child($pid).child('members').child(auth.uid).child('role').val() === 'editor')"
-        }
+        ".write": "auth != null && auth.uid === $uid"
       }
     },
     "shared": {
       ".read": true,
       "$type": {
-        ".indexOn": ["ownerId"],
         "$id": {
           ".write": "auth != null && (!data.exists() ? newData.child('ownerId').val() === auth.uid : data.child('ownerId').val() === auth.uid)"
         }
@@ -302,53 +267,14 @@ Một vài khái niệm để đọc luật dễ hơn:
 }
 ```
 
-Ý nghĩa các nhánh chính:
+Ý nghĩa các nhánh:
 
 | Nhánh dữ liệu | Ý nghĩa |
 |---|---|
-| `users/{uid}` | Dữ liệu riêng của từng người. Chỉ chính chủ (`auth.uid === $uid`) mới đọc/ghi. Đây là chỗ tốt nhất để lưu dữ liệu cá nhân nếu app của bạn đơn giản (một người một kho). |
-| `projects/{pid}` | Dữ liệu một project dùng chung nhiều người. Chỉ **thành viên** (`members`) mới đọc; chỉ **owner/editor** mới ghi. |
-| `shared/{type}/{id}` | Nhánh **chia sẻ công khai**: `".read": true` nghĩa là **ai cũng đọc được, không cần đăng nhập** — dùng cho link chia sẻ. Nhưng chỉ chủ sở hữu (`ownerId`) mới ghi được. |
+| `users/{uid}` | Dữ liệu riêng của từng người (tài liệu + folder). Chỉ chính chủ (`auth.uid === $uid`) mới đọc/ghi. |
+| `shared/{type}/{id}` | Nhánh **chia sẻ công khai**: `".read": true` nghĩa là **ai cũng đọc được, không cần đăng nhập** — dùng cho link chia sẻ. Nhưng chỉ chủ sở hữu (`ownerId`) mới ghi/sửa/xóa được. Trong app, `type` luôn là `d` (document), tức `shared/d/{docId}`. |
 
-> **Nếu app của bạn chỉ cần "mỗi người một kho riêng"**, bạn có thể rút gọn còn đúng nhánh `users/{uid}` (và `shared` nếu muốn có link chia sẻ công khai). Bỏ hẳn `projects`/`members`/`usersByEmail`.
-
-### 7.2. Storage — file `storage.rules`
-
-Toàn bộ file luật Storage của dự án gốc (cho phép mỗi người chỉ upload file vào thư mục của chính mình, mỗi file tối đa 25 MB, chỉ nhận văn bản/markdown/PDF):
-
-```
-rules_version = '2';
-
-service firebase.storage {
-  match /b/{bucket}/o {
-    // Per-user document uploads. Each user reads/writes only under their own UID prefix.
-    // Caps individual files at 25 MB and restricts to txt / pdf / markdown content types.
-    match /users/{uid}/docs/{docId}/{fileName} {
-      allow read: if request.auth != null && request.auth.uid == uid;
-      allow write: if request.auth != null
-        && request.auth.uid == uid
-        && (request.resource == null || (
-          request.resource.size < 25 * 1024 * 1024
-          && (
-            request.resource.contentType == 'text/plain'
-            || request.resource.contentType == 'text/markdown'
-            || request.resource.contentType == 'application/pdf'
-            || request.resource.contentType == 'application/octet-stream'
-          )
-        ));
-    }
-  }
-}
-```
-
-Giải thích:
-
-- `match /users/{uid}/docs/{docId}/{fileName}` — luật áp cho mọi file nằm theo đường dẫn này.
-- `allow read ... request.auth.uid == uid` — chỉ chính chủ mới tải file của mình.
-- `allow write` chỉ cho phép khi: đã đăng nhập, đúng chủ, **kích thước < 25 MB**, và **kiểu file nằm trong danh sách cho phép** (text, markdown, PDF, hoặc binary chung).
-- `request.resource == null` — trường hợp xóa file (không có nội dung mới) thì vẫn cho phép.
-
-> **Đổi giới hạn:** muốn cho phép ảnh, thêm `request.resource.contentType.matches('image/.*')`. Muốn tăng dung lượng, sửa con số `25`.
+> Logic ghi của nhánh `shared`: nếu bản ghi **chưa tồn tại** (`!data.exists()`) thì người tạo phải đặt `ownerId` đúng bằng `auth.uid` của mình; nếu **đã tồn tại** thì chỉ đúng chủ cũ (`data.child('ownerId').val()`) mới được sửa/xóa. Nhờ vậy không ai chiếm được bản chia sẻ của người khác.
 
 ---
 
@@ -374,7 +300,6 @@ firebase deploy --only hosting
 
 # 6. Đưa luật bảo mật lên (làm khi tạo mới hoặc sau khi sửa luật)
 firebase deploy --only database     # đẩy database.rules.json
-firebase deploy --only storage      # đẩy storage.rules
 ```
 
 Sau khi `deploy --only hosting` xong, terminal sẽ in ra địa chỉ web dạng `https://ten-site.web.app`. Mở thử là thấy.
@@ -387,10 +312,17 @@ Về các script trong `package.json`:
 |---|---|
 | `npm run dev` | Chạy server phát triển tại `http://localhost:5173`, tự cập nhật khi bạn sửa code (HMR). |
 | `npm run build` | Kiểm tra kiểu TypeScript (`tsc -b`) rồi đóng gói (`vite build`) ra `dist/`. |
-| `npm run lint` | Soát lỗi code bằng ESLint. |
 | `npm run preview` | Xem thử bản đã build ngay trên máy (giống production). |
 
-> **Về `vite.config.ts`:** dự án dùng plugin `@vitejs/plugin-react` (để hiểu cú pháp JSX của React) và một tùy chọn `manualChunks` để **tách thư viện Firebase thành các gói nhỏ riêng** giúp trình duyệt tải nhanh và cache tốt hơn. Đây là tối ưu **không bắt buộc** — một `vite.config.ts` tối thiểu chỉ cần `plugins: [react()]` là đã chạy được.
+> **Về `vite.config.ts`:** dự án dùng cấu hình tối thiểu — chỉ một plugin `@vitejs/plugin-react` để Vite hiểu cú pháp JSX của React:
+> ```typescript
+> import { defineConfig } from 'vite';
+> import react from '@vitejs/plugin-react';
+>
+> export default defineConfig({
+>   plugins: [react()],
+> });
+> ```
 
 ---
 
@@ -401,7 +333,6 @@ Về các script trong `package.json`:
 npm run dev                              # chạy dev server
 npm run build                            # build production ra dist/
 npm run preview                          # xem thử bản build
-npm run lint                             # soát lỗi code
 
 # Firebase CLI
 firebase login                           # đăng nhập
@@ -410,7 +341,6 @@ firebase use <project-id>                # chuyển sang project khác
 firebase hosting:sites:create <name>     # tạo một hosting site mới
 firebase deploy --only hosting           # deploy web
 firebase deploy --only database          # deploy luật Realtime Database
-firebase deploy --only storage           # deploy luật Storage
 firebase deploy                          # deploy tất cả cùng lúc
 ```
 
@@ -421,11 +351,10 @@ firebase deploy                          # deploy tất cả cùng lúc
 | Triệu chứng | Nguyên nhân & cách xử lý |
 |---|---|
 | Web trắng màn hình, console báo lỗi liên quan Firebase `null` | Thiếu file `.env` hoặc điền sai biến → `isConfigured` thành `false` nên SDK xuất ra `null`. Kiểm tra lại `.env` đủ 7 biến và đúng giá trị. Nhớ **khởi động lại `npm run dev`** sau khi sửa `.env`. |
+| Trang đăng nhập hiện cảnh báo "Chưa cấu hình Firebase" | `firebaseReady` đang là `false` (thiếu `apiKey`/`projectId` trong `.env`). Điền đủ rồi chạy lại dev server. |
 | Gõ thẳng link con (vd `/docs/abc`) ra **404** ở bản online | Thiếu hoặc sai `rewrites` trong `firebase.json`. Đảm bảo có `{"source": "**", "destination": "/index.html"}` rồi deploy lại hosting. |
 | Đăng nhập Google ở bản online báo lỗi domain | Chưa thêm `ten-site.web.app` vào **Authorized domains** trong Authentication. |
 | `firebase deploy --only database` báo **PERMISSION_DENIED** khi app đọc/ghi | Luật chưa được deploy hoặc viết sai. Chạy lại `firebase deploy --only database` và kiểm tra `database.rules.json`. |
-| `firebase deploy --only storage` báo lỗi bucket không tồn tại | Chưa **bật Storage** trong Console (mục 3, bước 5). Vào Console bật một lần rồi deploy lại. |
-| Đọc nội dung file text từ Storage bị chặn **CORS** | Đừng dùng `fetch(downloadURL)`. Dùng hàm SDK `getBytes(ref)` — nó đi qua kênh chính thức nên không vướng CORS. (Chi tiết trong `documents-feature-spec.md`.) |
 
 ---
 
@@ -433,12 +362,12 @@ firebase deploy                          # deploy tất cả cùng lúc
 
 Đọc xong tài liệu này, bạn đã có thể:
 
-- [ ] Tạo project Firebase + bật Authentication (Google), Realtime Database, Storage.
+- [ ] Tạo project Firebase + bật Authentication (Google) và Realtime Database.
 - [ ] Tạo file `.env` với đủ 7 biến `VITE_FIREBASE_*`.
 - [ ] Tạo `src/lib/firebase.ts` khởi tạo SDK (có pattern xuất `null` an toàn).
 - [ ] Tạo `firebase.json` (đặc biệt có `rewrites` cho SPA) và `.firebaserc`.
-- [ ] Viết và deploy `database.rules.json` + `storage.rules`.
+- [ ] Viết và deploy `database.rules.json`.
 - [ ] `npm run build` → `firebase deploy --only hosting` → web online tại `https://ten-site.web.app`.
 - [ ] Thêm domain vào Authorized domains để đăng nhập chạy được ở bản online.
 
-➡️ **Bước tiếp theo:** để dựng một tính năng thực tế (quản lý tài liệu nhiều định dạng, có chia sẻ công khai), xem file đi kèm **`documents-feature-spec.md`**.
+➡️ **Bước tiếp theo:** để dựng một tính năng thực tế (quản lý tài liệu, có folder và chia sẻ công khai), xem file đi kèm **`documents-feature-spec.md`**.
