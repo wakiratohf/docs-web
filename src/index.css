@@ -745,6 +745,16 @@ a:hover {
   box-shadow: 0 8px 20px rgba(37, 99, 235, 0.22);
 }
 
+/* Icon "đang chia sẻ" trên ô folder: ẩn sẵn, chỉ hiện khi rê chuột vào folder */
+.folder-tile .tile-share {
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.folder-tile:hover .tile-share,
+.folder-tile:focus-within .tile-share {
+  opacity: 1;
+}
+
 /* ----- Trang chi tiết folder (full page, danh sách dọc) ----- */
 .folder-title {
   display: flex;
