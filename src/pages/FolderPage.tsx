@@ -1,8 +1,10 @@
-import { useState, type DragEvent } from 'react';
+import { useMemo, useState, type DragEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useDocuments } from '../context/DocumentsContext';
 import { useUploadDocuments } from '../hooks/useUploadDocuments';
 import ThemeToggle from '../components/ThemeToggle';
+import SearchResults from '../components/SearchResults';
+import { searchDocs } from '../lib/search';
 import type { DocumentType } from '../types';
 
 function formatDate(iso: string): string {
@@ -26,13 +28,24 @@ export default function FolderPage() {
   const navigate = useNavigate();
 
   const folder = folders.find((f) => f.id === folderId);
-  const docs = documents.filter((d) => d.folderId === folderId);
+  const docs = useMemo(
+    () => documents.filter((d) => d.folderId === folderId),
+    [documents, folderId],
+  );
 
   const [editing, setEditing] = useState(false);
   const [editName, setEditName] = useState('');
   const [copied, setCopied] = useState(false);
   // Đang kéo file từ máy qua trang (để làm nổi vùng thả).
   const [fileDragOver, setFileDragOver] = useState(false);
+
+  // Tìm kiếm trong phạm vi folder này.
+  const [query, setQuery] = useState('');
+  const searching = query.trim().length > 0;
+  const results = useMemo(
+    () => (searching ? searchDocs(docs, query) : []),
+    [docs, query, searching],
+  );
 
   const backBar = (
     <div className="back-bar">
@@ -200,7 +213,32 @@ export default function FolderPage() {
         </button>
       </div>
 
-      {docs.length === 0 ? (
+      {docs.length > 0 && (
+        <div className="search-bar-wrap">
+          <span className="search-icon" aria-hidden="true">🔍</span>
+          <input
+            type="search"
+            className="search-input"
+            placeholder={`Tìm trong folder “${folder.name}” (theo tiêu đề & nội dung)…`}
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+          {searching && (
+            <button
+              type="button"
+              className="search-clear"
+              title="Xóa tìm kiếm"
+              onClick={() => setQuery('')}
+            >
+              ✕
+            </button>
+          )}
+        </div>
+      )}
+
+      {searching ? (
+        <SearchResults results={results} query={query} />
+      ) : docs.length === 0 ? (
         <p className="muted empty">
           Folder trống. Bấm nút phía trên để tạo tài liệu, hoặc kéo tài liệu vào folder
           này từ trang chủ.

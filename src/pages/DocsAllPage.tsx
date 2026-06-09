@@ -1,9 +1,11 @@
-import { useState, type DragEvent } from 'react';
+import { useMemo, useState, type DragEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useDocuments } from '../context/DocumentsContext';
 import { useUploadDocuments } from '../hooks/useUploadDocuments';
 import { useAuth } from '../auth/useAuth';
 import ThemeToggle from '../components/ThemeToggle';
+import SearchResults from '../components/SearchResults';
+import { searchDocs } from '../lib/search';
 import type { DocItem, DocumentType, Folder } from '../types';
 
 // Biểu tượng hiển thị trên icon tài liệu theo loại.
@@ -18,6 +20,19 @@ export default function DocsAllPage() {
 
   // Folder đang được kéo qua (làm nổi viền ô folder).
   const [dragOver, setDragOver] = useState<string | null>(null);
+
+  // Từ khóa tìm kiếm toàn cục (trên TẤT CẢ folder + tài liệu lẻ).
+  const [query, setQuery] = useState('');
+  const searching = query.trim().length > 0;
+  const results = useMemo(
+    () => (searching ? searchDocs(documents, query) : []),
+    [documents, query, searching],
+  );
+  // Map id → folder để kết quả tìm kiếm cho biết tài liệu nằm ở folder nào.
+  const foldersById = useMemo(
+    () => new Map(folders.map((f) => [f.id, f])),
+    [folders],
+  );
 
   const docsOf = (fid: string) => documents.filter((d) => d.folderId === fid);
   const looseDocs = documents.filter((d) => !d.folderId);
@@ -98,8 +113,36 @@ export default function DocsAllPage() {
         </button>
       </div>
 
+      <div className="search-bar-wrap">
+        <span className="search-icon" aria-hidden="true">🔍</span>
+        <input
+          type="search"
+          className="search-input"
+          placeholder="Tìm tài liệu trên tất cả folder (theo tiêu đề & nội dung)…"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+        />
+        {searching && (
+          <button
+            type="button"
+            className="search-clear"
+            title="Xóa tìm kiếm"
+            onClick={() => setQuery('')}
+          >
+            ✕
+          </button>
+        )}
+      </div>
+
       {loading ? (
         <p className="muted">Đang tải…</p>
+      ) : searching ? (
+        <SearchResults
+          results={results}
+          query={query}
+          foldersById={foldersById}
+          showFolder
+        />
       ) : folders.length === 0 && documents.length === 0 ? (
         <p className="muted empty">
           Chưa có gì. Bấm “+ New folder” hoặc “+ New note” để bắt đầu.
