@@ -2,6 +2,8 @@ import { useRef, useState, type ChangeEvent, type DragEvent } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
 import { useDocuments } from '../context/DocumentsContext';
+import { useUploadDocuments } from '../hooks/useUploadDocuments';
+import { detectType, extractHtmlBody, stripExt } from '../lib/uploadHelpers';
 import ThemeToggle from '../components/ThemeToggle';
 import type { DocumentType } from '../types';
 
@@ -14,35 +16,9 @@ interface PickedItem {
   type: DocumentType;
 }
 
-// Phần mở rộng file (đã hạ chữ thường) → suy ra loại tài liệu.
-// .html/.htm là nội dung HTML ⇒ 'note'; còn lại coi như văn bản/Markdown thuần.
-function detectType(name: string): DocumentType {
-  const ext = name.toLowerCase().split('.').pop() ?? '';
-  return ext === 'html' || ext === 'htm' ? 'note' : 'markdown';
-}
-
-// Bỏ phần mở rộng để làm tiêu đề mặc định ("ghi-chu.md" → "ghi-chu").
-function stripExt(name: string): string {
-  const i = name.lastIndexOf('.');
-  return i > 0 ? name.slice(0, i) : name;
-}
-
-// Nếu file là một trang HTML đầy đủ (<html>/<body>) thì chỉ lấy phần thân,
-// để khi render bằng dangerouslySetInnerHTML không dính thẻ head/title lạc lõng.
-function extractHtmlBody(raw: string): string {
-  if (/<html[\s>]/i.test(raw) || /<body[\s>]/i.test(raw)) {
-    try {
-      const parsed = new DOMParser().parseFromString(raw, 'text/html');
-      return parsed.body?.innerHTML ?? raw;
-    } catch {
-      return raw;
-    }
-  }
-  return raw;
-}
-
 export default function BatchUploadPage() {
-  const { folders, addDocuments } = useDocuments();
+  const { folders } = useDocuments();
+  const { commitItems } = useUploadDocuments();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
@@ -104,8 +80,9 @@ export default function BatchUploadPage() {
         content:
           it.type === 'note' ? extractHtmlBody(contents[i]) : contents[i],
       }));
-      const created = addDocuments(payload, folderId || undefined);
-      if (created.length > 0) {
+      // commitItems lo việc hỏi thay thế khi trùng tên rồi tạo/ghi đè.
+      const res = commitItems(payload, folderId || undefined);
+      if (res.created + res.replaced > 0) {
         navigate(folderId ? `/docs/folder/${folderId}` : '/docs');
       }
     } finally {

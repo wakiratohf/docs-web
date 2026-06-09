@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, type DragEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useDocuments } from '../context/DocumentsContext';
+import { useUploadDocuments } from '../hooks/useUploadDocuments';
 import ThemeToggle from '../components/ThemeToggle';
 import type { DocumentType } from '../types';
 
@@ -21,6 +22,7 @@ export default function FolderPage() {
     toggleShareFolder,
     moveDocument,
   } = useDocuments();
+  const { uploadFiles } = useUploadDocuments();
   const navigate = useNavigate();
 
   const folder = folders.find((f) => f.id === folderId);
@@ -29,6 +31,8 @@ export default function FolderPage() {
   const [editing, setEditing] = useState(false);
   const [editName, setEditName] = useState('');
   const [copied, setCopied] = useState(false);
+  // Đang kéo file từ máy qua trang (để làm nổi vùng thả).
+  const [fileDragOver, setFileDragOver] = useState(false);
 
   const backBar = (
     <div className="back-bar">
@@ -80,6 +84,27 @@ export default function FolderPage() {
     }
   };
 
+  // ----- Kéo-thả file từ máy vào trang → tải lên thẳng folder này -----
+  const onPageDragOver = (e: DragEvent) => {
+    // Chỉ phản ứng với file thật từ máy, không phải kéo phần tử trong trang.
+    if (!Array.from(e.dataTransfer.types).includes('Files')) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+    if (!fileDragOver) setFileDragOver(true);
+  };
+  const onPageDragLeave = (e: DragEvent) => {
+    // Chỉ tắt khi con trỏ rời hẳn vùng container (tránh nhấp nháy khi qua phần tử con).
+    if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
+      setFileDragOver(false);
+    }
+  };
+  const onPageDrop = (e: DragEvent) => {
+    if (!e.dataTransfer.files || e.dataTransfer.files.length === 0) return;
+    e.preventDefault();
+    setFileDragOver(false);
+    void uploadFiles(e.dataTransfer.files, folder.id);
+  };
+
   const shareUrl = `${window.location.origin}/share/f/${folder.id}`;
   const onCopyShare = async () => {
     try {
@@ -92,7 +117,18 @@ export default function FolderPage() {
   };
 
   return (
-    <div className="container">
+    <div
+      className={`container${fileDragOver ? ' file-drag-over' : ''}`}
+      onDragOver={onPageDragOver}
+      onDragLeave={onPageDragLeave}
+      onDrop={onPageDrop}
+    >
+      {fileDragOver && (
+        <div className="file-drop-banner">
+          📂 Thả để tải lên vào folder “{folder.name}”
+        </div>
+      )}
+
       {backBar}
 
       <header className="app-header">

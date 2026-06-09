@@ -1,6 +1,7 @@
 import { useState, type DragEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useDocuments } from '../context/DocumentsContext';
+import { useUploadDocuments } from '../hooks/useUploadDocuments';
 import { useAuth } from '../auth/useAuth';
 import ThemeToggle from '../components/ThemeToggle';
 import type { DocItem, DocumentType, Folder } from '../types';
@@ -11,6 +12,7 @@ const GLYPH: Record<DocumentType, string> = { note: '✏️', markdown: '#' };
 export default function DocsAllPage() {
   const { documents, folders, loading, addDocument, addFolder, moveDocument } =
     useDocuments();
+  const { uploadFiles } = useUploadDocuments();
   const { user, signOutUser } = useAuth();
   const navigate = useNavigate();
 
@@ -32,13 +34,21 @@ export default function DocsAllPage() {
   };
   const allowDrop = (e: DragEvent, key: string) => {
     e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
+    // Kéo file từ máy thì là thao tác "copy" (tải lên); kéo tài liệu nội bộ là "move".
+    const isFile = Array.from(e.dataTransfer.types).includes('Files');
+    e.dataTransfer.dropEffect = isFile ? 'copy' : 'move';
     if (dragOver !== key) setDragOver(key);
   };
   const onDropToFolder = (e: DragEvent, folderId: string) => {
     e.preventDefault();
-    const id = e.dataTransfer.getData('text/plain');
     setDragOver(null);
+    // Kéo file thật từ máy → tải lên thẳng vào folder này.
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      void uploadFiles(e.dataTransfer.files, folderId);
+      return;
+    }
+    // Kéo một tài liệu nội bộ → chuyển nó vào folder.
+    const id = e.dataTransfer.getData('text/plain');
     if (id) moveDocument(id, folderId);
   };
 
