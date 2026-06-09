@@ -8,7 +8,13 @@ import MarkdownPreview from './MarkdownPreview';
 type DocUpdates = Partial<Pick<DocItem, 'title' | 'content' | 'type'>>;
 
 export default function DocumentEditor({ doc }: { doc: DocItem }) {
-  const { updateDocument, deleteDocument, toggleShareDocument } = useDocuments();
+  const {
+    updateDocument,
+    deleteDocument,
+    toggleShareDocument,
+    folders,
+    moveDocument,
+  } = useDocuments();
   const navigate = useNavigate();
 
   const [title, setTitle] = useState(doc.title);
@@ -105,6 +111,19 @@ export default function DocumentEditor({ doc }: { doc: DocItem }) {
         >
           <option value="note">Note (rich-text)</option>
           <option value="markdown">Markdown</option>
+        </select>
+        <select
+          className="folder-select"
+          value={doc.folderId ?? ''}
+          onChange={(e) => moveDocument(doc.id, e.target.value || undefined)}
+          title="Chọn folder cho tài liệu"
+        >
+          <option value="">📁 Không có folder</option>
+          {folders.map((f) => (
+            <option key={f.id} value={f.id}>
+              📁 {f.name}
+            </option>
+          ))}
         </select>
         <button
           type="button"

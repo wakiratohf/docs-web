@@ -5,6 +5,8 @@ export interface Folder {
   name: string;
   order: number;
   createdAt: string;
+  /** true = đã bật chia sẻ công khai, có bản sao tại shared/f/{id} */
+  isShared?: boolean;
 }
 
 export interface DocItem {

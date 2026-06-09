@@ -15,6 +15,20 @@ import type { DocItem, DocumentType, Folder } from '../types';
 
 type DocUpdates = Partial<Pick<DocItem, 'title' | 'content' | 'type'>>;
 
+/**
+ * Trả về folder nếu folderId đó tồn tại VÀ đang được chia sẻ công khai;
+ * ngược lại trả về undefined. Dùng để biết có cần đồng bộ bản sao
+ * shared/f/{id}/documents/{docId} hay không.
+ */
+function findSharedFolder(
+  folders: Folder[],
+  folderId?: string,
+): Folder | undefined {
+  if (!folderId) return undefined;
+  const f = folders.find((x) => x.id === folderId);
+  return f?.isShared ? f : undefined;
+}
+
 interface DocumentsState {
   documents: DocItem[];
   folders: Folder[];
@@ -26,6 +40,7 @@ interface DocumentsState {
   addFolder: (name?: string) => Folder | null;
   renameFolder: (id: string, name: string) => void;
   deleteFolder: (id: string) => void;
+  toggleShareFolder: (id: string) => void;
   /** folderId = undefined ⇒ đưa tài liệu ra ngoài (không folder) */
   moveDocument: (id: string, folderId: string | undefined) => void;
 }
@@ -102,7 +117,14 @@ export function DocumentsProvider({ children }: { children: ReactNode }) {
         order: scope.length,
         ...(folderId ? { folderId } : {}),
       };
-      set(ref(db, `users/${uid}/documents/${created.id}`), created);
+      const writes: Record<string, unknown> = {
+        [`users/${uid}/documents/${created.id}`]: created,
+      };
+      // Tạo trong folder đang chia sẻ ⇒ thêm luôn vào bản công khai của folder.
+      if (findSharedFolder(stateRef.current.folders, folderId)) {
+        writes[`shared/f/${folderId}/documents/${created.id}`] = created;
+      }
+      update(ref(db), writes);
       return created;
     },
     [uid],
@@ -125,6 +147,11 @@ export function DocumentsProvider({ children }: { children: ReactNode }) {
         const merged: DocItem = { ...cur, ...updates, updatedAt: now };
         writes[`shared/d/${id}`] = { document: merged, ownerId: uid };
       }
+      // Nếu tài liệu nằm trong folder đang chia sẻ, cập nhật bản trong folder công khai.
+      if (cur && findSharedFolder(stateRef.current.folders, cur.folderId)) {
+        const merged: DocItem = { ...cur, ...updates, updatedAt: now };
+        writes[`shared/f/${cur.folderId}/documents/${id}`] = merged;
+      }
       update(ref(db), writes);
     },
     [uid],
@@ -139,6 +166,10 @@ export function DocumentsProvider({ children }: { children: ReactNode }) {
       };
       // Xóa luôn bản công khai nếu đang chia sẻ.
       if (cur?.isShared) writes[`shared/d/${id}`] = null;
+      // Gỡ khỏi bản công khai của folder nếu folder đang chia sẻ.
+      if (cur && findSharedFolder(stateRef.current.folders, cur.folderId)) {
+        writes[`shared/f/${cur.folderId}/documents/${id}`] = null;
+      }
       update(ref(db), writes);
     },
     [uid],
@@ -185,7 +216,14 @@ export function DocumentsProvider({ children }: { children: ReactNode }) {
   const renameFolder = useCallback(
     (id: string, name: string) => {
       if (!db || !uid) return;
-      set(ref(db, `users/${uid}/folders/${id}/name`), name);
+      const writes: Record<string, unknown> = {
+        [`users/${uid}/folders/${id}/name`]: name,
+      };
+      // Nếu folder đang chia sẻ, đổi tên luôn trong bản công khai.
+      if (findSharedFolder(stateRef.current.folders, id)) {
+        writes[`shared/f/${id}/folder/name`] = name;
+      }
+      update(ref(db), writes);
     },
     [uid],
   );
@@ -198,12 +236,44 @@ export function DocumentsProvider({ children }: { children: ReactNode }) {
       const writes: Record<string, unknown> = {
         [`users/${uid}/folders/${id}`]: null,
       };
+      // Nếu folder đang chia sẻ công khai, xóa luôn cả cụm shared/f/{id}.
+      const folder = stateRef.current.folders.find((f) => f.id === id);
+      if (folder?.isShared) writes[`shared/f/${id}`] = null;
       for (const d of docs) {
         if (d.folderId === id) {
           writes[`users/${uid}/documents/${d.id}`] = null;
           // Xóa luôn bản công khai nếu tài liệu đang chia sẻ.
           if (d.isShared) writes[`shared/d/${d.id}`] = null;
         }
+      }
+      update(ref(db), writes);
+    },
+    [uid],
+  );
+
+  const toggleShareFolder = useCallback(
+    (id: string) => {
+      if (!db || !uid) return;
+      const folder = stateRef.current.folders.find((f) => f.id === id);
+      if (!folder) return;
+      const enabling = !folder.isShared;
+      const writes: Record<string, unknown> = {
+        [`users/${uid}/folders/${id}/isShared`]: enabling,
+      };
+      if (enabling) {
+        // Gom toàn bộ tài liệu trong folder thành bản sao công khai.
+        const docsMap: Record<string, DocItem> = {};
+        for (const d of stateRef.current.documents) {
+          if (d.folderId === id) docsMap[d.id] = d;
+        }
+        writes[`shared/f/${id}`] = {
+          folder: { ...folder, isShared: true },
+          ownerId: uid,
+          documents: docsMap,
+        };
+      } else {
+        // Tắt chia sẻ → xóa cả cụm công khai.
+        writes[`shared/f/${id}`] = null;
       }
       update(ref(db), writes);
     },
@@ -234,6 +304,20 @@ export function DocumentsProvider({ children }: { children: ReactNode }) {
         else delete merged.folderId;
         writes[`shared/d/${id}`] = { document: merged, ownerId: uid };
       }
+      // Gỡ khỏi folder cũ nếu folder cũ đang chia sẻ.
+      if (findSharedFolder(stateRef.current.folders, cur.folderId)) {
+        writes[`shared/f/${cur.folderId}/documents/${id}`] = null;
+      }
+      // Thêm vào folder mới nếu folder mới đang chia sẻ.
+      if (findSharedFolder(stateRef.current.folders, folderId)) {
+        const moved: DocItem = {
+          ...cur,
+          folderId,
+          order: scope.length,
+          updatedAt: now,
+        };
+        writes[`shared/f/${folderId}/documents/${id}`] = moved;
+      }
       update(ref(db), writes);
     },
     [uid],
@@ -252,6 +336,7 @@ export function DocumentsProvider({ children }: { children: ReactNode }) {
         addFolder,
         renameFolder,
         deleteFolder,
+        toggleShareFolder,
         moveDocument,
       }}
     >

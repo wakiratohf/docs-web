@@ -4,40 +4,27 @@ import { useDocuments } from '../context/DocumentsContext';
 import { useAuth } from '../auth/useAuth';
 import type { DocItem, DocumentType, Folder } from '../types';
 
-// Khóa nhận diện vùng thả của section "không có folder".
-const NO_FOLDER = '__none__';
-
-function formatDate(iso: string): string {
-  const d = new Date(iso);
-  return d.toLocaleString('vi-VN', { dateStyle: 'short', timeStyle: 'short' });
-}
+// Biểu tượng hiển thị trên icon tài liệu theo loại.
+const GLYPH: Record<DocumentType, string> = { note: '✏️', markdown: '#' };
 
 export default function DocsAllPage() {
-  const {
-    documents,
-    folders,
-    loading,
-    addDocument,
-    addFolder,
-    renameFolder,
-    deleteFolder,
-    moveDocument,
-  } = useDocuments();
+  const { documents, folders, loading, addDocument, addFolder, moveDocument } =
+    useDocuments();
   const { user, signOutUser } = useAuth();
   const navigate = useNavigate();
 
-  // Folder (theo id) đang được kéo qua — để làm nổi viền vùng thả.
+  // Folder đang được kéo qua (làm nổi viền ô folder).
   const [dragOver, setDragOver] = useState<string | null>(null);
-  // Folder đang đổi tên tại chỗ.
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editName, setEditName] = useState('');
 
-  const create = (type: DocumentType, folderId?: string) => {
-    const created = addDocument(type, undefined, folderId);
+  const docsOf = (fid: string) => documents.filter((d) => d.folderId === fid);
+  const looseDocs = documents.filter((d) => !d.folderId);
+
+  const create = (type: DocumentType) => {
+    const created = addDocument(type);
     if (created) navigate(`/docs/view/document/${created.id}`);
   };
 
-  // ----- Kéo-thả (HTML5 native) -----
+  // ----- Kéo-thả (HTML5 native): kéo tài liệu thả vào ô folder -----
   const onDragStart = (e: DragEvent, id: string) => {
     e.dataTransfer.setData('text/plain', id);
     e.dataTransfer.effectAllowed = 'move';
@@ -47,61 +34,33 @@ export default function DocsAllPage() {
     e.dataTransfer.dropEffect = 'move';
     if (dragOver !== key) setDragOver(key);
   };
-  const onDrop = (e: DragEvent, folderId: string | undefined) => {
+  const onDropToFolder = (e: DragEvent, folderId: string) => {
     e.preventDefault();
     const id = e.dataTransfer.getData('text/plain');
     setDragOver(null);
     if (id) moveDocument(id, folderId);
   };
 
-  // ----- Đổi tên folder -----
-  const startRename = (f: Folder) => {
-    setEditingId(f.id);
-    setEditName(f.name);
-  };
-  const commitRename = () => {
-    if (editingId) {
-      const name = editName.trim();
-      if (name) renameFolder(editingId, name);
-    }
-    setEditingId(null);
-  };
+  const openFolder = (f: Folder) => navigate(`/docs/folder/${f.id}`);
 
-  // ----- Xóa folder (xóa luôn tài liệu bên trong) -----
-  const onDeleteFolder = (f: Folder) => {
-    const n = documents.filter((d) => d.folderId === f.id).length;
-    const msg =
-      n > 0
-        ? `Xóa folder "${f.name}" và ${n} tài liệu bên trong? Thao tác không thể hoàn tác.`
-        : `Xóa folder "${f.name}"?`;
-    if (window.confirm(msg)) deleteFolder(f.id);
-  };
-
-  const docsOf = (folderId: string) =>
-    documents.filter((d) => d.folderId === folderId);
-  const noFolderDocs = documents.filter((d) => !d.folderId);
-
+  // Một ô tài liệu (icon + nhãn), có thể kéo.
   const renderDoc = (d: DocItem) => (
-    <li
+    <Link
       key={d.id}
-      className="doc-row"
+      to={`/docs/view/document/${d.id}`}
+      className="tile"
       draggable
       onDragStart={(e) => onDragStart(e, d.id)}
+      title={d.title || '(không tiêu đề)'}
     >
-      <Link
-        to={`/docs/view/document/${d.id}`}
-        className="doc-item"
-        draggable={false}
-      >
-        <span className="drag-handle" title="Kéo để di chuyển">⠿</span>
-        <span className={`badge badge-${d.type}`}>{d.type}</span>
-        <span className="doc-title">{d.title || '(không tiêu đề)'}</span>
+      <span className={`tile-icon icon-${d.type}`}>
+        <span className="tile-glyph">{GLYPH[d.type]}</span>
         {d.isShared && (
-          <span className="share-flag" title="Đang chia sẻ công khai">🔗</span>
+          <span className="tile-share" title="Đang chia sẻ công khai">🔗</span>
         )}
-        <span className="doc-date muted">{formatDate(d.updatedAt)}</span>
-      </Link>
-    </li>
+      </span>
+      <span className="tile-label">{d.title || '(không tiêu đề)'}</span>
+    </Link>
   );
 
   return (
@@ -126,85 +85,46 @@ export default function DocsAllPage() {
 
       {loading ? (
         <p className="muted">Đang tải…</p>
+      ) : folders.length === 0 && documents.length === 0 ? (
+        <p className="muted empty">
+          Chưa có gì. Bấm “+ New folder” hoặc “+ New note” để bắt đầu.
+        </p>
       ) : (
-        <div className="folders">
-          {folders.map((f) => {
-            const docs = docsOf(f.id);
-            return (
-              <section
-                key={f.id}
-                className={`folder-section${dragOver === f.id ? ' drop-over' : ''}`}
-                onDragOver={(e) => allowDrop(e, f.id)}
-                onDragLeave={() =>
-                  setDragOver((k) => (k === f.id ? null : k))
-                }
-                onDrop={(e) => onDrop(e, f.id)}
-              >
-                <div className="folder-header">
-                  <span className="folder-icon">📁</span>
-                  {editingId === f.id ? (
-                    <input
-                      className="folder-name-input"
-                      autoFocus
-                      value={editName}
-                      onChange={(e) => setEditName(e.target.value)}
-                      onBlur={commitRename}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') commitRename();
-                        if (e.key === 'Escape') setEditingId(null);
-                      }}
-                    />
-                  ) : (
-                    <span
-                      className="folder-name"
-                      onDoubleClick={() => startRename(f)}
-                      title="Bấm đúp hoặc ✏️ để đổi tên"
-                    >
-                      {f.name}
-                    </span>
-                  )}
-                  <span className="folder-count muted">{docs.length}</span>
-                  <div className="folder-actions">
-                    <button type="button" className="ghost" onClick={() => startRename(f)} title="Đổi tên">✏️</button>
-                    <button type="button" className="ghost" onClick={() => create('note', f.id)}>+ note</button>
-                    <button type="button" className="ghost" onClick={() => create('markdown', f.id)}>+ md</button>
-                    <button type="button" className="ghost danger" onClick={() => onDeleteFolder(f)} title="Xóa folder">🗑️</button>
-                  </div>
-                </div>
-
-                {docs.length === 0 ? (
-                  <p className="folder-empty muted">Kéo tài liệu vào đây hoặc bấm “+ note”.</p>
-                ) : (
-                  <ul className="doc-list">{docs.map(renderDoc)}</ul>
+        <div className="home-grid">
+          {/* Ô folder — bấm để mở trang chi tiết */}
+          {folders.map((f) => (
+            <div
+              key={f.id}
+              className={`tile folder-tile${dragOver === f.id ? ' drop-over' : ''}`}
+              role="button"
+              tabIndex={0}
+              onClick={() => openFolder(f)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') openFolder(f);
+              }}
+              onDragOver={(e) => allowDrop(e, f.id)}
+              onDragLeave={() => setDragOver((k) => (k === f.id ? null : k))}
+              onDrop={(e) => onDropToFolder(e, f.id)}
+              title={f.name}
+            >
+              <span className="folder-icon-box">
+                {f.isShared && (
+                  <span className="tile-share" title="Đang chia sẻ công khai">🔗</span>
                 )}
-              </section>
-            );
-          })}
-
-          {/* Section tài liệu không thuộc folder nào */}
-          <section
-            className={`folder-section no-folder${dragOver === NO_FOLDER ? ' drop-over' : ''}`}
-            onDragOver={(e) => allowDrop(e, NO_FOLDER)}
-            onDragLeave={() =>
-              setDragOver((k) => (k === NO_FOLDER ? null : k))
-            }
-            onDrop={(e) => onDrop(e, undefined)}
-          >
-            <div className="folder-header">
-              <span className="folder-icon">🗂️</span>
-              <span className="folder-name static">Không có folder</span>
-              <span className="folder-count muted">{noFolderDocs.length}</span>
+                <span className="folder-mini">
+                  {docsOf(f.id)
+                    .slice(0, 9)
+                    .map((d) => (
+                      <span key={d.id} className={`mini-doc mini-${d.type}`} />
+                    ))}
+                </span>
+              </span>
+              <span className="tile-label">{f.name}</span>
             </div>
-            {noFolderDocs.length === 0 ? (
-              <p className="folder-empty muted">
-                {documents.length === 0 && folders.length === 0
-                  ? 'Chưa có tài liệu nào. Bấm “+ New note” hoặc “+ New folder” để bắt đầu.'
-                  : 'Không có tài liệu nào ngoài folder.'}
-              </p>
-            ) : (
-              <ul className="doc-list">{noFolderDocs.map(renderDoc)}</ul>
-            )}
-          </section>
+          ))}
+
+          {/* Tài liệu không thuộc folder nào — nằm thẳng trên lưới */}
+          {looseDocs.map(renderDoc)}
         </div>
       )}
     </div>

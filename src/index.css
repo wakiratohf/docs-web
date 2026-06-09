@@ -231,6 +231,53 @@ a:hover {
   min-height: auto;
   padding: 0;
 }
+/* Trang chia sẻ cả folder: tiêu đề + danh sách tài liệu bấm để mở */
+.share-folder-title {
+  margin: 0 0 16px;
+}
+.share-back {
+  display: inline-block;
+  margin-bottom: 12px;
+  text-decoration: none;
+}
+.share-folder-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.share-folder-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  text-decoration: none;
+  color: var(--text);
+  background: #fff;
+  transition: border-color 0.12s, box-shadow 0.12s;
+}
+.share-folder-item:hover {
+  border-color: var(--primary);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+.share-folder-glyph {
+  width: 28px;
+  text-align: center;
+  font-weight: 700;
+}
+.share-folder-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.share-folder-arrow {
+  color: var(--muted);
+}
 
 /* ---------- Editor ---------- */
 /* Trang document full màn hình: dùng hết chiều rộng + chiều cao viewport,
@@ -281,11 +328,15 @@ a:hover {
   border: 1px solid var(--border);
   border-radius: 8px;
 }
-.type-select {
+.type-select,
+.folder-select {
   padding: 0 12px;
   border: 1px solid var(--border);
   border-radius: 8px;
   background: #fff;
+}
+.folder-select {
+  max-width: 220px;
 }
 
 .note-editor,
@@ -394,101 +445,158 @@ a:hover {
   padding: 6px 10px;
 }
 
-/* ---------- Folders (gom tài liệu ở trang chủ) ---------- */
-.folders {
+/* ---------- Trang chủ kiểu màn hình iOS ---------- */
+.home-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(158px, 1fr));
+  gap: 38px 16px;
+  margin-top: 28px;
+}
+
+/* Một ô (tài liệu hoặc folder) */
+.tile {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+  color: var(--text);
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
 }
-.folder-section {
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 12px 14px;
-  transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+.tile:hover {
+  text-decoration: none;
 }
-/* Vùng thả đang được kéo qua. */
-.folder-section.drop-over {
+.tile:active {
+  transform: scale(0.93);
+}
+.tile,
+.tile:active {
+  transition: transform 0.12s ease;
+}
+
+/* Icon vuông bo góc kiểu iOS */
+.tile-icon {
+  position: relative;
+  width: 120px;
+  height: 120px;
+  border-radius: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 56px;
+  color: #fff;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.18);
+}
+.tile-glyph {
+  line-height: 1;
+}
+.icon-note {
+  background: linear-gradient(160deg, #a78bfa, #7c3aed);
+}
+.icon-markdown {
+  background: linear-gradient(160deg, #22d3ee, #0891b2);
+  font-weight: 800;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+.tile-share {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  font-size: 14px;
+  background: #fff;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+/* Nhãn dưới icon */
+.tile-label {
+  font-size: 17px;
+  line-height: 1.3;
+  max-width: 150px;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Ô folder: nền mờ chứa lưới 3x3 icon thu nhỏ */
+.folder-icon-box {
+  position: relative;
+  width: 120px;
+  height: 120px;
+  border-radius: 28px;
+  padding: 12px;
+  background: rgba(120, 120, 128, 0.18);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.folder-mini {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  gap: 6px;
+}
+.mini-doc {
+  border-radius: 7px;
+}
+.mini-note {
+  background: var(--note);
+}
+.mini-markdown {
+  background: var(--markdown);
+}
+/* Folder đang được kéo tài liệu vào */
+.folder-tile.drop-over .folder-icon-box {
   border-color: var(--primary);
-  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
-  background: #f5f8ff;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.35);
 }
-.folder-section.no-folder {
-  border-style: dashed;
-  background: transparent;
-}
-.folder-header {
+
+/* ----- Trang chi tiết folder (full page, danh sách dọc) ----- */
+.folder-title {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 10px;
 }
-.folder-icon {
-  font-size: 16px;
-}
-.folder-name {
-  font-weight: 600;
-  font-size: 15px;
-  cursor: text;
-  padding: 2px 4px;
-  border-radius: 6px;
-}
-.folder-name:hover {
-  background: #f0f1f3;
-}
-.folder-name.static {
-  cursor: default;
-}
-.folder-name.static:hover {
-  background: transparent;
-}
-.folder-name-input {
-  font-weight: 600;
-  font-size: 15px;
-  padding: 2px 6px;
+.folder-name-edit {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text);
+  padding: 2px 8px;
   border: 1px solid var(--primary);
-  border-radius: 6px;
+  border-radius: 8px;
   outline: none;
 }
-.folder-count {
-  font-size: 13px;
-  min-width: 18px;
-}
-.folder-actions {
+/* Mỗi dòng: thẻ tài liệu (Link) + nút đưa ra khỏi folder */
+.doc-line {
   display: flex;
-  gap: 6px;
-  margin-left: auto;
+  align-items: center;
+  gap: 8px;
 }
-button.ghost {
-  padding: 4px 8px;
-  font-size: 12px;
-  background: transparent;
-  border-color: transparent;
+.doc-line .doc-item {
+  flex: 1;
 }
-button.ghost:hover {
-  background: #f0f1f3;
-}
-.folder-empty {
-  margin: 0;
-  padding: 12px 14px;
-  font-size: 14px;
-  border: 1px dashed var(--border);
-  border-radius: 8px;
-  text-align: center;
-}
-
-/* Dòng tài liệu có thể kéo. */
-.doc-row {
-  list-style: none;
-}
-.doc-row[draggable='true'] {
-  cursor: grab;
-}
-.doc-row[draggable='true']:active {
-  cursor: grabbing;
-}
-.drag-handle {
+.doc-remove {
+  padding: 8px 12px;
+  font-size: 16px;
+  line-height: 1;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 10px;
   color: var(--muted);
-  font-size: 14px;
-  cursor: grab;
+}
+.doc-remove:hover {
+  background: #f0f1f3;
+  color: var(--text);
 }
