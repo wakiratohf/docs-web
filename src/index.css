@@ -383,6 +383,17 @@ a:hover {
   color: var(--muted);
 }
 
+/* Nút tải tài liệu về máy cho người xem trang chia sẻ */
+.share-download-btn {
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.share-download-btn:hover {
+  border-color: var(--primary);
+}
+
 /* Nội dung tài liệu chia sẻ scale theo cỡ chữ người xem chọn.
    Ghi đè font-size cố định của .note-content để nó kế thừa cỡ này. */
 .share-doc {
