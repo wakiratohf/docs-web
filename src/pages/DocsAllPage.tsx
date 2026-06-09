@@ -2,6 +2,7 @@ import { useState, type DragEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useDocuments } from '../context/DocumentsContext';
 import { useAuth } from '../auth/useAuth';
+import ThemeToggle from '../components/ThemeToggle';
 import type { DocItem, DocumentType, Folder } from '../types';
 
 // Biểu tượng hiển thị trên icon tài liệu theo loại.
@@ -68,6 +69,7 @@ export default function DocsAllPage() {
       <header className="app-header">
         <h1>📄 Tài liệu của tôi</h1>
         <div className="user-box">
+          <ThemeToggle />
           <span className="muted">{user?.email}</span>
           <button type="button" onClick={() => signOutUser()}>Đăng xuất</button>
         </div>

@@ -5,6 +5,7 @@ import { db } from '../lib/firebase';
 import type { DocItem } from '../types';
 import HtmlContent from '../components/HtmlContent';
 import MarkdownPreview from '../components/MarkdownPreview';
+import ThemeToggle from '../components/ThemeToggle';
 import { useFontScale } from '../components/FontSizeControl';
 
 interface SharedPayload {
@@ -55,6 +56,7 @@ export default function SharePage() {
         <Link to="/" className="brand">📄 Docs Web</Link>
         <div className="share-header-actions">
           {state === 'ready' && doc && control}
+          <ThemeToggle />
           <span className="badge badge-shared">Chia sẻ công khai · chỉ đọc</span>
         </div>
       </header>

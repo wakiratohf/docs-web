@@ -9,8 +9,45 @@
   --danger: #dc2626;
   --note: #7c3aed;
   --markdown: #0891b2;
+
+  /* Bề mặt & màu phụ — tách riêng khỏi màu cứng để dark theme ghi đè dễ dàng */
+  --subtle: #fafbfc; /* nền thanh công cụ, tab, select phụ */
+  --hover-bg: #f0f1f3; /* nền nút khi rê chuột */
+  --code-bg: #f3f4f6; /* nền khối code / inline code */
+  --danger-border: #f1c0c0;
+  --danger-bg: #fdf0f0; /* nền nút nguy hiểm khi rê chuột */
+  --share-bg: #ecfdf5; /* thanh thông báo đang chia sẻ */
+  --share-border: #a7f3d0;
+  --shadow: rgba(0, 0, 0, 0.05);
+
+  color-scheme: light;
   font-family: system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial,
     sans-serif;
+}
+
+/* Giao diện tối: chỉ cần ghi đè các biến màu, mọi component dùng var() tự đổi theo */
+[data-theme='dark'] {
+  --bg: #0f1115;
+  --card: #1a1d24;
+  --border: #2c313b;
+  --text: #e6e8ec;
+  --muted: #9aa3b2;
+  --primary: #3b82f6;
+  --primary-hover: #60a5fa;
+  --danger: #f87171;
+  --note: #a78bfa;
+  --markdown: #22d3ee;
+
+  --subtle: #20242c;
+  --hover-bg: #2a2f39;
+  --code-bg: #15181e;
+  --danger-border: #5a2d2d;
+  --danger-bg: #2a1a1a;
+  --share-bg: #0e2a20;
+  --share-border: #1f5e45;
+  --shadow: rgba(0, 0, 0, 0.4);
+
+  color-scheme: dark;
 }
 
 * {
@@ -22,12 +59,13 @@ body {
   background: var(--bg);
   color: var(--text);
   line-height: 1.5;
+  transition: background 0.2s ease, color 0.2s ease;
 }
 
 button {
   cursor: pointer;
   border: 1px solid var(--border);
-  background: #fff;
+  background: var(--card);
   color: var(--text);
   border-radius: 8px;
   padding: 8px 14px;
@@ -35,7 +73,7 @@ button {
   transition: background 0.15s, border-color 0.15s;
 }
 button:hover {
-  background: #f0f1f3;
+  background: var(--hover-bg);
 }
 button:disabled {
   opacity: 0.5;
@@ -51,10 +89,18 @@ button.primary:hover {
 }
 button.danger {
   color: var(--danger);
-  border-color: #f1c0c0;
+  border-color: var(--danger-border);
 }
 button.danger:hover {
-  background: #fdf0f0;
+  background: var(--danger-bg);
+}
+
+/* Ô nhập liệu kế thừa màu theme (dark mode cần nền tối + chữ sáng) */
+input,
+textarea,
+select {
+  color: var(--text);
+  background: var(--card);
 }
 
 a {
@@ -87,6 +133,12 @@ a:hover {
   justify-content: center;
   padding: 20px;
 }
+/* Nút đổi giao diện ở góc trên phải trang đăng nhập */
+.login-theme-toggle {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+}
 .login-card {
   background: var(--card);
   border: 1px solid var(--border);
@@ -95,7 +147,7 @@ a:hover {
   max-width: 400px;
   width: 100%;
   text-align: center;
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 4px 24px var(--shadow);
 }
 .login-card h1 {
   margin: 0 0 8px;
@@ -189,6 +241,13 @@ a:hover {
   font-size: 13px;
 }
 
+/* Nút bật/tắt giao diện sáng/tối (icon vuông) */
+.theme-toggle {
+  padding: 8px 10px;
+  font-size: 16px;
+  line-height: 1;
+}
+
 /* ---------- Share ---------- */
 .share-bar {
   display: flex;
@@ -197,8 +256,8 @@ a:hover {
   flex-wrap: wrap;
   margin-bottom: 16px;
   padding: 10px 14px;
-  background: #ecfdf5;
-  border: 1px solid #a7f3d0;
+  background: var(--share-bg);
+  border: 1px solid var(--share-border);
   border-radius: 10px;
   font-size: 14px;
 }
@@ -209,7 +268,7 @@ a:hover {
   border: 1px solid var(--border);
   border-radius: 6px;
   font-size: 13px;
-  background: #fff;
+  background: var(--card);
 }
 .share-header {
   display: flex;
@@ -257,12 +316,12 @@ a:hover {
   border-radius: 10px;
   text-decoration: none;
   color: var(--text);
-  background: #fff;
+  background: var(--card);
   transition: border-color 0.12s, box-shadow 0.12s;
 }
 .share-folder-item:hover {
   border-color: var(--primary);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 2px 8px var(--shadow);
 }
 .share-folder-glyph {
   width: 28px;
@@ -294,13 +353,13 @@ a:hover {
   padding: 4px;
   border: 1px solid var(--border);
   border-radius: 8px;
-  background: #fff;
+  background: var(--card);
 }
 .font-control-btn {
   min-width: 36px;
   padding: 4px 8px;
   font-weight: 700;
-  background: #f9fafb;
+  background: var(--subtle);
 }
 .font-control-btn:hover:not(:disabled) {
   border-color: var(--primary);
@@ -376,7 +435,7 @@ a:hover {
   padding: 0 12px;
   border: 1px solid var(--border);
   border-radius: 8px;
-  background: #fff;
+  background: var(--card);
 }
 .folder-select {
   max-width: 220px;
@@ -396,7 +455,7 @@ a:hover {
   gap: 4px;
   padding: 8px;
   border-bottom: 1px solid var(--border);
-  background: #fafbfc;
+  background: var(--subtle);
 }
 .toolbar button {
   padding: 5px 9px;
@@ -432,7 +491,7 @@ a:hover {
   color: var(--muted);
 }
 .note-content pre {
-  background: #f3f4f6;
+  background: var(--code-bg);
   padding: 12px;
   border-radius: 8px;
   overflow-x: auto;
@@ -443,7 +502,7 @@ a:hover {
   gap: 4px;
   padding: 8px;
   border-bottom: 1px solid var(--border);
-  background: #fafbfc;
+  background: var(--subtle);
 }
 .tabs button.active {
   background: var(--primary);
@@ -468,13 +527,13 @@ a:hover {
   margin-top: 0;
 }
 .markdown-body pre {
-  background: #f3f4f6;
+  background: var(--code-bg);
   padding: 12px;
   border-radius: 8px;
   overflow-x: auto;
 }
 .markdown-body code {
-  background: #f3f4f6;
+  background: var(--code-bg);
   padding: 2px 5px;
   border-radius: 4px;
   font-size: 0.9em;
@@ -548,7 +607,7 @@ a:hover {
   top: -6px;
   right: -6px;
   font-size: 14px;
-  background: #fff;
+  background: var(--card);
   border-radius: 50%;
   width: 24px;
   height: 24px;
@@ -582,6 +641,11 @@ a:hover {
   border: 1px solid rgba(255, 255, 255, 0.5);
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
   transition: border-color 0.15s, box-shadow 0.15s;
+}
+/* Dark mode: viền trắng đậm trông chói → làm dịu lại */
+[data-theme='dark'] .folder-icon-box {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.1);
 }
 .folder-mini {
   width: 100%;
@@ -634,12 +698,12 @@ a:hover {
   padding: 8px 12px;
   font-size: 16px;
   line-height: 1;
-  background: #fff;
+  background: var(--card);
   border: 1px solid var(--border);
   border-radius: 10px;
   color: var(--muted);
 }
 .doc-remove:hover {
-  background: #f0f1f3;
+  background: var(--hover-bg);
   color: var(--text);
 }

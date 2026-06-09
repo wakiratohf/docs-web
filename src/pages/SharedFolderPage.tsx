@@ -5,6 +5,7 @@ import { db } from '../lib/firebase';
 import type { DocItem, Folder } from '../types';
 import HtmlContent from '../components/HtmlContent';
 import MarkdownPreview from '../components/MarkdownPreview';
+import ThemeToggle from '../components/ThemeToggle';
 import { useFontScale } from '../components/FontSizeControl';
 
 // Bản công khai của một folder: metadata folder + toàn bộ tài liệu bên trong.
@@ -68,6 +69,7 @@ export default function SharedFolderPage() {
         <Link to="/" className="brand">📄 Docs Web</Link>
         <div className="share-header-actions">
           {state === 'ready' && current && control}
+          <ThemeToggle />
           <span className="badge badge-shared">Chia sẻ công khai · chỉ đọc</span>
         </div>
       </header>

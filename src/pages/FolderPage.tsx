@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useDocuments } from '../context/DocumentsContext';
+import ThemeToggle from '../components/ThemeToggle';
 import type { DocumentType } from '../types';
 
 function formatDate(iso: string): string {
@@ -116,6 +117,7 @@ export default function FolderPage() {
           )}
         </h1>
         <div className="user-box">
+          <ThemeToggle />
           <button
             type="button"
             className={folder.isShared ? 'primary' : ''}

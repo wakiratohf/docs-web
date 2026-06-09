@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useAuth } from '../auth/useAuth';
+import ThemeToggle from '../components/ThemeToggle';
 
 export default function LoginPage() {
   const { signIn, ready } = useAuth();
@@ -16,6 +17,9 @@ export default function LoginPage() {
 
   return (
     <div className="login-page">
+      <div className="login-theme-toggle">
+        <ThemeToggle />
+      </div>
       <div className="login-card">
         <h1>📄 Docs Web</h1>
         <p className="muted">Quản lý tài liệu cá nhân: ghi chú (rich-text) và Markdown.</p>
