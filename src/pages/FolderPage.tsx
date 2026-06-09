@@ -173,7 +173,14 @@ export default function FolderPage() {
                 {d.isShared && (
                   <span className="share-flag" title="Đang chia sẻ công khai">🔗</span>
                 )}
-                <span className="doc-date muted">{formatDate(d.updatedAt)}</span>
+                <span className="doc-dates muted">
+                  <span className="doc-date" title="Thời gian cập nhật gần nhất">
+                    Sửa: {formatDate(d.updatedAt)}
+                  </span>
+                  <span className="doc-date" title="Thời gian tạo">
+                    Tạo: {formatDate(d.createdAt)}
+                  </span>
+                </span>
               </Link>
               <button
                 type="button"

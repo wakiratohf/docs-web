@@ -219,6 +219,18 @@ a:hover {
 .doc-date {
   font-size: 13px;
 }
+.doc-dates {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  text-align: right;
+  white-space: nowrap;
+}
+.doc-dates .doc-date {
+  font-size: 12px;
+  line-height: 1.3;
+}
 .badge {
   font-size: 11px;
   text-transform: uppercase;
