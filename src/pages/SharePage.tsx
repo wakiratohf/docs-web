@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { get, ref } from 'firebase/database';
 import { db } from '../lib/firebase';
 import type { DocItem } from '../types';
 import HtmlContent from '../components/HtmlContent';
 import MarkdownPreview from '../components/MarkdownPreview';
+import { useFontScale } from '../components/FontSizeControl';
 
 interface SharedPayload {
   document: DocItem;
@@ -17,6 +18,7 @@ export default function SharePage() {
   const { id } = useParams();
   const [state, setState] = useState<ViewState>('loading');
   const [doc, setDoc] = useState<DocItem | null>(null);
+  const { fontPx, control } = useFontScale();
 
   useEffect(() => {
     let active = true;
@@ -45,10 +47,16 @@ export default function SharePage() {
   }, [id]);
 
   return (
-    <div className="container share-view">
+    <div
+      className="container share-view"
+      style={{ '--share-font-size': `${fontPx}px` } as CSSProperties}
+    >
       <header className="share-header">
         <Link to="/" className="brand">📄 Docs Web</Link>
-        <span className="badge badge-shared">Chia sẻ công khai · chỉ đọc</span>
+        <div className="share-header-actions">
+          {state === 'ready' && doc && control}
+          <span className="badge badge-shared">Chia sẻ công khai · chỉ đọc</span>
+        </div>
       </header>
 
       {state === 'loading' && <p className="muted">Đang tải…</p>}

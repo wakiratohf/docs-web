@@ -279,6 +279,49 @@ a:hover {
   color: var(--muted);
 }
 
+/* Cụm nút chỉnh cỡ chữ + badge nằm cùng bên phải header */
+.share-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+/* Bộ điều khiển cỡ chữ cho người xem (giúp đọc rõ hơn) */
+.font-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+}
+.font-control-btn {
+  min-width: 36px;
+  padding: 4px 8px;
+  font-weight: 700;
+  background: #f9fafb;
+}
+.font-control-btn:hover:not(:disabled) {
+  border-color: var(--primary);
+}
+.font-control-value {
+  min-width: 44px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+/* Nội dung tài liệu chia sẻ scale theo cỡ chữ người xem chọn.
+   Ghi đè font-size cố định của .note-content để nó kế thừa cỡ này. */
+.share-doc {
+  font-size: var(--share-font-size, 16px);
+}
+.share-doc .note-content.readonly,
+.share-doc .markdown-body {
+  font-size: inherit;
+}
+
 /* ---------- Editor ---------- */
 /* Trang document full màn hình: dùng hết chiều rộng + chiều cao viewport,
    vùng soạn thảo co giãn và tự cuộn bên trong. */

@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { get, ref } from 'firebase/database';
 import { db } from '../lib/firebase';
 import type { DocItem, Folder } from '../types';
 import HtmlContent from '../components/HtmlContent';
 import MarkdownPreview from '../components/MarkdownPreview';
+import { useFontScale } from '../components/FontSizeControl';
 
 // Bản công khai của một folder: metadata folder + toàn bộ tài liệu bên trong.
 interface SharedFolderPayload {
@@ -22,6 +23,7 @@ export default function SharedFolderPage() {
   const { id, docId } = useParams();
   const [state, setState] = useState<ViewState>('loading');
   const [payload, setPayload] = useState<SharedFolderPayload | null>(null);
+  const { fontPx, control } = useFontScale();
 
   useEffect(() => {
     let active = true;
@@ -58,10 +60,16 @@ export default function SharedFolderPage() {
   const current = docId ? payload?.documents?.[docId] : undefined;
 
   return (
-    <div className="container share-view">
+    <div
+      className="container share-view"
+      style={{ '--share-font-size': `${fontPx}px` } as CSSProperties}
+    >
       <header className="share-header">
         <Link to="/" className="brand">📄 Docs Web</Link>
-        <span className="badge badge-shared">Chia sẻ công khai · chỉ đọc</span>
+        <div className="share-header-actions">
+          {state === 'ready' && current && control}
+          <span className="badge badge-shared">Chia sẻ công khai · chỉ đọc</span>
+        </div>
       </header>
 
       {state === 'loading' && <p className="muted">Đang tải…</p>}
