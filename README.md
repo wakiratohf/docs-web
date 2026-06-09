@@ -44,6 +44,52 @@ VITE_FIREBASE_DATABASE_URL
 
 > Lưu ý: các giá trị `VITE_FIREBASE_*` là config phía client của Firebase (vốn lộ công khai trong web app đã build). Bảo mật dữ liệu được đảm bảo bằng Realtime Database rules trong `database.rules.json`, không phải bằng việc giấu các giá trị này.
 
+## Setup bằng Claude Code
+
+Claude Code là trợ lý lập trình chạy ngay trong terminal. Repo này đã có sẵn file [`CLAUDE.md`](./CLAUDE.md) — Claude Code **tự đọc** file đó khi mở project, nên nó hiểu sẵn kiến trúc, quy ước và các lệnh thường dùng mà bạn không phải giải thích lại.
+
+### 1. Cài Claude Code
+
+```bash
+npm install -g @anthropic-ai/claude-code   # cài 1 lần cho cả máy
+```
+
+### 2. Mở project bằng Claude Code
+
+```bash
+cd "untitled folder"   # vào đúng thư mục chứa mã nguồn
+claude                 # khởi động Claude Code (lần đầu sẽ hỏi đăng nhập)
+```
+
+Khi đã vào, Claude Code đọc `CLAUDE.md` để nắm: backend là Firebase Auth + Realtime Database, mọi thao tác ghi dữ liệu nằm trong `src/context/DocumentsContext.tsx`, cách build/deploy, v.v.
+
+### 3. Nhờ Claude Code dựng môi trường
+
+Thay vì gõ tay từng bước ở mục "Chạy ở máy local" bên trên, bạn có thể **ra lệnh bằng tiếng Việt**. Vài ví dụ gõ thẳng vào ô chat của Claude Code:
+
+```text
+Cài dependencies rồi tạo file .env từ .env.example giúp tôi
+```
+```text
+Điền config Firebase này vào .env: <dán đoạn config từ Firebase Console>
+```
+```text
+Chạy dev server lên giúp tôi
+```
+```text
+Build project rồi deploy hosting lên Firebase
+```
+
+Claude Code sẽ chạy đúng các lệnh (`npm install`, `npm run dev`, `npm run build`, `firebase deploy ...`) và **hỏi xác nhận** trước khi làm những việc có thể ảnh hưởng (ví dụ deploy). Bạn vẫn nắm quyền duyệt từng bước.
+
+> Mẹo: nếu cần tự đăng nhập (ví dụ `firebase login`, `gcloud auth login`), gõ thẳng vào ô chat với tiền tố `!`, ví dụ `!firebase login` — lệnh chạy trong phiên làm việc và kết quả hiện ngay cho Claude Code thấy.
+
+### 4. Việc hằng ngày có thể nhờ Claude Code
+
+- Hỏi về luồng dữ liệu, route, hay quy ước editor (đã ghi sẵn trong `CLAUDE.md`).
+- Thêm tính năng / sửa lỗi — Claude Code biết giữ đúng pattern "shared mirror" (đồng bộ bản riêng tư và bản công khai) khi sửa code chạm tới chia sẻ.
+- Kiểm tra build (`npm run build` = cổng type-check duy nhất của repo, vì project **không có** test runner và ESLint).
+
 ## Trang & đường dẫn (route)
 
 | Đường dẫn | Trang | Vai trò |
