@@ -156,6 +156,12 @@ export default function FolderPage() {
         <button type="button" className="primary" onClick={() => create('markdown')}>
           + New markdown
         </button>
+        <button
+          type="button"
+          onClick={() => navigate(`/docs/upload?folder=${folder.id}`)}
+        >
+          ⬆️ Tải lên hàng loạt
+        </button>
       </div>
 
       {docs.length === 0 ? (

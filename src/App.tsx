@@ -4,6 +4,7 @@ import { DocumentsProvider } from './context/DocumentsContext';
 import { ThemeProvider } from './context/ThemeContext';
 import DocsAllPage from './pages/DocsAllPage';
 import FolderPage from './pages/FolderPage';
+import BatchUploadPage from './pages/BatchUploadPage';
 import DocViewerPage from './pages/DocViewerPage';
 import LoginPage from './pages/LoginPage';
 import SharePage from './pages/SharePage';
@@ -21,6 +22,7 @@ function AppShell() {
       <Routes>
         <Route path="/" element={<Navigate to="/docs" replace />} />
         <Route path="/docs" element={<DocsAllPage />} />
+        <Route path="/docs/upload" element={<BatchUploadPage />} />
         <Route path="/docs/folder/:folderId" element={<FolderPage />} />
         <Route path="/docs/view/document/:id" element={<DocViewerPage />} />
         <Route path="*" element={<Navigate to="/docs" replace />} />

@@ -719,3 +719,93 @@ a:hover {
   background: var(--hover-bg);
   color: var(--text);
 }
+
+/* ---------- Trang tải lên hàng loạt ---------- */
+.upload-toolbar {
+  margin: 16px 0;
+}
+.folder-pick {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--muted);
+}
+.folder-pick .folder-select {
+  padding: 8px 12px;
+  max-width: 260px;
+}
+
+/* Vùng kéo-thả file */
+.drop-zone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 40px 24px;
+  border: 2px dashed var(--border);
+  border-radius: 14px;
+  background: var(--card);
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+.drop-zone:hover {
+  border-color: var(--primary);
+}
+.drop-zone.drag-over {
+  border-color: var(--primary);
+  background: var(--hover-bg);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.25);
+}
+.drop-icon {
+  font-size: 40px;
+  line-height: 1;
+}
+
+.upload-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 20px 0 10px;
+  font-size: 14px;
+}
+
+.upload-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.upload-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+.upload-title {
+  flex: 1;
+  min-width: 120px;
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+}
+.upload-row .type-select {
+  padding: 7px 10px;
+}
+.upload-filename {
+  max-width: 180px;
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

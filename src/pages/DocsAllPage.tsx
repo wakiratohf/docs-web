@@ -83,6 +83,9 @@ export default function DocsAllPage() {
           + New markdown
         </button>
         <button type="button" onClick={() => addFolder()}>+ New folder</button>
+        <button type="button" onClick={() => navigate('/docs/upload')}>
+          ⬆️ Tải lên hàng loạt
+        </button>
       </div>
 
       {loading ? (

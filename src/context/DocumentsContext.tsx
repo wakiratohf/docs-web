@@ -34,6 +34,11 @@ interface DocumentsState {
   folders: Folder[];
   loading: boolean;
   addDocument: (type: DocumentType, title?: string, folderId?: string) => DocItem | null;
+  /** Tạo nhiều tài liệu cùng lúc (dùng cho tải lên hàng loạt) trong một lần ghi. */
+  addDocuments: (
+    items: { type: DocumentType; title: string; content: string }[],
+    folderId?: string,
+  ) => DocItem[];
   updateDocument: (id: string, updates: DocUpdates) => void;
   deleteDocument: (id: string) => void;
   toggleShareDocument: (id: string) => void;
@@ -124,6 +129,45 @@ export function DocumentsProvider({ children }: { children: ReactNode }) {
       if (findSharedFolder(stateRef.current.folders, folderId)) {
         writes[`shared/f/${folderId}/documents/${created.id}`] = created;
       }
+      update(ref(db), writes);
+      return created;
+    },
+    [uid],
+  );
+
+  const addDocuments = useCallback(
+    (
+      items: { type: DocumentType; title: string; content: string }[],
+      folderId?: string,
+    ): DocItem[] => {
+      if (!db || !uid || items.length === 0) return [];
+      const cur = stateRef.current.documents;
+      // order tính trong phạm vi cùng folder; mỗi item nối tiếp nhau từ cuối.
+      const scope = cur.filter((d) => (d.folderId ?? '') === (folderId ?? ''));
+      const sharedFolder = findSharedFolder(stateRef.current.folders, folderId);
+      const now = new Date().toISOString();
+      const created: DocItem[] = [];
+      // Gom toàn bộ đường dẫn rồi ghi MỘT lần (multi-path update, nguyên tử).
+      const writes: Record<string, unknown> = {};
+      items.forEach((it, i) => {
+        const doc: DocItem = {
+          id: uuidv4(),
+          type: it.type,
+          title:
+            it.title.trim() || (it.type === 'note' ? 'New note' : 'New document'),
+          content: it.content,
+          createdAt: now,
+          updatedAt: now,
+          order: scope.length + i,
+          ...(folderId ? { folderId } : {}),
+        };
+        created.push(doc);
+        writes[`users/${uid}/documents/${doc.id}`] = doc;
+        // Nếu tạo trong folder đang chia sẻ ⇒ thêm luôn vào bản công khai của folder.
+        if (sharedFolder) {
+          writes[`shared/f/${folderId}/documents/${doc.id}`] = doc;
+        }
+      });
       update(ref(db), writes);
       return created;
     },
@@ -330,6 +374,7 @@ export function DocumentsProvider({ children }: { children: ReactNode }) {
         folders,
         loading,
         addDocument,
+        addDocuments,
         updateDocument,
         deleteDocument,
         toggleShareDocument,
