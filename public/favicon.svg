@@ -1,0 +1,25 @@
+<svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Docs Web">
+  <defs>
+    <!-- gradient theo màu thương hiệu: --primary (#2563eb) → --note (#7c3aed) -->
+    <linearGradient id="bg" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#2563eb" />
+      <stop offset="1" stop-color="#7c3aed" />
+    </linearGradient>
+  </defs>
+
+  <!-- nền bo tròn -->
+  <rect width="32" height="32" rx="7" fill="url(#bg)" />
+
+  <!-- tờ tài liệu (góc trên phải gập lại) -->
+  <path d="M10.5 6.5h7.7L23 11.3V25a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 9 25V8a1.5 1.5 0 0 1 1.5-1.5Z" fill="#ffffff" />
+
+  <!-- góc gập -->
+  <path d="M18.2 6.5v3.6a1.2 1.2 0 0 0 1.2 1.2H23Z" fill="#c7d2fe" />
+
+  <!-- các dòng chữ trên tài liệu -->
+  <g stroke="#93c5fd" stroke-width="1.6" stroke-linecap="round">
+    <line x1="12" y1="15" x2="20" y2="15" />
+    <line x1="12" y1="18" x2="20" y2="18" />
+    <line x1="12" y1="21" x2="17" y2="21" />
+  </g>
+</svg>
