@@ -16,8 +16,13 @@ import ThemeToggle from '../components/ThemeToggle';
 import SearchResults from '../components/SearchResults';
 import Spinner from '../components/Spinner';
 import EmptyState from '../components/EmptyState';
+import CreateFolderModal from '../components/CreateFolderModal';
 import { searchDocs } from '../lib/search';
-import type { DocItem, DocumentType, Folder } from '../types';
+import { STICKY_COLORS, DEFAULT_STICKY_COLOR } from '../lib/stickyColors';
+import type { DocItem, DocumentType, Folder, FolderViewType } from '../types';
+
+// Tra nhanh mã màu swatch theo key để tô ô mini của folder sticky.
+const SWATCH_BY_KEY = new Map(STICKY_COLORS.map((c) => [c.key, c.swatch]));
 
 // Biểu tượng hiển thị trên icon tài liệu theo loại.
 const GLYPH: Record<DocumentType, string> = { note: '✏️', markdown: '#' };
@@ -38,6 +43,8 @@ export default function DocsAllPage() {
 
   // Folder đang được kéo qua (làm nổi viền ô folder).
   const [dragOver, setDragOver] = useState<string | null>(null);
+  // Mở hộp thoại tạo folder (chọn tên + kiểu hiển thị).
+  const [creatingFolder, setCreatingFolder] = useState(false);
 
   // Từ khóa tìm kiếm toàn cục (trên TẤT CẢ folder + tài liệu lẻ).
   const [query, setQuery] = useState('');
@@ -58,6 +65,13 @@ export default function DocsAllPage() {
   const create = (type: DocumentType) => {
     const created = addDocument(type);
     if (created) navigate(`/docs/view/document/${created.id}`);
+  };
+
+  // Tạo folder từ hộp thoại rồi mở luôn để thấy ngay kiểu vừa chọn.
+  const onCreateFolder = (name: string, viewType: FolderViewType) => {
+    setCreatingFolder(false);
+    const f = addFolder(name, viewType);
+    if (f) navigate(`/docs/folder/${f.id}`);
   };
 
   // ----- Kéo-thả (HTML5 native): kéo tài liệu thả vào ô folder -----
@@ -125,7 +139,11 @@ export default function DocsAllPage() {
         <button type="button" className="btn-icon primary" onClick={() => create('markdown')}>
           <Plus size={16} aria-hidden="true" /> New markdown
         </button>
-        <button type="button" className="btn-icon" onClick={() => addFolder()}>
+        <button
+          type="button"
+          className="btn-icon"
+          onClick={() => setCreatingFolder(true)}
+        >
           <FolderPlus size={16} aria-hidden="true" /> New folder
         </button>
         <button type="button" className="btn-icon" onClick={() => navigate('/docs/upload')}>
@@ -217,9 +235,22 @@ export default function DocsAllPage() {
                 <span className="folder-mini">
                   {docsOf(f.id)
                     .slice(0, 9)
-                    .map((d) => (
-                      <span key={d.id} className={`mini-doc mini-${d.type}`} />
-                    ))}
+                    .map((d) =>
+                      // Folder sticky: ô mini tô theo màu giấy nhớ của tài liệu.
+                      f.viewType === 'sticky' ? (
+                        <span
+                          key={d.id}
+                          className="mini-doc"
+                          style={{
+                            background: SWATCH_BY_KEY.get(
+                              d.color ?? DEFAULT_STICKY_COLOR,
+                            ),
+                          }}
+                        />
+                      ) : (
+                        <span key={d.id} className={`mini-doc mini-${d.type}`} />
+                      ),
+                    )}
                 </span>
               </span>
               <span className="tile-label">{f.name}</span>
@@ -230,6 +261,12 @@ export default function DocsAllPage() {
           {looseDocs.map(renderDoc)}
         </div>
       )}
+
+      <CreateFolderModal
+        open={creatingFolder}
+        onCancel={() => setCreatingFolder(false)}
+        onCreate={onCreateFolder}
+      />
     </div>
   );
 }

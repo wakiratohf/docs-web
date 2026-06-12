@@ -12,6 +12,8 @@ import EmptyState from '../components/EmptyState';
 import { useFontScale } from '../components/FontSizeControl';
 import { downloadDocument } from '../lib/downloadHelpers';
 import { formatDate } from '../lib/formatDate';
+import { plainTextOf } from '../lib/search';
+import { DEFAULT_STICKY_COLOR } from '../lib/stickyColors';
 
 // Bản công khai của một folder: metadata folder + toàn bộ tài liệu bên trong.
 interface SharedFolderPayload {
@@ -141,6 +143,27 @@ export default function SharedFolderPage() {
               icon={<Inbox size={40} aria-hidden="true" />}
               title="Folder này chưa có tài liệu nào"
             />
+          ) : payload.folder.viewType === 'sticky' ? (
+            // Folder kiểu sticky note: lưới ô giấy nhớ màu (chỉ đọc).
+            <ul className="sticky-grid">
+              {docs.map((d) => {
+                const color = d.color ?? DEFAULT_STICKY_COLOR;
+                const preview = plainTextOf(d).trim();
+                return (
+                  <li key={d.id} className={`sticky-card sticky-${color}`}>
+                    <div className="sticky-head" aria-hidden="true" />
+                    <Link to={`/share/f/${id}/${d.id}`} className="sticky-body">
+                      <span className="sticky-title">
+                        {d.title || '(không tiêu đề)'}
+                      </span>
+                      <p className={`sticky-preview${preview ? '' : ' muted'}`}>
+                        {preview || '(trống)'}
+                      </p>
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
           ) : (
             <ul className="share-folder-list">
               {docs.map((d) => (

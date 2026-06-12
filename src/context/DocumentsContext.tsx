@@ -12,7 +12,13 @@ import { v4 as uuidv4 } from 'uuid';
 import { db } from '../lib/firebase';
 import { useAuth } from '../auth/useAuth';
 import { useToast } from './ToastContext';
-import type { DocItem, DocumentType, Folder } from '../types';
+import type {
+  DocItem,
+  DocumentType,
+  Folder,
+  FolderViewType,
+  StickyColor,
+} from '../types';
 
 type DocUpdates = Partial<Pick<DocItem, 'title' | 'content' | 'type'>>;
 
@@ -43,10 +49,14 @@ interface DocumentsState {
   updateDocument: (id: string, updates: DocUpdates) => void;
   deleteDocument: (id: string) => void;
   toggleShareDocument: (id: string) => void;
-  addFolder: (name?: string) => Folder | null;
+  /** Đặt màu sticky cho tài liệu (không đụng updatedAt — chỉ là trang trí). */
+  setDocumentColor: (id: string, color: StickyColor) => void;
+  addFolder: (name?: string, viewType?: FolderViewType) => Folder | null;
   renameFolder: (id: string, name: string) => void;
   deleteFolder: (id: string) => void;
   toggleShareFolder: (id: string) => void;
+  /** Đổi kiểu hiển thị tài liệu trong folder (list ↔ sticky). */
+  setFolderViewType: (id: string, viewType: FolderViewType) => void;
   /** Bật/tắt ghim folder (ưu tiên hiển thị trên cùng) */
   togglePinFolder: (id: string) => void;
   /** folderId = undefined ⇒ đưa tài liệu ra ngoài (không folder) */
@@ -268,8 +278,28 @@ export function DocumentsProvider({ children }: { children: ReactNode }) {
     [uid, commit],
   );
 
+  // Đổi màu sticky của tài liệu. Màu chỉ là trang trí (folder kiểu sticky) nên
+  // KHÔNG cập nhật updatedAt. Ghi field con để đồng bộ cả bản công khai.
+  const setDocumentColor = useCallback(
+    (id: string, color: StickyColor) => {
+      if (!db || !uid) return;
+      const cur = stateRef.current.documents.find((d) => d.id === id);
+      const writes: Record<string, unknown> = {
+        [`users/${uid}/documents/${id}/color`]: color,
+      };
+      // Tài liệu đang chia sẻ lẻ ⇒ cập nhật bản shared/d/{id}.
+      if (cur?.isShared) writes[`shared/d/${id}/document/color`] = color;
+      // Tài liệu nằm trong folder đang chia sẻ ⇒ cập nhật bản trong folder công khai.
+      if (cur && findSharedFolder(stateRef.current.folders, cur.folderId)) {
+        writes[`shared/f/${cur.folderId}/documents/${id}/color`] = color;
+      }
+      commit(writes);
+    },
+    [uid, commit],
+  );
+
   const addFolder = useCallback(
-    (name?: string): Folder | null => {
+    (name?: string, viewType?: FolderViewType): Folder | null => {
       if (!db || !uid) return null;
       const cur = stateRef.current.folders;
       const now = new Date().toISOString();
@@ -278,6 +308,7 @@ export function DocumentsProvider({ children }: { children: ReactNode }) {
         name: name ?? 'Folder mới',
         order: cur.length,
         createdAt: now,
+        viewType: viewType ?? 'list',
       };
       commitSet(`users/${uid}/folders/${created.id}`, created);
       return created;
@@ -294,6 +325,22 @@ export function DocumentsProvider({ children }: { children: ReactNode }) {
       // Nếu folder đang chia sẻ, đổi tên luôn trong bản công khai.
       if (findSharedFolder(stateRef.current.folders, id)) {
         writes[`shared/f/${id}/folder/name`] = name;
+      }
+      commit(writes);
+    },
+    [uid, commit],
+  );
+
+  // Đổi kiểu hiển thị tài liệu trong folder (list ↔ sticky).
+  const setFolderViewType = useCallback(
+    (id: string, viewType: FolderViewType) => {
+      if (!db || !uid) return;
+      const writes: Record<string, unknown> = {
+        [`users/${uid}/folders/${id}/viewType`]: viewType,
+      };
+      // Folder đang chia sẻ ⇒ đồng bộ kiểu hiển thị sang bản công khai.
+      if (findSharedFolder(stateRef.current.folders, id)) {
+        writes[`shared/f/${id}/folder/viewType`] = viewType;
       }
       commit(writes);
     },
@@ -418,10 +465,12 @@ export function DocumentsProvider({ children }: { children: ReactNode }) {
         updateDocument,
         deleteDocument,
         toggleShareDocument,
+        setDocumentColor,
         addFolder,
         renameFolder,
         deleteFolder,
         toggleShareFolder,
+        setFolderViewType,
         togglePinFolder,
         moveDocument,
       }}

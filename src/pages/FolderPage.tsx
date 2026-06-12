@@ -14,6 +14,9 @@ import {
   ExternalLink,
   Plus,
   Inbox,
+  List,
+  LayoutGrid,
+  Droplet,
 } from 'lucide-react';
 import { useDocuments } from '../context/DocumentsContext';
 import { useUploadDocuments } from '../hooks/useUploadDocuments';
@@ -23,8 +26,9 @@ import ThemeToggle from '../components/ThemeToggle';
 import SearchResults from '../components/SearchResults';
 import Spinner from '../components/Spinner';
 import EmptyState from '../components/EmptyState';
-import { searchDocs } from '../lib/search';
-import type { DocumentType } from '../types';
+import { searchDocs, plainTextOf } from '../lib/search';
+import { STICKY_COLORS, DEFAULT_STICKY_COLOR } from '../lib/stickyColors';
+import type { DocItem, DocumentType } from '../types';
 
 function formatDate(iso: string): string {
   const d = new Date(iso);
@@ -41,6 +45,8 @@ export default function FolderPage() {
     renameFolder,
     deleteFolder,
     toggleShareFolder,
+    setFolderViewType,
+    setDocumentColor,
     togglePinFolder,
     moveDocument,
   } = useDocuments();
@@ -59,6 +65,8 @@ export default function FolderPage() {
   const [editName, setEditName] = useState('');
   // Đang kéo file từ máy qua trang (để làm nổi vùng thả).
   const [fileDragOver, setFileDragOver] = useState(false);
+  // id của sticky note đang mở bảng chọn màu (chỉ một bảng mở tại một thời điểm).
+  const [openColorFor, setOpenColorFor] = useState<string | null>(null);
 
   // Tìm kiếm trong phạm vi folder này.
   const [query, setQuery] = useState('');
@@ -90,6 +98,8 @@ export default function FolderPage() {
       </div>
     );
   }
+
+  const isSticky = folder.viewType === 'sticky';
 
   const create = (type: DocumentType) => {
     const created = addDocument(type, undefined, folder.id);
@@ -145,6 +155,72 @@ export default function FolderPage() {
     void uploadFiles(e.dataTransfer.files, folder.id);
   };
 
+  // Một tài liệu hiển thị dạng giấy ghi chú (sticky note): đầu thẻ có nút đổi màu
+  // + nút đưa ra khỏi folder; thân thẻ là link mở tài liệu kèm trích nội dung.
+  const renderStickyCard = (d: DocItem) => {
+    const color = d.color ?? DEFAULT_STICKY_COLOR;
+    const preview = plainTextOf(d).trim();
+    const colorOpen = openColorFor === d.id;
+    return (
+      <li
+        key={d.id}
+        className={`sticky-card sticky-${color}${colorOpen ? ' is-color-open' : ''}`}
+      >
+        <div className="sticky-head">
+          <button
+            type="button"
+            className="sticky-btn"
+            title="Đổi màu giấy nhớ"
+            aria-label="Đổi màu giấy nhớ"
+            onClick={() => setOpenColorFor(colorOpen ? null : d.id)}
+          >
+            <Droplet size={15} aria-hidden="true" />
+          </button>
+          {d.isShared && (
+            <span className="share-flag" title="Đang chia sẻ công khai">🔗</span>
+          )}
+          <span className="sticky-head-spacer" />
+          <button
+            type="button"
+            className="sticky-btn"
+            title="Đưa tài liệu ra khỏi folder"
+            aria-label="Đưa tài liệu ra khỏi folder"
+            onClick={() => moveDocument(d.id, undefined)}
+          >
+            <CornerUpLeft size={15} aria-hidden="true" />
+          </button>
+        </div>
+        <Link to={`/docs/view/document/${d.id}`} className="sticky-body">
+          <span className="sticky-title">{d.title || '(không tiêu đề)'}</span>
+          <p className={`sticky-preview${preview ? '' : ' muted'}`}>
+            {preview || '(trống)'}
+          </p>
+        </Link>
+        {colorOpen && (
+          <div className="sticky-color-pop" role="menu">
+            {STICKY_COLORS.map((c) => {
+              const active = (d.color ?? DEFAULT_STICKY_COLOR) === c.key;
+              return (
+                <button
+                  key={c.key}
+                  type="button"
+                  className={`sticky-swatch${active ? ' selected' : ''}`}
+                  style={{ background: c.swatch }}
+                  title={c.label}
+                  aria-label={c.label}
+                  onClick={() => {
+                    setDocumentColor(d.id, c.key);
+                    setOpenColorFor(null);
+                  }}
+                />
+              );
+            })}
+          </div>
+        )}
+      </li>
+    );
+  };
+
   const shareUrl = `${window.location.origin}/share/f/${folder.id}`;
   const onCopyShare = async () => {
     try {
@@ -193,6 +269,27 @@ export default function FolderPage() {
         </h1>
         <div className="user-box">
           <ThemeToggle />
+          {/* Chuyển kiểu hiển thị tài liệu trong folder: danh sách ↔ sticky note */}
+          <div className="view-toggle" role="group" aria-label="Kiểu hiển thị">
+            <button
+              type="button"
+              className={`btn-icon ${!isSticky ? 'primary' : ''}`}
+              onClick={() => setFolderViewType(folder.id, 'list')}
+              title="Hiển thị dạng danh sách"
+              aria-pressed={!isSticky}
+            >
+              <List size={16} aria-hidden="true" /> List
+            </button>
+            <button
+              type="button"
+              className={`btn-icon ${isSticky ? 'primary' : ''}`}
+              onClick={() => setFolderViewType(folder.id, 'sticky')}
+              title="Hiển thị dạng sticky note"
+              aria-pressed={isSticky}
+            >
+              <LayoutGrid size={16} aria-hidden="true" /> Sticky
+            </button>
+          </div>
           <button
             type="button"
             className={`btn-icon ${folder.isPinned ? 'primary' : ''}`}
@@ -287,6 +384,16 @@ export default function FolderPage() {
           title="Folder trống"
           description="Bấm nút phía trên để tạo tài liệu, hoặc kéo tài liệu vào folder này từ trang chủ."
         />
+      ) : isSticky ? (
+        <>
+          {openColorFor && (
+            <div
+              className="sticky-pop-backdrop"
+              onClick={() => setOpenColorFor(null)}
+            />
+          )}
+          <ul className="sticky-grid">{docs.map(renderStickyCard)}</ul>
+        </>
       ) : (
         <ul className="doc-list">
           {docs.map((d) => (
