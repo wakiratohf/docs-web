@@ -26,9 +26,21 @@ import ThemeToggle from '../components/ThemeToggle';
 import SearchResults from '../components/SearchResults';
 import Spinner from '../components/Spinner';
 import EmptyState from '../components/EmptyState';
+import QuickNoteModal from '../components/QuickNoteModal';
 import { searchDocs, plainTextOf } from '../lib/search';
 import { STICKY_COLORS, DEFAULT_STICKY_COLOR } from '../lib/stickyColors';
-import type { DocItem, DocumentType } from '../types';
+import type { DocItem, DocumentType, StickyColor } from '../types';
+
+// Chuyển chữ thuần (textarea) thành HTML an toàn cho tài liệu 'note':
+// escape ký tự đặc biệt rồi đổi xuống dòng thành <br>.
+function plainToHtml(text: string): string {
+  if (!text) return '';
+  const esc = text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+  return esc.replace(/\n/g, '<br>');
+}
 
 function formatDate(iso: string): string {
   const d = new Date(iso);
@@ -42,6 +54,7 @@ export default function FolderPage() {
     folders,
     loading,
     addDocument,
+    addDocuments,
     renameFolder,
     deleteFolder,
     toggleShareFolder,
@@ -67,6 +80,8 @@ export default function FolderPage() {
   const [fileDragOver, setFileDragOver] = useState(false);
   // id của sticky note đang mở bảng chọn màu (chỉ một bảng mở tại một thời điểm).
   const [openColorFor, setOpenColorFor] = useState<string | null>(null);
+  // Mở hộp thoại tạo nhanh ghi chú (chỉ dùng cho folder kiểu sticky note).
+  const [creatingNote, setCreatingNote] = useState(false);
 
   // Tìm kiếm trong phạm vi folder này.
   const [query, setQuery] = useState('');
@@ -104,6 +119,18 @@ export default function FolderPage() {
   const create = (type: DocumentType) => {
     const created = addDocument(type, undefined, folder.id);
     if (created) navigate(`/docs/view/document/${created.id}`);
+  };
+
+  // Tạo nhanh ghi chú từ hộp thoại (folder sticky): tạo ngay tại trang, không
+  // mở trang soạn thảo toàn màn hình. Đặt màu nếu khác mặc định.
+  const onCreateNote = (title: string, text: string, color: StickyColor) => {
+    setCreatingNote(false);
+    const created = addDocuments(
+      [{ type: 'note', title, content: plainToHtml(text) }],
+      folder.id,
+    );
+    const doc = created[0];
+    if (doc && color !== DEFAULT_STICKY_COLOR) setDocumentColor(doc.id, color);
   };
 
   const startRename = () => {
@@ -337,12 +364,25 @@ export default function FolderPage() {
       )}
 
       <div className="actions">
-        <button type="button" className="btn-icon primary" onClick={() => create('note')}>
-          <Plus size={16} aria-hidden="true" /> New note
-        </button>
-        <button type="button" className="btn-icon primary" onClick={() => create('markdown')}>
-          <Plus size={16} aria-hidden="true" /> New markdown
-        </button>
+        {isSticky ? (
+          // Folder sticky: tạo ghi chú qua hộp thoại tại chỗ, ẩn nút New markdown.
+          <button
+            type="button"
+            className="btn-icon primary"
+            onClick={() => setCreatingNote(true)}
+          >
+            <Plus size={16} aria-hidden="true" /> New note
+          </button>
+        ) : (
+          <>
+            <button type="button" className="btn-icon primary" onClick={() => create('note')}>
+              <Plus size={16} aria-hidden="true" /> New note
+            </button>
+            <button type="button" className="btn-icon primary" onClick={() => create('markdown')}>
+              <Plus size={16} aria-hidden="true" /> New markdown
+            </button>
+          </>
+        )}
         <button
           type="button"
           className="btn-icon"
@@ -426,6 +466,12 @@ export default function FolderPage() {
           ))}
         </ul>
       )}
+
+      <QuickNoteModal
+        open={creatingNote}
+        onCancel={() => setCreatingNote(false)}
+        onCreate={onCreateNote}
+      />
     </div>
   );
 }

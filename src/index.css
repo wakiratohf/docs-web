@@ -990,6 +990,32 @@ a:hover {
   font-size: 12px;
 }
 
+/* ----- Hộp thoại tạo nhanh ghi chú (folder sticky) ----- */
+.quick-note-textarea {
+  width: 100%;
+  min-height: 110px;
+  resize: vertical;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: inherit;
+  line-height: 1.5;
+  margin-bottom: 16px;
+  color: var(--text);
+  background: var(--card);
+}
+.quick-note-textarea:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+.qn-colors {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
 /* ---------- Trang tải lên hàng loạt ---------- */
 .upload-toolbar {
   margin: 16px 0;
