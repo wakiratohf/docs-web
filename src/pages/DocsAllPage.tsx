@@ -1,14 +1,6 @@
 import { useMemo, useState, type DragEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import {
-  Plus,
-  FolderPlus,
-  Upload,
-  Search,
-  X,
-  Pin,
-  FolderOpen,
-} from 'lucide-react';
+import { Plus, Upload, Search, X, Pin, FolderOpen } from 'lucide-react';
 import { useDocuments } from '../context/DocumentsContext';
 import { useUploadDocuments } from '../hooks/useUploadDocuments';
 import { useAuth } from '../auth/useAuth';
@@ -139,13 +131,6 @@ export default function DocsAllPage() {
         <button type="button" className="btn-icon primary" onClick={() => create('markdown')}>
           <Plus size={16} aria-hidden="true" /> New markdown
         </button>
-        <button
-          type="button"
-          className="btn-icon"
-          onClick={() => setCreatingFolder(true)}
-        >
-          <FolderPlus size={16} aria-hidden="true" /> New folder
-        </button>
         <button type="button" className="btn-icon" onClick={() => navigate('/docs/upload')}>
           <Upload size={16} aria-hidden="true" /> Tải lên hàng loạt
         </button>
@@ -256,6 +241,20 @@ export default function DocsAllPage() {
               <span className="tile-label">{f.name}</span>
             </div>
           ))}
+
+          {/* Ô placeholder tạo folder: viền nét đứt + dấu cộng ở giữa, nằm ngay trong lưới folder */}
+          <button
+            type="button"
+            className="tile folder-add-tile"
+            onClick={() => setCreatingFolder(true)}
+            title="Tạo folder mới"
+            aria-label="Tạo folder mới"
+          >
+            <span className="folder-add-box">
+              <Plus size={40} aria-hidden="true" />
+            </span>
+            <span className="tile-label">New folder</span>
+          </button>
 
           {/* Tài liệu không thuộc folder nào — nằm thẳng trên lưới */}
           {looseDocs.map(renderDoc)}
