@@ -762,6 +762,36 @@ a:hover {
   opacity: 1;
 }
 
+/* Ô placeholder "tạo folder": viền nét đứt + dấu cộng giữa ô, thay cho nút New folder */
+.folder-add-tile {
+  /* Bỏ style mặc định của <button> để trông như một ô (tile) thường */
+  border: none;
+  background: transparent;
+  padding: 0;
+  font: inherit;
+}
+.folder-add-box {
+  width: 120px;
+  height: 120px;
+  border-radius: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px dashed var(--border);
+  color: var(--muted);
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+.folder-add-tile:hover .folder-add-box,
+.folder-add-tile:focus-visible .folder-add-box {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: var(--hover-bg);
+}
+/* Nhãn dưới ô placeholder: nhạt hơn nhãn folder thật cho đỡ "nặng" */
+.folder-add-tile .tile-label {
+  color: var(--muted);
+}
+
 /* ----- Trang chi tiết folder (full page, danh sách dọc) ----- */
 .folder-title {
   display: flex;
