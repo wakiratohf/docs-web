@@ -845,12 +845,16 @@ a:hover {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
   gap: 16px;
+  /* Mỗi thẻ tự co theo nội dung — không bị kéo cao bằng thẻ cao nhất cùng hàng */
+  align-items: start;
 }
 .sticky-card {
   position: relative;
   display: flex;
   flex-direction: column;
-  min-height: 190px;
+  /* Chiều cao co theo độ dài nội dung: floor cho ghi chú ngắn, trần cho ghi chú dài */
+  min-height: 120px;
+  max-height: 340px;
   border-radius: 12px;
   background: var(--sticky-bg);
   color: var(--sticky-text);
@@ -894,7 +898,36 @@ a:hover {
   opacity: 1;
   background: rgba(0, 0, 0, 0.08);
 }
-/* Thân thẻ: link mở tài liệu, gồm tiêu đề + trích nội dung */
+/* Nút chỉ hiện khi rê chuột vào thẻ (ghim, xóa) — giữ giấy nhớ gọn khi không tương tác */
+.sticky-btn-reveal {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.12s ease;
+}
+.sticky-card:hover .sticky-btn-reveal {
+  opacity: 0.7;
+  pointer-events: auto;
+}
+.sticky-card:hover .sticky-btn-reveal:hover {
+  opacity: 1;
+}
+/* Nút ghim đang bật: luôn hiện và tô màu nhấn kể cả khi không hover */
+.sticky-btn-pin.is-pinned {
+  opacity: 1;
+  pointer-events: auto;
+  color: var(--primary);
+}
+/* Nút xóa ghi chú: tô đỏ khi rê vào để cảnh báo */
+.sticky-btn-close:hover {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.12);
+}
+/* Ghi chú đã ghim: viền nhẹ màu nhấn để nhận ra ngay (outline không bị box-shadow hover ghi đè) */
+.sticky-card.is-pinned {
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
+}
+/* Thân thẻ: nút mở hộp thoại sửa, gồm tiêu đề + trích nội dung */
 .sticky-body {
   flex: 1;
   display: flex;
@@ -904,6 +937,13 @@ a:hover {
   color: var(--sticky-text);
   text-decoration: none;
   overflow: hidden;
+  /* sticky-body là <button> → gỡ style mặc định của trình duyệt */
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+  font: inherit;
+  cursor: pointer;
 }
 .sticky-body:hover {
   text-decoration: none;
@@ -923,12 +963,25 @@ a:hover {
   line-height: 1.45;
   white-space: pre-wrap;
   display: -webkit-box;
-  -webkit-line-clamp: 5;
+  /* Nhiều dòng hơn để ghi chú dài cao lên dần; max-height của thẻ là trần cứng,
+     phần dư bị cắt gọn kèm "…" ở dòng cuối */
+  -webkit-line-clamp: 11;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
 .sticky-preview.muted {
   opacity: 0.6;
+}
+/* Tên tác giả ở chân giấy nhớ — nhỏ, mờ, không tràn dòng */
+.sticky-author {
+  margin-top: auto;
+  padding-top: 6px;
+  font-size: 12px;
+  font-style: italic;
+  opacity: 0.75;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 /* Bảng chọn màu nổi trên thẻ */
 .sticky-color-pop {
@@ -1020,24 +1073,150 @@ a:hover {
   font-size: 12px;
 }
 
-/* ----- Hộp thoại tạo nhanh ghi chú (folder sticky) ----- */
-.quick-note-textarea {
-  width: 100%;
-  min-height: 110px;
-  resize: vertical;
-  padding: 10px 12px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
+/* ----- Hộp thoại ghi chú rich-text (folder sticky): tạo & sửa nhanh ----- */
+.modal.modal-wide {
+  max-width: 720px;
+}
+/* Khung dialog co theo chiều cao màn hình để editor cuộn được bên trong */
+.modal.note-dialog {
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100dvh - 40px);
+}
+/* Thanh tiêu đề + chỉ báo lưu + nút phóng to/đóng (dialog sửa) */
+.note-dialog-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.note-dialog-bar .title-input {
+  font-size: 16px;
+}
+/* Hàng nhập tác giả trong hộp thoại sửa nhanh ghi chú */
+.note-dialog-author,
+.doc-author-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.note-dialog-author label,
+.doc-author-row label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.note-author-input,
+.doc-author-input {
+  flex: 1;
+  min-width: 0;
+  max-width: 320px;
+  padding: 6px 10px;
   font-size: 14px;
-  font-family: inherit;
-  line-height: 1.5;
-  margin-bottom: 16px;
   color: var(--text);
   background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
 }
-.quick-note-textarea:focus {
+.note-author-input:focus,
+.doc-author-input:focus {
   outline: none;
   border-color: var(--primary);
+}
+/* ----- Combobox tác giả: ô gõ tự do + dropdown gợi ý tác giả đã có ----- */
+.author-combo {
+  position: relative;
+}
+/* Trong hàng tác giả của dialog, wrapper nhận phần co giãn thay cho input */
+.note-dialog-author .author-combo,
+.doc-author-row .author-combo {
+  flex: 1;
+  min-width: 0;
+  max-width: 320px;
+}
+.author-combo input {
+  width: 100%;
+  box-sizing: border-box;
+}
+/* Hộp danh sách xổ xuống, nổi đè lên nội dung phía dưới */
+.author-options {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 30;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  max-height: 240px;
+  overflow-y: auto;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 10px 28px var(--shadow);
+}
+.author-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-size: 14px;
+  color: var(--text);
+  cursor: pointer;
+}
+.author-option .author-option-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.author-option.is-active {
+  background: var(--hover-bg);
+}
+.author-option svg {
+  flex-shrink: 0;
+  color: var(--primary);
+}
+/* Mục "thêm tác giả mới": nhấn mạnh, tách bằng đường kẻ với danh sách gợi ý */
+.author-option-add {
+  color: var(--primary);
+  font-weight: 600;
+}
+.author-options .author-option-add {
+  border-top: 1px solid var(--border);
+  margin-top: 4px;
+  padding-top: 10px;
+}
+.author-options .author-option-add:first-child {
+  border-top: none;
+  margin-top: 0;
+  padding-top: 8px;
+}
+.author-option-add strong {
+  color: var(--text);
+}
+/* Vùng chứa NoteEditor trong dialog: co giãn, nội dung cuộn bên trong */
+.note-dialog-editor {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 16px;
+}
+.note-dialog-editor .note-editor {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.note-dialog-editor .note-content {
+  flex: 1;
+  min-height: 260px;
+  max-height: 60vh;
 }
 .qn-colors {
   display: flex;
@@ -1552,7 +1731,8 @@ a.btn-icon:hover {
     gap: 12px;
   }
   .sticky-card {
-    min-height: 150px;
+    min-height: 110px;
+    max-height: 300px;
   }
   /* Bộ chọn kiểu trong hộp thoại tạo folder xếp dọc cho dễ bấm */
   .view-type-picker {

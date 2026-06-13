@@ -19,6 +19,7 @@ import {
   Droplet,
 } from 'lucide-react';
 import { useDocuments } from '../context/DocumentsContext';
+import { useAuth } from '../auth/useAuth';
 import { useUploadDocuments } from '../hooks/useUploadDocuments';
 import { useToast } from '../context/ToastContext';
 import { useConfirm } from '../context/ConfirmContext';
@@ -27,20 +28,11 @@ import SearchResults from '../components/SearchResults';
 import Spinner from '../components/Spinner';
 import EmptyState from '../components/EmptyState';
 import QuickNoteModal from '../components/QuickNoteModal';
+import NoteEditDialog from '../components/NoteEditDialog';
 import { searchDocs, plainTextOf } from '../lib/search';
+import { collectAuthors } from '../lib/authors';
 import { STICKY_COLORS, DEFAULT_STICKY_COLOR } from '../lib/stickyColors';
 import type { DocItem, DocumentType, StickyColor } from '../types';
-
-// Chuyển chữ thuần (textarea) thành HTML an toàn cho tài liệu 'note':
-// escape ký tự đặc biệt rồi đổi xuống dòng thành <br>.
-function plainToHtml(text: string): string {
-  if (!text) return '';
-  const esc = text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
-  return esc.replace(/\n/g, '<br>');
-}
 
 function formatDate(iso: string): string {
   const d = new Date(iso);
@@ -61,16 +53,32 @@ export default function FolderPage() {
     setFolderViewType,
     setDocumentColor,
     togglePinFolder,
+    togglePinDocument,
+    deleteDocument,
     moveDocument,
   } = useDocuments();
   const { uploadFiles } = useUploadDocuments();
+  const { user } = useAuth();
+  // Tác giả gợi ý sẵn khi tạo ghi chú mới = người đang đăng nhập (sửa được).
+  const defaultAuthor = user?.displayName ?? user?.email ?? '';
+  // Danh sách tác giả đã từng dùng (mọi tài liệu) để nạp sẵn dropdown gợi ý.
+  const authors = useMemo(() => collectAuthors(documents), [documents]);
   const { toastSuccess, toastError } = useToast();
   const confirm = useConfirm();
   const navigate = useNavigate();
 
   const folder = folders.find((f) => f.id === folderId);
   const docs = useMemo(
-    () => documents.filter((d) => d.folderId === folderId),
+    () =>
+      documents
+        .filter((d) => d.folderId === folderId)
+        // Ghi chú được ghim luôn lên đầu; trong mỗi nhóm vẫn theo order rồi createdAt.
+        .sort(
+          (a, b) =>
+            Number(b.isPinned ?? false) - Number(a.isPinned ?? false) ||
+            a.order - b.order ||
+            a.createdAt.localeCompare(b.createdAt),
+        ),
     [documents, folderId],
   );
 
@@ -82,6 +90,12 @@ export default function FolderPage() {
   const [openColorFor, setOpenColorFor] = useState<string | null>(null);
   // Mở hộp thoại tạo nhanh ghi chú (chỉ dùng cho folder kiểu sticky note).
   const [creatingNote, setCreatingNote] = useState(false);
+  // id của sticky note đang mở hộp thoại sửa nhanh (null = không mở).
+  const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
+  // Tài liệu tương ứng đang sửa; nếu bị xóa/đưa khỏi folder thì tự đóng dialog.
+  const editingNote = editingNoteId
+    ? docs.find((d) => d.id === editingNoteId)
+    : undefined;
 
   // Tìm kiếm trong phạm vi folder này.
   const [query, setQuery] = useState('');
@@ -122,11 +136,17 @@ export default function FolderPage() {
   };
 
   // Tạo nhanh ghi chú từ hộp thoại (folder sticky): tạo ngay tại trang, không
-  // mở trang soạn thảo toàn màn hình. Đặt màu nếu khác mặc định.
-  const onCreateNote = (title: string, text: string, color: StickyColor) => {
+  // mở trang soạn thảo toàn màn hình. Nội dung đã là HTML (rich-text từ editor).
+  // Đặt màu nếu khác mặc định.
+  const onCreateNote = (
+    title: string,
+    html: string,
+    color: StickyColor,
+    author: string,
+  ) => {
     setCreatingNote(false);
     const created = addDocuments(
-      [{ type: 'note', title, content: plainToHtml(text) }],
+      [{ type: 'note', title, content: html, author }],
       folder.id,
     );
     const doc = created[0];
@@ -182,16 +202,28 @@ export default function FolderPage() {
     void uploadFiles(e.dataTransfer.files, folder.id);
   };
 
-  // Một tài liệu hiển thị dạng giấy ghi chú (sticky note): đầu thẻ có nút đổi màu
-  // + nút đưa ra khỏi folder; thân thẻ là link mở tài liệu kèm trích nội dung.
+  // Xóa hẳn một ghi chú (nút close ở góc thẻ). Hỏi xác nhận vì không hoàn tác được.
+  const onDeleteNote = async (d: DocItem) => {
+    const ok = await confirm({
+      title: 'Xóa ghi chú',
+      message: `Xóa ghi chú "${d.title || '(không tiêu đề)'}"? Hành động không thể hoàn tác.`,
+      confirmText: 'Xóa',
+      danger: true,
+    });
+    if (ok) deleteDocument(d.id);
+  };
+
+  // Một tài liệu hiển thị dạng giấy ghi chú (sticky note): đầu thẻ có nút đổi màu,
+  // ghim (hiện khi rê chuột) và xóa; thân thẻ là nút mở sửa nhanh.
   const renderStickyCard = (d: DocItem) => {
     const color = d.color ?? DEFAULT_STICKY_COLOR;
     const preview = plainTextOf(d).trim();
     const colorOpen = openColorFor === d.id;
+    const pinned = d.isPinned ?? false;
     return (
       <li
         key={d.id}
-        className={`sticky-card sticky-${color}${colorOpen ? ' is-color-open' : ''}`}
+        className={`sticky-card sticky-${color}${colorOpen ? ' is-color-open' : ''}${pinned ? ' is-pinned' : ''}`}
       >
         <div className="sticky-head">
           <button
@@ -209,20 +241,40 @@ export default function FolderPage() {
           <span className="sticky-head-spacer" />
           <button
             type="button"
-            className="sticky-btn"
-            title="Đưa tài liệu ra khỏi folder"
-            aria-label="Đưa tài liệu ra khỏi folder"
-            onClick={() => moveDocument(d.id, undefined)}
+            className={`sticky-btn sticky-btn-reveal sticky-btn-pin${pinned ? ' is-pinned' : ''}`}
+            title={pinned ? 'Bỏ ghim ghi chú' : 'Ghim ghi chú lên đầu'}
+            aria-label={pinned ? 'Bỏ ghim ghi chú' : 'Ghim ghi chú lên đầu'}
+            aria-pressed={pinned}
+            onClick={() => togglePinDocument(d.id)}
           >
-            <CornerUpLeft size={15} aria-hidden="true" />
+            <Pin size={15} aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            className="sticky-btn sticky-btn-reveal sticky-btn-close"
+            title="Xóa ghi chú này"
+            aria-label="Xóa ghi chú này"
+            onClick={() => onDeleteNote(d)}
+          >
+            <X size={15} aria-hidden="true" />
           </button>
         </div>
-        <Link to={`/docs/view/document/${d.id}`} className="sticky-body">
+        <button
+          type="button"
+          className="sticky-body"
+          title="Mở để sửa nhanh"
+          onClick={() => setEditingNoteId(d.id)}
+        >
           <span className="sticky-title">{d.title || '(không tiêu đề)'}</span>
           <p className={`sticky-preview${preview ? '' : ' muted'}`}>
             {preview || '(trống)'}
           </p>
-        </Link>
+          {d.author && (
+            <span className="sticky-author" title={`Tác giả: ${d.author}`}>
+              ✍ {d.author}
+            </span>
+          )}
+        </button>
         {colorOpen && (
           <div className="sticky-color-pop" role="menu">
             {STICKY_COLORS.map((c) => {
@@ -467,11 +519,22 @@ export default function FolderPage() {
         </ul>
       )}
 
-      <QuickNoteModal
-        open={creatingNote}
-        onCancel={() => setCreatingNote(false)}
-        onCreate={onCreateNote}
-      />
+      {creatingNote && (
+        <QuickNoteModal
+          onCancel={() => setCreatingNote(false)}
+          onCreate={onCreateNote}
+          defaultAuthor={defaultAuthor}
+          authors={authors}
+        />
+      )}
+
+      {editingNote && (
+        <NoteEditDialog
+          key={editingNote.id}
+          doc={editingNote}
+          onClose={() => setEditingNoteId(null)}
+        />
+      )}
     </div>
   );
 }

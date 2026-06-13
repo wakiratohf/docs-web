@@ -2,41 +2,45 @@ import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { STICKY_COLORS, DEFAULT_STICKY_COLOR } from '../lib/stickyColors';
 import type { StickyColor } from '../types';
+import NoteEditor from './NoteEditor';
+import AuthorInput from './AuthorInput';
 
 export interface QuickNoteModalProps {
-  open: boolean;
   onCancel: () => void;
-  // text: nội dung dạng chữ thuần (component cha tự chuyển sang HTML khi lưu).
-  onCreate: (title: string, text: string, color: StickyColor) => void;
+  // html: nội dung đã là chuỗi HTML (lấy thẳng từ NoteEditor rich-text).
+  onCreate: (title: string, html: string, color: StickyColor, author: string) => void;
+  // Tên tác giả gợi ý sẵn (người đang đăng nhập); người dùng sửa lại được.
+  defaultAuthor: string;
+  // Danh sách tác giả đã từng dùng, nạp sẵn vào dropdown gợi ý.
+  authors: string[];
 }
 
 // Hộp thoại tạo nhanh một ghi chú ngay trên trang folder kiểu sticky note —
-// nhập tiêu đề + nội dung + chọn màu, không cần mở trang soạn thảo toàn màn hình.
+// nhập tiêu đề + soạn nội dung bằng trình soạn thảo rich-text (giống lúc sửa
+// note) + chọn màu, không cần mở trang soạn thảo toàn màn hình.
+// Component được mount khi mở và unmount khi đóng (cha render có điều kiện) để
+// NoteEditor — vốn chỉ nạp nội dung một lần lúc mount — luôn bắt đầu sạch.
 export default function QuickNoteModal({
-  open,
   onCancel,
   onCreate,
+  defaultAuthor,
+  authors,
 }: QuickNoteModalProps) {
   const [title, setTitle] = useState('');
-  const [text, setText] = useState('');
+  const [html, setHtml] = useState('');
   const [color, setColor] = useState<StickyColor>(DEFAULT_STICKY_COLOR);
+  const [author, setAuthor] = useState(defaultAuthor);
   const titleRef = useRef<HTMLInputElement>(null);
 
-  // Mỗi lần mở: xóa trắng các ô và đưa con trỏ vào ô tiêu đề.
+  // Đưa con trỏ vào ô tiêu đề ngay khi mở.
   useEffect(() => {
-    if (!open) return;
-    setTitle('');
-    setText('');
-    setColor(DEFAULT_STICKY_COLOR);
     const t = window.setTimeout(() => titleRef.current?.focus(), 0);
     return () => window.clearTimeout(t);
-  }, [open]);
+  }, []);
 
-  if (!open) return null;
+  const submit = () => onCreate(title.trim(), html, color, author.trim());
 
-  const submit = () => onCreate(title.trim(), text, color);
-
-  // Escape = hủy; Ctrl/Cmd + Enter = tạo (Enter thường trong textarea là xuống dòng).
+  // Escape = hủy; Ctrl/Cmd + Enter = tạo (Enter thường trong editor là xuống dòng).
   const onKeyDown = (e: KeyboardEvent) => {
     if (e.key === 'Escape') {
       e.preventDefault();
@@ -50,7 +54,7 @@ export default function QuickNoteModal({
   return createPortal(
     <div className="modal-backdrop" onMouseDown={onCancel}>
       <div
-        className="modal"
+        className="modal modal-wide note-dialog"
         role="dialog"
         aria-modal="true"
         aria-labelledby="quick-note-title"
@@ -73,17 +77,22 @@ export default function QuickNoteModal({
           onChange={(e) => setTitle(e.target.value)}
         />
 
-        <label className="modal-field-label" htmlFor="qn-content">
-          Nội dung
+        <label className="modal-field-label" htmlFor="qn-author">
+          Tác giả
         </label>
-        <textarea
-          id="qn-content"
-          className="quick-note-textarea"
-          value={text}
-          rows={5}
-          placeholder="Nhập nội dung ghi chú…"
-          onChange={(e) => setText(e.target.value)}
+        <AuthorInput
+          id="qn-author"
+          className="modal-input"
+          value={author}
+          authors={authors}
+          placeholder="Người viết ghi chú này"
+          onChange={setAuthor}
         />
+
+        <span className="modal-field-label">Nội dung</span>
+        <div className="note-dialog-editor">
+          <NoteEditor value={html} onChange={setHtml} />
+        </div>
 
         <span className="modal-field-label">Màu</span>
         <div className="qn-colors">

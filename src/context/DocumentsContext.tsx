@@ -20,7 +20,7 @@ import type {
   StickyColor,
 } from '../types';
 
-type DocUpdates = Partial<Pick<DocItem, 'title' | 'content' | 'type'>>;
+type DocUpdates = Partial<Pick<DocItem, 'title' | 'content' | 'type' | 'author'>>;
 
 /**
  * Trả về folder nếu folderId đó tồn tại VÀ đang được chia sẻ công khai;
@@ -43,7 +43,7 @@ interface DocumentsState {
   addDocument: (type: DocumentType, title?: string, folderId?: string) => DocItem | null;
   /** Tạo nhiều tài liệu cùng lúc (dùng cho tải lên hàng loạt) trong một lần ghi. */
   addDocuments: (
-    items: { type: DocumentType; title: string; content: string }[],
+    items: { type: DocumentType; title: string; content: string; author?: string }[],
     folderId?: string,
   ) => DocItem[];
   updateDocument: (id: string, updates: DocUpdates) => void;
@@ -59,6 +59,8 @@ interface DocumentsState {
   setFolderViewType: (id: string, viewType: FolderViewType) => void;
   /** Bật/tắt ghim folder (ưu tiên hiển thị trên cùng) */
   togglePinFolder: (id: string) => void;
+  /** Bật/tắt ghim một ghi chú (sticky note) — ưu tiên hiển thị lên đầu trong folder */
+  togglePinDocument: (id: string) => void;
   /** folderId = undefined ⇒ đưa tài liệu ra ngoài (không folder) */
   moveDocument: (id: string, folderId: string | undefined) => void;
 }
@@ -68,6 +70,9 @@ const DocumentsContext = createContext<DocumentsState | null>(null);
 export function DocumentsProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const uid = user?.uid;
+  // Tên mặc định gán cho author khi tạo tài liệu mới: ưu tiên tên hiển thị,
+  // không có thì email. Người dùng vẫn sửa lại được trong hộp thoại note.
+  const authorName = user?.displayName ?? user?.email ?? '';
   const { toastError } = useToast();
 
   const [documents, setDocuments] = useState<DocItem[]>([]);
@@ -158,6 +163,7 @@ export function DocumentsProvider({ children }: { children: ReactNode }) {
         createdAt: now,
         updatedAt: now,
         order: scope.length,
+        ...(authorName ? { author: authorName } : {}),
         ...(folderId ? { folderId } : {}),
       };
       const writes: Record<string, unknown> = {
@@ -170,12 +176,12 @@ export function DocumentsProvider({ children }: { children: ReactNode }) {
       commit(writes);
       return created;
     },
-    [uid, commit],
+    [uid, authorName, commit],
   );
 
   const addDocuments = useCallback(
     (
-      items: { type: DocumentType; title: string; content: string }[],
+      items: { type: DocumentType; title: string; content: string; author?: string }[],
       folderId?: string,
     ): DocItem[] => {
       if (!db || !uid || items.length === 0) return [];
@@ -188,6 +194,9 @@ export function DocumentsProvider({ children }: { children: ReactNode }) {
       // Gom toàn bộ đường dẫn rồi ghi MỘT lần (multi-path update, nguyên tử).
       const writes: Record<string, unknown> = {};
       items.forEach((it, i) => {
+        // author do nơi gọi truyền vào (vd: hộp thoại tạo nhanh đã cho sửa);
+        // không có thì lấy người đang đăng nhập làm mặc định.
+        const itemAuthor = it.author?.trim() || authorName;
         const doc: DocItem = {
           id: uuidv4(),
           type: it.type,
@@ -197,6 +206,7 @@ export function DocumentsProvider({ children }: { children: ReactNode }) {
           createdAt: now,
           updatedAt: now,
           order: scope.length + i,
+          ...(itemAuthor ? { author: itemAuthor } : {}),
           ...(folderId ? { folderId } : {}),
         };
         created.push(doc);
@@ -209,7 +219,7 @@ export function DocumentsProvider({ children }: { children: ReactNode }) {
       commit(writes);
       return created;
     },
-    [uid, commit],
+    [uid, authorName, commit],
   );
 
   const updateDocument = useCallback(
@@ -411,6 +421,19 @@ export function DocumentsProvider({ children }: { children: ReactNode }) {
     [uid, commitSet],
   );
 
+  const togglePinDocument = useCallback(
+    (id: string) => {
+      if (!db || !uid) return;
+      const cur = stateRef.current.documents.find((d) => d.id === id);
+      if (!cur) return;
+      // Ghim ghi chú là tùy chọn sắp xếp CỦA RIÊNG chủ sở hữu (giống ghim folder):
+      // chỉ ghi bản riêng tư, KHÔNG đồng bộ sang bản công khai shared/* (người xem
+      // không quan tâm tới thứ tự ghim của mình).
+      commitSet(`users/${uid}/documents/${id}/isPinned`, !cur.isPinned);
+    },
+    [uid, commitSet],
+  );
+
   const moveDocument = useCallback(
     (id: string, folderId: string | undefined) => {
       if (!db || !uid) return;
@@ -472,6 +495,7 @@ export function DocumentsProvider({ children }: { children: ReactNode }) {
         toggleShareFolder,
         setFolderViewType,
         togglePinFolder,
+        togglePinDocument,
         moveDocument,
       }}
     >

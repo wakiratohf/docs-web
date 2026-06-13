@@ -91,6 +91,11 @@ export default function SharePage() {
         <article className="share-doc">
           <h1>{doc.title || '(không tiêu đề)'}</h1>
           <p className="share-doc-dates muted">
+            {doc.author && (
+              <span className="doc-date" title="Tác giả">
+                ✍ {doc.author}
+              </span>
+            )}
             <span className="doc-date" title="Thời gian cập nhật gần nhất">
               Sửa: {formatDate(doc.updatedAt)}
             </span>

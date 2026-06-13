@@ -1,28 +1,34 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Share2, Link2, Trash2, Copy, ExternalLink, Loader2, Check } from 'lucide-react';
 import type { DocItem, DocumentType } from '../types';
 import { useDocuments } from '../context/DocumentsContext';
 import { useToast } from '../context/ToastContext';
 import { useConfirm } from '../context/ConfirmContext';
+import { collectAuthors } from '../lib/authors';
 import NoteEditor from './NoteEditor';
+import AuthorInput from './AuthorInput';
 import MarkdownPreview from './MarkdownPreview';
 
-type DocUpdates = Partial<Pick<DocItem, 'title' | 'content' | 'type'>>;
+type DocUpdates = Partial<Pick<DocItem, 'title' | 'content' | 'type' | 'author'>>;
 
 export default function DocumentEditor({ doc }: { doc: DocItem }) {
   const {
+    documents,
     updateDocument,
     deleteDocument,
     toggleShareDocument,
     folders,
     moveDocument,
   } = useDocuments();
+  // Danh sách tác giả đã từng dùng (mọi tài liệu) để nạp sẵn vào dropdown gợi ý.
+  const authors = useMemo(() => collectAuthors(documents), [documents]);
   const { toastSuccess, toastError } = useToast();
   const confirm = useConfirm();
   const navigate = useNavigate();
 
   const [title, setTitle] = useState(doc.title);
+  const [author, setAuthor] = useState(doc.author ?? '');
   const [content, setContent] = useState(doc.content);
   const [type, setType] = useState<DocumentType>(doc.type);
   // Mặc định mở ở Preview khi tài liệu đã có nội dung; rỗng (vừa tạo) thì mở Edit.
@@ -47,6 +53,7 @@ export default function DocumentEditor({ doc }: { doc: DocItem }) {
   // khi content dội về từ Firebase (tránh nhảy con trỏ khi đang gõ).
   useEffect(() => {
     setTitle(doc.title);
+    setAuthor(doc.author ?? '');
     setContent(doc.content);
     setType(doc.type);
     setTab(doc.content.trim() ? 'preview' : 'edit');
@@ -97,6 +104,11 @@ export default function DocumentEditor({ doc }: { doc: DocItem }) {
   const onContent = (v: string) => {
     setContent(v);
     debounceSave({ content: v });
+  };
+
+  const onAuthor = (v: string) => {
+    setAuthor(v);
+    debounceSave({ author: v.trim() });
   };
 
   const onChangeType = async (v: DocumentType) => {
@@ -192,6 +204,18 @@ export default function DocumentEditor({ doc }: { doc: DocItem }) {
         <button type="button" className="btn-icon danger" onClick={onDelete}>
           <Trash2 size={16} aria-hidden="true" /> Xóa
         </button>
+      </div>
+
+      <div className="doc-author-row">
+        <label htmlFor="doc-author">✍ Tác giả</label>
+        <AuthorInput
+          id="doc-author"
+          className="doc-author-input"
+          value={author}
+          authors={authors}
+          placeholder="Người viết tài liệu này"
+          onChange={onAuthor}
+        />
       </div>
 
       {doc.isShared && (

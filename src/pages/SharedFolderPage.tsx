@@ -118,6 +118,11 @@ export default function SharedFolderPage() {
                 </Link>
                 <h2>{current.title || '(không tiêu đề)'}</h2>
                 <p className="share-doc-dates muted">
+                  {current.author && (
+                    <span className="doc-date" title="Tác giả">
+                      ✍ {current.author}
+                    </span>
+                  )}
                   <span className="doc-date" title="Thời gian cập nhật gần nhất">
                     Sửa: {formatDate(current.updatedAt)}
                   </span>
@@ -159,6 +164,11 @@ export default function SharedFolderPage() {
                       <p className={`sticky-preview${preview ? '' : ' muted'}`}>
                         {preview || '(trống)'}
                       </p>
+                      {d.author && (
+                        <span className="sticky-author" title={`Tác giả: ${d.author}`}>
+                          ✍ {d.author}
+                        </span>
+                      )}
                     </Link>
                   </li>
                 );
@@ -174,6 +184,11 @@ export default function SharedFolderPage() {
                       {d.title || '(không tiêu đề)'}
                     </span>
                     <span className="doc-dates muted">
+                      {d.author && (
+                        <span className="doc-date" title="Tác giả">
+                          ✍ {d.author}
+                        </span>
+                      )}
                       <span className="doc-date" title="Thời gian cập nhật gần nhất">
                         Sửa: {formatDate(d.updatedAt)}
                       </span>
