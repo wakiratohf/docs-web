@@ -548,12 +548,6 @@ a:hover {
 .share-view .share-header {
   justify-content: flex-end;
 }
-/* Nút full screen của app nằm góc TRÁI trên ở trang share, để không đè lên
-   nút "mở bằng Google Drive" mà iframe Drive tự vẽ ở góc PHẢI trên. */
-.share-view .fullscreen-toggle {
-  left: 8px;
-  right: auto;
-}
 .share-view .share-doc {
   flex: 1;
   min-height: 0;
@@ -854,6 +848,14 @@ a.btn-square {
 }
 .fullscreen-toggle:hover {
   opacity: 1;
+}
+/* Với PDF/embed (iframe Google Drive… tự vẽ nút "mở/pop-out" ở góc PHẢI trên),
+   dời nút full screen của app sang góc TRÁI để hai nút không đè nhau.
+   Dùng :has() nên áp dụng đồng nhất cho cả view owner lẫn view share. */
+.fullscreen-viewer:has(.pdf-viewer) .fullscreen-toggle,
+.fullscreen-viewer:has(.embed-viewer) .fullscreen-toggle {
+  left: 8px;
+  right: auto;
 }
 /* Khi đang toàn màn hình: phủ nền theo theme và cho cuộn nội dung dài */
 .fullscreen-viewer:fullscreen {
