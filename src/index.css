@@ -780,6 +780,9 @@ a:hover {
 .mini-html {
   background: var(--html);
 }
+.mini-pdf {
+  background: var(--danger);
+}
 /* Folder đang được kéo tài liệu vào */
 .folder-tile.drop-over .folder-icon-box {
   border-color: var(--primary);
