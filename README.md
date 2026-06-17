@@ -6,10 +6,26 @@
 
 ## Tính năng chính
 - Đăng nhập bằng Google (Firebase Auth).
-- Tạo / sửa / xem tài liệu — **2 loại**: `note` (rich-text, lưu HTML) và `markdown` (lưu chữ thuần, có tab Edit/Preview).
+- Tạo / sửa / xem tài liệu — hỗ trợ **5 định dạng** (xem mục [Định dạng tài liệu hỗ trợ](#định-dạng-tài-liệu-hỗ-trợ) bên dưới).
 - Tự lưu khi gõ (auto-save có debounce ~600ms).
 - **Folder (thư mục)**: tạo / đổi tên / xóa folder; gom tài liệu vào folder bằng **kéo-thả** trên trang chủ.
 - Chia sẻ tài liệu công khai qua link cho người xem ẩn danh (chỉ đọc).
+
+## Định dạng tài liệu hỗ trợ
+
+Mỗi tài liệu có một trong **5 định dạng** sau (trường `type` trong [src/types.ts](src/types.ts)):
+
+| Định dạng | Mô tả | Nội dung lưu trữ |
+|-----------|-------|------------------|
+| `note` | Ghi chú **rich-text** soạn trực tiếp trong app (in đậm, nghiêng, danh sách…). | Chuỗi HTML do editor sinh ra. |
+| `markdown` | Văn bản **Markdown** thuần, có tab Edit/Preview, hỗ trợ GFM (bảng, checklist…). | Chuỗi Markdown. |
+| `html` | **HTML thô** do người dùng tự dán/viết, render nguyên trạng. | Chuỗi HTML. |
+| `pdf` | File **PDF** tải lên **Google Drive**, xem qua khung preview nhúng. | Drive `fileId` của PDF (không lưu file trên Firebase). |
+| `embed` | **Nhúng link ngoài** — tự chuyển URL gốc sang URL nhúng chuẩn. | URL gốc người dùng dán. |
+
+**Các nguồn `embed` được nhận diện** (xem [src/lib/embed.ts](src/lib/embed.ts)): YouTube, Vimeo, Loom, Google Drive, Google Slides, Google Sheets, Google Forms, Google Docs, Google Maps, Figma, CodePen. URL khác vẫn nhúng được nếu trang đích cho phép hiển thị trong iframe.
+
+> Lưu ý: app **không tự lưu file** lên server. Với PDF và các nguồn embed, app chỉ lưu **địa chỉ/ID tham chiếu** và hiển thị qua iframe; file thật nằm ở Google Drive hoặc dịch vụ gốc.
 
 ## Công nghệ
 - Vite 6, React 19, React Router 7, TypeScript 5
