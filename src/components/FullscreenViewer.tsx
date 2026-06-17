@@ -5,10 +5,9 @@ import { Maximize2, Minimize2 } from 'lucide-react';
  * Bọc một vùng nội dung (PDF, preview HTML/Markdown, note chỉ đọc…) và thêm
  * nút bật/tắt xem TOÀN MÀN HÌNH ở góc trên phải.
  *
- * Dùng Fullscreen API gốc của trình duyệt (requestFullscreen/exitFullscreen):
- * - Phủ kín màn hình thật, người xem nhấn Esc để thoát.
- * - Trạng thái nút được đồng bộ qua sự kiện 'fullscreenchange' nên dù người dùng
- *   thoát bằng Esc, icon vẫn cập nhật đúng.
+ * KHÔNG dùng Fullscreen API của trình duyệt — chỉ phủ kín cửa sổ web bằng CSS
+ * (overlay position: fixed). Trình duyệt vẫn giữ nguyên thanh tab/địa chỉ,
+ * người xem nhấn Esc hoặc bấm lại nút để thoát.
  */
 export default function FullscreenViewer({
   children,
@@ -22,25 +21,22 @@ export default function FullscreenViewer({
   const ref = useRef<HTMLDivElement>(null);
   const [isFull, setIsFull] = useState(false);
 
+  // Khi đang toàn màn hình: nhấn Esc để thoát + khóa cuộn nền phía sau.
   useEffect(() => {
-    const onChange = () => setIsFull(document.fullscreenElement === ref.current);
-    document.addEventListener('fullscreenchange', onChange);
-    return () => document.removeEventListener('fullscreenchange', onChange);
-  }, []);
+    if (!isFull) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setIsFull(false);
+    };
+    document.addEventListener('keydown', onKey);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [isFull]);
 
-  const toggle = async () => {
-    const el = ref.current;
-    if (!el) return;
-    try {
-      if (document.fullscreenElement) {
-        await document.exitFullscreen();
-      } else {
-        await el.requestFullscreen();
-      }
-    } catch {
-      // Trình duyệt từ chối (ví dụ không có cử chỉ người dùng) — bỏ qua êm.
-    }
-  };
+  const toggle = () => setIsFull((v) => !v);
 
   return (
     <div

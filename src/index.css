@@ -872,22 +872,26 @@ a.btn-square {
   left: 8px;
   right: auto;
 }
-/* Khi đang toàn màn hình: phủ nền theo theme và cho cuộn nội dung dài */
-.fullscreen-viewer:fullscreen {
+/* Khi đang toàn màn hình: phủ kín cửa sổ web bằng overlay (KHÔNG gọi Fullscreen
+   API trình duyệt) — trình duyệt vẫn giữ thanh tab/địa chỉ. */
+.fullscreen-viewer.is-fullscreen {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
   background: var(--bg, #fff);
   overflow: auto;
   padding: 0;
 }
-.fullscreen-viewer:fullscreen .pdf-viewer,
-.fullscreen-viewer:fullscreen .pdf-frame,
-.fullscreen-viewer:fullscreen .embed-viewer,
-.fullscreen-viewer:fullscreen .embed-frame,
-.fullscreen-viewer:fullscreen .html-frame {
+.fullscreen-viewer.is-fullscreen .pdf-viewer,
+.fullscreen-viewer.is-fullscreen .pdf-frame,
+.fullscreen-viewer.is-fullscreen .embed-viewer,
+.fullscreen-viewer.is-fullscreen .embed-frame,
+.fullscreen-viewer.is-fullscreen .html-frame {
   flex: 1;
   min-height: 100vh;
 }
-.fullscreen-viewer:fullscreen .markdown-body,
-.fullscreen-viewer:fullscreen .note-content.readonly {
+.fullscreen-viewer.is-fullscreen .markdown-body,
+.fullscreen-viewer.is-fullscreen .note-content.readonly {
   max-width: 900px;
   margin: 0 auto;
   min-height: 100vh;
