@@ -526,6 +526,21 @@ a:hover {
   border-color: var(--primary);
 }
 
+/* Trang chia sẻ ưu tiên hiển thị nội dung: thu gọn khoảng trống trên/dưới
+   và các margin của header/tiêu đề để chừa nhiều chỗ cho content. */
+.share-view {
+  padding: 12px 28px 20px;
+}
+.share-view .share-header {
+  margin-bottom: 12px;
+}
+.share-view .share-doc h1 {
+  margin-bottom: 8px;
+}
+.share-view .share-doc-dates {
+  margin: 0 0 10px;
+}
+
 /* Nội dung tài liệu chia sẻ scale theo cỡ chữ người xem chọn.
    Ghi đè font-size cố định của .note-content để nó kế thừa cỡ này. */
 .share-doc {
@@ -2036,6 +2051,10 @@ a.btn-icon:hover {
 @media (max-width: 600px) {
   .container {
     padding: 16px 14px 48px;
+  }
+  /* Trang share trên mobile cũng giữ padding gọn để ưu tiên nội dung */
+  .share-view {
+    padding: 10px 14px 16px;
   }
   /* Header dính: margin âm khớp với padding nhỏ hơn của container trên mobile */
   .app-header {
