@@ -14,10 +14,13 @@ export default function FullscreenViewer({
   children,
   className = '',
   label = 'Xem toàn màn hình',
+  toolbar,
 }: {
   children: ReactNode;
   className?: string;
   label?: string;
+  /** Nội dung tùy chọn (vd: tab Edit/Preview) đặt cùng hàng với nút toàn màn hình. */
+  toolbar?: ReactNode;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [isFull, setIsFull] = useState(false);
@@ -47,19 +50,24 @@ export default function FullscreenViewer({
       ref={ref}
       className={`fullscreen-viewer ${isFull ? 'is-fullscreen' : ''} ${className}`.trim()}
     >
-      <button
-        type="button"
-        className="fullscreen-toggle btn-icon"
-        onClick={toggle}
-        title={isFull ? 'Thoát toàn màn hình (Esc)' : label}
-        aria-label={isFull ? 'Thoát toàn màn hình' : label}
-      >
-        {isFull ? (
-          <Minimize2 size={16} aria-hidden="true" />
-        ) : (
-          <Maximize2 size={16} aria-hidden="true" />
-        )}
-      </button>
+      {/* Thanh công cụ trên cùng: tab/nút tùy chọn bên trái, nút toàn màn hình bên phải.
+         Nút nằm trên thanh riêng (không nổi đè nội dung) nên không che iframe PDF/embed. */}
+      <div className="fullscreen-bar">
+        {toolbar}
+        <button
+          type="button"
+          className="fullscreen-toggle btn-icon"
+          onClick={toggle}
+          title={isFull ? 'Thoát toàn màn hình (Esc)' : label}
+          aria-label={isFull ? 'Thoát toàn màn hình' : label}
+        >
+          {isFull ? (
+            <Minimize2 size={16} aria-hidden="true" />
+          ) : (
+            <Maximize2 size={16} aria-hidden="true" />
+          )}
+        </button>
+      </div>
       {children}
     </div>
   );

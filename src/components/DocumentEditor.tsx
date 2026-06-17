@@ -335,24 +335,30 @@ export default function DocumentEditor({ doc }: { doc: DocItem }) {
         <NoteEditor value={content} onChange={onContent} />
       ) : (
         // markdown & html dùng chung khung soạn thảo có tab Edit/Preview;
-        // chỉ khác placeholder và cách render preview.
-        <div className="md-editor">
-          <div className="tabs">
-            <button
-              type="button"
-              className={tab === 'edit' ? 'active' : ''}
-              onClick={() => setTab('edit')}
-            >
-              Edit
-            </button>
-            <button
-              type="button"
-              className={tab === 'preview' ? 'active' : ''}
-              onClick={() => setTab('preview')}
-            >
-              Preview
-            </button>
-          </div>
+        // chỉ khác placeholder và cách render preview. Nút toàn màn hình nằm
+        // cùng hàng với hai tab này (trên thanh công cụ của FullscreenViewer).
+        <FullscreenViewer
+          className="md-editor"
+          label="Xem nội dung toàn màn hình"
+          toolbar={
+            <div className="tabs">
+              <button
+                type="button"
+                className={tab === 'edit' ? 'active' : ''}
+                onClick={() => setTab('edit')}
+              >
+                Edit
+              </button>
+              <button
+                type="button"
+                className={tab === 'preview' ? 'active' : ''}
+                onClick={() => setTab('preview')}
+              >
+                Preview
+              </button>
+            </div>
+          }
+        >
           {tab === 'edit' ? (
             <textarea
               className="md-textarea"
@@ -365,15 +371,11 @@ export default function DocumentEditor({ doc }: { doc: DocItem }) {
               }
             />
           ) : type === 'html' ? (
-            <FullscreenViewer label="Xem nội dung toàn màn hình">
-              <HtmlDocument value={content} />
-            </FullscreenViewer>
+            <HtmlDocument value={content} />
           ) : (
-            <FullscreenViewer label="Xem nội dung toàn màn hình">
-              <MarkdownPreview content={content} />
-            </FullscreenViewer>
+            <MarkdownPreview content={content} />
           )}
-        </div>
+        </FullscreenViewer>
       )}
     </div>
   );

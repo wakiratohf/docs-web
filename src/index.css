@@ -766,9 +766,6 @@ a.btn-square {
 .tabs {
   display: flex;
   gap: 4px;
-  padding: 8px;
-  border-bottom: 1px solid var(--border);
-  background: var(--subtle);
 }
 .tabs button.active {
   background: var(--primary);
@@ -831,32 +828,29 @@ a.btn-square {
   width: 100%;
 }
 
-/* Vùng xem có nút "toàn màn hình" ở góc trên phải */
+/* Vùng xem có thanh công cụ (tab + nút "toàn màn hình") ở trên cùng */
 .fullscreen-viewer {
-  position: relative;
   display: flex;
   flex-direction: column;
   min-height: 0;
   flex: 1;
 }
+/* Thanh trên cùng: tab/nút tùy chọn dồn trái, nút toàn màn hình đẩy về phải */
+.fullscreen-bar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px;
+  border-bottom: 1px solid var(--border);
+  background: var(--subtle);
+}
 .fullscreen-toggle {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  z-index: 5;
+  margin-left: auto;
+  flex-shrink: 0;
   opacity: 0.85;
-  background: var(--surface, #fff);
 }
 .fullscreen-toggle:hover {
   opacity: 1;
-}
-/* Với PDF/embed (iframe Google Drive… tự vẽ nút "mở/pop-out" ở góc PHẢI trên),
-   dời nút full screen của app sang góc TRÁI để hai nút không đè nhau.
-   Dùng :has() nên áp dụng đồng nhất cho cả view owner lẫn view share. */
-.fullscreen-viewer:has(.pdf-viewer) .fullscreen-toggle,
-.fullscreen-viewer:has(.embed-viewer) .fullscreen-toggle {
-  left: 8px;
-  right: auto;
 }
 /* Khi đang toàn màn hình: phủ nền theo theme và cho cuộn nội dung dài */
 .fullscreen-viewer:fullscreen {
