@@ -526,19 +526,53 @@ a:hover {
   border-color: var(--primary);
 }
 
-/* Trang chia sẻ ưu tiên hiển thị nội dung: thu gọn khoảng trống trên/dưới
-   và các margin của header/tiêu đề để chừa nhiều chỗ cho content. */
+/* Trang chia sẻ ưu tiên TỐI ĐA cho nội dung tài liệu: bố cục chiếm trọn
+   chiều cao màn hình, header + tiêu đề chỉ là một dải mỏng ở trên, phần còn
+   lại dành hết cho tài liệu (PDF/embed lấp đầy, text tự cuộn bên trong). */
 .share-view {
-  padding: 12px 28px 20px;
+  display: flex;
+  flex-direction: column;
+  height: 100vh; /* fallback trình duyệt cũ */
+  height: 100dvh; /* trừ thanh địa chỉ động trên mobile */
+  padding: 10px 20px;
+  gap: 4px;
 }
 .share-view .share-header {
-  margin-bottom: 12px;
+  margin-bottom: 6px;
+}
+.share-view .share-doc {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  margin: 0;
 }
 .share-view .share-doc h1 {
-  margin-bottom: 8px;
+  font-size: 18px;
+  margin: 0 0 2px;
 }
+/* Meta (tác giả, ngày) là thông tin phụ — thu nhỏ, mờ, sát tiêu đề */
 .share-view .share-doc-dates {
-  margin: 0 0 10px;
+  margin: 0 0 6px;
+  gap: 12px;
+  font-size: 12px;
+  opacity: 0.7;
+}
+.share-view .share-doc-dates .doc-date {
+  font-size: 12px;
+}
+/* Vùng viewer chiếm hết chỗ còn lại; nội dung dài tự cuộn bên trong.
+   PDF/embed dùng flex lấp đầy; tài liệu HTML (html-frame tự đo cao) thì cuộn. */
+.share-view .fullscreen-viewer {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+.share-view .share-doc .note-content.readonly,
+.share-view .share-doc .markdown-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
 }
 
 /* Nội dung tài liệu chia sẻ scale theo cỡ chữ người xem chọn.
