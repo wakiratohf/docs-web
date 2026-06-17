@@ -2152,6 +2152,7 @@ a.btn-icon:hover {
   background: var(--primary-soft);
   border-color: var(--primary);
   color: var(--primary);
+  text-decoration: none; /* đè rule global a:hover { underline } */
 }
 
 @media (max-width: 600px) {
