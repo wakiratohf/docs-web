@@ -548,6 +548,12 @@ a:hover {
 .share-view .share-header {
   justify-content: flex-end;
 }
+/* Nút full screen của app nằm góc TRÁI trên ở trang share, để không đè lên
+   nút "mở bằng Google Drive" mà iframe Drive tự vẽ ở góc PHẢI trên. */
+.share-view .fullscreen-toggle {
+  left: 8px;
+  right: auto;
+}
 .share-view .share-doc {
   flex: 1;
   min-height: 0;
