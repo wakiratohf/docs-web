@@ -2144,6 +2144,14 @@ a.btn-icon:hover {
   color: var(--text);
   font-weight: 500;
   line-height: 1.6;
+  text-decoration: none;
+  transition: background 0.2s var(--ease), border-color 0.2s var(--ease),
+    color 0.2s var(--ease);
+}
+.bottom-nav-badge:hover {
+  background: var(--primary-soft);
+  border-color: var(--primary);
+  color: var(--primary);
 }
 
 @media (max-width: 600px) {

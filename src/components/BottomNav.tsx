@@ -8,8 +8,15 @@ const thisYear = new Date().getFullYear();
 const copyrightYear =
   thisYear > START_YEAR ? `${START_YEAR}–${thisYear}` : `${START_YEAR}`;
 
-// Công nghệ đã triển khai trong dự án (xem package.json).
-const TECHS = ['React 19', 'TypeScript', 'Vite', 'Firebase'];
+// Công nghệ đã triển khai trong dự án (xem package.json) — mỗi mục là link
+// dẫn tới trang chủ chính thức, mở ở tab mới.
+const TECHS: { label: string; href: string }[] = [
+  { label: 'React 19', href: 'https://react.dev' },
+  { label: 'TypeScript', href: 'https://www.typescriptlang.org' },
+  { label: 'Vite', href: 'https://vite.dev' },
+  { label: 'Firebase', href: 'https://firebase.google.com' },
+  { label: 'Claude Code', href: 'https://claude.com/claude-code' },
+];
 
 export default function BottomNav() {
   return (
@@ -21,9 +28,15 @@ export default function BottomNav() {
         <span className="bottom-nav-tech">
           <span className="bottom-nav-tech-label">Xây dựng bằng</span>
           {TECHS.map((t) => (
-            <span key={t} className="bottom-nav-badge">
-              {t}
-            </span>
+            <a
+              key={t.label}
+              className="bottom-nav-badge"
+              href={t.href}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {t.label}
+            </a>
           ))}
         </span>
       </div>
