@@ -199,7 +199,8 @@ a:hover {
 
 .container {
   width: 100%;
-  max-width: 1280px;
+  /* Full width như trang xem PDF/tài liệu (.doc-page), chỉ chừa chút padding 2 bên */
+  max-width: none;
   margin: 0 auto;
   padding: 24px 28px 64px;
 }
