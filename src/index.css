@@ -1,53 +1,95 @@
+/* ============================================================
+   DESIGN TOKENS — phong cách Apple (apple.com / macOS / iOS)
+   Bảng màu trung tính sạch, accent xanh Apple, bo góc lớn,
+   đổ bóng nhiều lớp mềm, hiệu ứng kính mờ (glass) vừa phải.
+   GIỮ NGUYÊN tên biến cũ để mọi component hiện có vẫn chạy;
+   chỉ tinh chỉnh giá trị + thêm token mới (radius/shadow/glass).
+   ============================================================ */
 :root {
-  --bg: #f5f6f8;
+  --bg: #f5f5f7; /* xám sáng đặc trưng nền apple.com */
   --card: #ffffff;
-  --border: #e2e4e9;
-  --text: #1d2129;
-  --muted: #6b7280;
-  --primary: #2563eb;
-  --primary-hover: #1d4ed8;
-  --danger: #dc2626;
+  --border: #d8d8de; /* viền hairline mảnh, dịu */
+  --text: #1d1d1f; /* gần-đen Apple, không dùng đen tuyền */
+  --muted: #6e6e73; /* xám phụ Apple */
+  --primary: #0071e3; /* xanh Apple chuẩn */
+  --primary-hover: #0077ed;
+  --primary-soft: rgba(0, 113, 227, 0.1); /* nền nhạt khi hover/chọn */
+  --ring: rgba(0, 113, 227, 0.35); /* vòng focus quanh ô nhập */
+  --danger: #d70015; /* đỏ Apple */
   --note: #7c3aed;
   --markdown: #0891b2;
   --html: #ea580c;
 
   /* Bề mặt & màu phụ — tách riêng khỏi màu cứng để dark theme ghi đè dễ dàng */
-  --subtle: #fafbfc; /* nền thanh công cụ, tab, select phụ */
-  --hover-bg: #f0f1f3; /* nền nút khi rê chuột */
-  --code-bg: #f3f4f6; /* nền khối code / inline code */
-  --danger-border: #f1c0c0;
-  --danger-bg: #fdf0f0; /* nền nút nguy hiểm khi rê chuột */
-  --share-bg: #ecfdf5; /* thanh thông báo đang chia sẻ */
-  --share-border: #a7f3d0;
-  --shadow: rgba(0, 0, 0, 0.05);
+  --subtle: #fafafc; /* nền thanh công cụ, tab, select phụ */
+  --hover-bg: #f0f0f3; /* nền nút khi rê chuột */
+  --code-bg: #f4f4f6; /* nền khối code / inline code */
+  --danger-border: #f3c4c7;
+  --danger-bg: #fdeced; /* nền nút nguy hiểm khi rê chuột */
+  --share-bg: #e9f9f0; /* thanh thông báo đang chia sẻ */
+  --share-border: #a7e8c6;
+
+  /* Bề mặt kính mờ (header, modal, popover) */
+  --glass-bg: rgba(255, 255, 255, 0.72);
+  --glass-border: rgba(0, 0, 0, 0.08);
+  --glass-blur: saturate(180%) blur(20px);
+
+  /* Bo góc — thang đo nhất quán kiểu Apple (góc bo lớn, mềm) */
+  --radius-sm: 8px;
+  --radius: 12px;
+  --radius-lg: 18px;
+  --radius-xl: 24px;
+  --radius-pill: 980px;
+
+  /* Đổ bóng nhiều lớp, khuếch tán mềm — không dùng bóng cứng đậm */
+  --shadow: rgba(0, 0, 0, 0.05); /* giữ token cũ cho tương thích */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04), 0 1px 3px rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.08), 0 1px 4px rgba(0, 0, 0, 0.05);
+  --shadow-lg: 0 18px 48px rgba(0, 0, 0, 0.14), 0 6px 14px rgba(0, 0, 0, 0.07);
+
+  /* Nhịp chuyển động — đường cong "spring" mượt giống iOS */
+  --ease: cubic-bezier(0.32, 0.72, 0, 1);
 
   color-scheme: light;
-  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial,
-    sans-serif;
+  /* Ưu tiên SF Pro trên máy Apple (-apple-system), dự phòng Inter cho máy khác */
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display',
+    'SF Pro Text', 'Inter', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
 /* Giao diện tối: chỉ cần ghi đè các biến màu, mọi component dùng var() tự đổi theo */
 [data-theme='dark'] {
-  --bg: #0f1115;
-  --card: #1a1d24;
-  --border: #2c313b;
-  --text: #e6e8ec;
-  --muted: #9aa3b2;
-  --primary: #3b82f6;
-  --primary-hover: #60a5fa;
-  --danger: #f87171;
+  --bg: #000000; /* nền đen tuyền kiểu macOS/iOS tối */
+  --card: #1c1c1e; /* "elevated surface" Apple dark */
+  --border: #38383a; /* separator Apple dark */
+  --text: #f5f5f7;
+  --muted: #98989d; /* secondary label Apple dark */
+  --primary: #0a84ff; /* xanh Apple cho nền tối (sáng hơn) */
+  --primary-hover: #409cff;
+  --primary-soft: rgba(10, 132, 255, 0.18);
+  --ring: rgba(10, 132, 255, 0.45);
+  --danger: #ff453a; /* đỏ Apple dark */
   --note: #a78bfa;
   --markdown: #22d3ee;
   --html: #fb923c;
 
-  --subtle: #20242c;
-  --hover-bg: #2a2f39;
-  --code-bg: #15181e;
+  --subtle: #1c1c1e;
+  --hover-bg: #2c2c2e;
+  --code-bg: #161618;
   --danger-border: #5a2d2d;
   --danger-bg: #2a1a1a;
   --share-bg: #0e2a20;
   --share-border: #1f5e45;
+
+  --glass-bg: rgba(28, 28, 30, 0.72);
+  --glass-border: rgba(255, 255, 255, 0.1);
+
   --shadow: rgba(0, 0, 0, 0.4);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3), 0 1px 3px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.45), 0 1px 4px rgba(0, 0, 0, 0.35);
+  --shadow-lg: 0 18px 48px rgba(0, 0, 0, 0.6), 0 6px 14px rgba(0, 0, 0, 0.45);
 
   color-scheme: dark;
 }
@@ -61,7 +103,16 @@ body {
   background: var(--bg);
   color: var(--text);
   line-height: 1.5;
-  transition: background 0.2s ease, color 0.2s ease;
+  letter-spacing: -0.01em; /* đậm chất Apple: chữ hơi siết lại */
+  transition: background 0.3s var(--ease), color 0.3s var(--ease);
+}
+
+/* Tiêu đề: siết letter-spacing mạnh hơn cho dáng "display" của Apple */
+h1,
+h2,
+h3 {
+  letter-spacing: -0.022em;
+  font-weight: 600;
 }
 
 button {
@@ -69,25 +120,40 @@ button {
   border: 1px solid var(--border);
   background: var(--card);
   color: var(--text);
-  border-radius: 8px;
-  padding: 8px 14px;
+  border-radius: var(--radius-sm);
+  padding: 8px 16px;
   font-size: 14px;
-  transition: background 0.15s, border-color 0.15s;
+  font-weight: 500;
+  font-family: inherit;
+  transition: background 0.2s var(--ease), border-color 0.2s var(--ease),
+    box-shadow 0.2s var(--ease), transform 0.12s var(--ease);
 }
 button:hover {
   background: var(--hover-bg);
 }
+button:active {
+  transform: scale(0.97);
+}
+button:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 4px var(--ring);
+}
 button:disabled {
-  opacity: 0.5;
+  opacity: 0.45;
   cursor: not-allowed;
+}
+button:disabled:active {
+  transform: none;
 }
 button.primary {
   background: var(--primary);
   color: #fff;
   border-color: var(--primary);
+  box-shadow: var(--shadow-sm);
 }
 button.primary:hover {
   background: var(--primary-hover);
+  border-color: var(--primary-hover);
 }
 button.danger {
   color: var(--danger);
@@ -103,6 +169,16 @@ textarea,
 select {
   color: var(--text);
   background: var(--card);
+  font-family: inherit;
+  transition: border-color 0.2s var(--ease), box-shadow 0.2s var(--ease);
+}
+/* Vòng focus mềm kiểu Apple cho mọi ô nhập có viền */
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 4px var(--ring);
 }
 
 a {
@@ -123,7 +199,8 @@ a:hover {
 
 .container {
   width: 100%;
-  margin: 0;
+  max-width: 1280px;
+  margin: 0 auto;
   padding: 24px 28px 64px;
 }
 
@@ -144,15 +221,17 @@ a:hover {
 .login-card {
   background: var(--card);
   border: 1px solid var(--border);
-  border-radius: 16px;
-  padding: 40px;
+  border-radius: var(--radius-xl);
+  padding: 48px 40px;
   max-width: 400px;
   width: 100%;
   text-align: center;
-  box-shadow: 0 4px 24px var(--shadow);
+  box-shadow: var(--shadow-lg);
 }
 .login-card h1 {
   margin: 0 0 8px;
+  font-size: 28px;
+  font-weight: 700;
 }
 .login-card button {
   margin-top: 16px;
@@ -160,15 +239,27 @@ a:hover {
 }
 
 /* ---------- Header / list ---------- */
+/* Thanh tiêu đề dính trên cùng, nền kính mờ kiểu macOS/iOS.
+   Margin âm để trải hết bề ngang padding của .container. */
 .app-header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
   flex-wrap: wrap;
+  margin: -24px -28px 8px;
+  padding: 14px 28px;
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border-bottom: 1px solid var(--glass-border);
 }
 .app-header h1 {
-  font-size: 22px;
+  font-size: 24px;
+  font-weight: 700;
   margin: 0;
 }
 .user-box {
@@ -182,11 +273,11 @@ a:hover {
   margin: 20px 0;
 }
 .empty {
-  padding: 32px;
+  padding: 40px;
   text-align: center;
   background: var(--card);
   border: 1px dashed var(--border);
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
 }
 
 .doc-list {
@@ -201,14 +292,19 @@ a:hover {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 12px 16px;
+  padding: 14px 18px;
   background: var(--card);
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--radius);
   color: var(--text);
+  box-shadow: var(--shadow-sm);
+  transition: border-color 0.2s var(--ease), box-shadow 0.2s var(--ease),
+    transform 0.2s var(--ease);
 }
 .doc-item:hover {
-  border-color: var(--primary);
+  border-color: transparent;
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
   text-decoration: none;
 }
 .doc-title {
@@ -253,6 +349,9 @@ a:hover {
 }
 .badge-pdf {
   background: var(--danger);
+}
+.badge-embed {
+  background: #0ea5e9;
 }
 .badge-shared {
   background: #059669;
@@ -641,6 +740,35 @@ a.btn-square {
   padding: 18px;
 }
 
+/* Khung nhúng link ngoài (iframe) — dùng chung dáng với PDF */
+.embed-viewer {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+.embed-frame {
+  width: 100%;
+  flex: 1;
+  min-height: 70vh;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+}
+.embed-empty {
+  padding: 18px;
+}
+/* Trình soạn tài liệu embed: ô dán link + preview bên dưới */
+.embed-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: 1;
+  min-height: 0;
+}
+.embed-url-input {
+  width: 100%;
+}
+
 /* Vùng xem có nút "toàn màn hình" ở góc trên phải */
 .fullscreen-viewer {
   position: relative;
@@ -668,6 +796,8 @@ a.btn-square {
 }
 .fullscreen-viewer:fullscreen .pdf-viewer,
 .fullscreen-viewer:fullscreen .pdf-frame,
+.fullscreen-viewer:fullscreen .embed-viewer,
+.fullscreen-viewer:fullscreen .embed-frame,
 .fullscreen-viewer:fullscreen .html-frame {
   flex: 1;
   min-height: 100vh;
@@ -748,7 +878,12 @@ a.btn-square {
   justify-content: center;
   font-size: 56px;
   color: #fff;
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.18);
+  box-shadow: var(--shadow-md);
+  transition: box-shadow 0.25s var(--ease), transform 0.25s var(--ease);
+}
+.tile:hover .tile-icon {
+  box-shadow: var(--shadow-lg);
+  transform: translateY(-3px);
 }
 .tile-glyph {
   line-height: 1;
@@ -765,6 +900,9 @@ a.btn-square {
   background: linear-gradient(160deg, #fb923c, #ea580c);
   font-weight: 800;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+.icon-embed {
+  background: linear-gradient(160deg, #38bdf8, #0284c7);
 }
 .tile-share {
   position: absolute;
@@ -833,6 +971,9 @@ a.btn-square {
 }
 .mini-pdf {
   background: var(--danger);
+}
+.mini-embed {
+  background: #0ea5e9;
 }
 /* Folder đang được kéo tài liệu vào */
 .folder-tile.drop-over .folder-icon-box {
@@ -1125,10 +1266,12 @@ a.btn-square {
   grid-template-columns: repeat(4, 1fr);
   gap: 6px;
   padding: 8px;
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  box-shadow: 0 6px 20px var(--shadow);
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lg);
 }
 .sticky-swatch {
   width: 24px;
@@ -1284,10 +1427,12 @@ a.btn-square {
   list-style: none;
   max-height: 240px;
   overflow-y: auto;
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  box-shadow: 0 10px 28px var(--shadow);
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lg);
 }
 .author-option {
   display: flex;
@@ -1520,6 +1665,35 @@ a.btn-square {
   background: var(--hover-bg);
   color: var(--text);
 }
+/* Thanh tìm kiếm có thêm dropdown lọc tác giả (trang chủ): xếp ngang, nút xóa
+   thành phần tử thường (không đè lên dropdown như khi chỉ có ô input). */
+.search-bar-wrap.has-author {
+  gap: 8px;
+}
+.search-bar-wrap.has-author .search-input {
+  flex: 1;
+  width: auto;
+  padding-right: 14px;
+}
+.search-bar-wrap.has-author .search-clear {
+  position: static;
+  transform: none;
+}
+.search-author {
+  flex-shrink: 0;
+  max-width: 200px;
+  padding: 11px 12px;
+  font-size: 14px;
+  color: var(--text);
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  cursor: pointer;
+}
+.search-author:focus {
+  outline: none;
+  border-color: var(--primary);
+}
 .search-count {
   margin: 0 0 12px;
   font-size: 13px;
@@ -1601,14 +1775,16 @@ mark {
   display: flex;
   align-items: flex-start;
   gap: 10px;
-  background: var(--card);
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
   color: var(--text);
-  border: 1px solid var(--border);
+  border: 1px solid var(--glass-border);
   border-left: 4px solid var(--primary);
-  border-radius: 10px;
-  padding: 12px 14px;
-  box-shadow: 0 6px 24px var(--shadow);
-  animation: toast-in 0.2s ease;
+  border-radius: var(--radius);
+  padding: 13px 15px;
+  box-shadow: var(--shadow-lg);
+  animation: toast-in 0.3s var(--ease);
 }
 .toast-success {
   border-left-color: #16a34a;
@@ -1665,12 +1841,14 @@ mark {
   position: fixed;
   inset: 0;
   z-index: 9000;
-  background: rgba(0, 0, 0, 0.45);
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 20px;
-  animation: backdrop-in 0.15s ease;
+  animation: backdrop-in 0.2s var(--ease);
 }
 .modal {
   width: 100%;
@@ -1678,14 +1856,15 @@ mark {
   background: var(--card);
   color: var(--text);
   border: 1px solid var(--border);
-  border-radius: 14px;
-  padding: 22px;
-  box-shadow: 0 12px 40px var(--shadow);
-  animation: modal-in 0.18s ease;
+  border-radius: var(--radius-lg);
+  padding: 26px;
+  box-shadow: var(--shadow-lg);
+  animation: modal-in 0.28s var(--ease);
 }
 .modal-title {
   margin: 0 0 8px;
-  font-size: 18px;
+  font-size: 19px;
+  font-weight: 600;
 }
 .modal-message {
   margin: 0 0 14px;
@@ -1791,10 +1970,13 @@ mark {
   display: flex;
   flex-direction: column;
   padding: 6px;
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  box-shadow: 0 10px 28px var(--shadow);
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lg);
+  animation: modal-in 0.2s var(--ease);
 }
 /* Mỗi dòng trong menu: căn trái, full chiều ngang, viền trong suốt cho gọn */
 .new-menu-item {

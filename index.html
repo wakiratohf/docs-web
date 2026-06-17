@@ -3,10 +3,27 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <!-- Màu thanh trình duyệt (mobile) khớp màu thương hiệu --primary -->
-    <meta name="theme-color" content="#2563eb" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <!-- Màu thanh trình duyệt (mobile) khớp nền theo từng giao diện sáng/tối -->
+    <meta
+      name="theme-color"
+      content="#f5f5f7"
+      media="(prefers-color-scheme: light)"
+    />
+    <meta
+      name="theme-color"
+      content="#000000"
+      media="(prefers-color-scheme: dark)"
+    />
     <title>Docs Web</title>
+    <!-- Font Inter: dự phòng cho máy không có SF Pro (Windows/Android) để đồng
+         nhất "chất Apple". Máy Apple vẫn ưu tiên SF Pro qua -apple-system. -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+    />
     <!-- Đặt giao diện sáng/tối TRƯỚC khi React tải để tránh nháy sáng (FOUC) -->
     <script>
       (function () {

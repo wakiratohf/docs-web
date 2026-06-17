@@ -79,16 +79,60 @@ function makeSnippet(original: string, start: number, matchLen: number): string 
   return s;
 }
 
+/** Giá trị filter tác giả nghĩa là "không lọc theo tác giả" (hiển thị tất cả). */
+export const ALL_AUTHORS = '';
+
 /**
- * Tìm các tài liệu khớp từ khóa theo tiêu đề và/hoặc nội dung.
- * Khớp tiêu đề được xếp lên trước. Query rỗng ⇒ trả về mảng rỗng.
+ * Gom danh sách tác giả có thật trong dữ liệu (đã bỏ trùng, sắp theo bảng chữ cái),
+ * để đổ vào dropdown filter. Bỏ qua tài liệu chưa ghi tác giả.
  */
-export function searchDocs(docs: DocItem[], rawQuery: string): SearchResult[] {
+export function collectAuthors(docs: DocItem[]): string[] {
+  const set = new Set<string>();
+  for (const doc of docs) {
+    const a = (doc.author ?? '').trim();
+    if (a) set.add(a);
+  }
+  return Array.from(set).sort((a, b) => a.localeCompare(b, 'vi'));
+}
+
+/**
+ * Tìm các tài liệu khớp từ khóa theo tiêu đề và/hoặc nội dung, có thể lọc thêm
+ * theo tác giả.
+ * - Query rỗng + có chọn tác giả ⇒ trả về MỌI tài liệu của tác giả đó (không snippet).
+ * - Query rỗng + không chọn tác giả ⇒ mảng rỗng.
+ * - Có query ⇒ khớp tiêu đề/nội dung như cũ; nếu có chọn tác giả thì lọc thêm.
+ * Khớp tiêu đề được xếp lên trước.
+ *
+ * @param author Tên tác giả cần lọc; `ALL_AUTHORS` (chuỗi rỗng) = không lọc.
+ */
+export function searchDocs(
+  docs: DocItem[],
+  rawQuery: string,
+  author: string = ALL_AUTHORS,
+): SearchResult[] {
   const q = normalizeText(rawQuery.trim());
-  if (!q) return [];
+  const filterAuthor = author.trim();
+
+  // Không có gì để lọc cả (không từ khóa, không tác giả) ⇒ rỗng.
+  if (!q && !filterAuthor) return [];
+
+  // Lọc theo tác giả trước (so khớp đúng chuỗi đã chọn từ dropdown).
+  const pool = filterAuthor
+    ? docs.filter((d) => (d.author ?? '').trim() === filterAuthor)
+    : docs;
+
+  // Chỉ chọn tác giả, không gõ từ khóa ⇒ liệt kê hết tài liệu của tác giả đó.
+  if (!q) {
+    return pool.map((doc) => ({
+      doc,
+      matchedTitle: false,
+      matchedContent: false,
+      snippet: null,
+    }));
+  }
 
   const results: SearchResult[] = [];
-  for (const doc of docs) {
+  for (const doc of pool) {
     const matchedTitle = normalizeText(doc.title || '').includes(q);
 
     const plain = plainTextOf(doc);

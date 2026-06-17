@@ -10,7 +10,7 @@ import Spinner from '../components/Spinner';
 import EmptyState from '../components/EmptyState';
 import CreateFolderModal from '../components/CreateFolderModal';
 import NewDocMenu from '../components/NewDocMenu';
-import { searchDocs } from '../lib/search';
+import { searchDocs, collectAuthors, ALL_AUTHORS } from '../lib/search';
 import { STICKY_COLORS, DEFAULT_STICKY_COLOR } from '../lib/stickyColors';
 import type { DocItem, DocumentType, Folder, FolderViewType } from '../types';
 
@@ -18,7 +18,7 @@ import type { DocItem, DocumentType, Folder, FolderViewType } from '../types';
 const SWATCH_BY_KEY = new Map(STICKY_COLORS.map((c) => [c.key, c.swatch]));
 
 // Biểu tượng hiển thị trên icon tài liệu theo loại.
-const GLYPH: Record<DocumentType, string> = { note: '✏️', markdown: '#', html: '<>', pdf: '📄' };
+const GLYPH: Record<DocumentType, string> = { note: '✏️', markdown: '#', html: '<>', pdf: '📄', embed: '🔗' };
 
 export default function DocsAllPage() {
   const {
@@ -41,10 +41,15 @@ export default function DocsAllPage() {
 
   // Từ khóa tìm kiếm toàn cục (trên TẤT CẢ folder + tài liệu lẻ).
   const [query, setQuery] = useState('');
-  const searching = query.trim().length > 0;
+  // Tác giả đang lọc; ALL_AUTHORS ('') = Tất cả (không lọc theo tác giả).
+  const [author, setAuthor] = useState<string>(ALL_AUTHORS);
+  // Danh sách tác giả load động từ dữ liệu để đổ vào dropdown.
+  const authors = useMemo(() => collectAuthors(documents), [documents]);
+  // Đang ở chế độ tìm/lọc khi có từ khóa HOẶC đã chọn một tác giả cụ thể.
+  const searching = query.trim().length > 0 || author !== ALL_AUTHORS;
   const results = useMemo(
-    () => (searching ? searchDocs(documents, query) : []),
-    [documents, query, searching],
+    () => (searching ? searchDocs(documents, query, author) : []),
+    [documents, query, author, searching],
   );
   // Map id → folder để kết quả tìm kiếm cho biết tài liệu nằm ở folder nào.
   const foldersById = useMemo(
@@ -135,7 +140,7 @@ export default function DocsAllPage() {
         </button>
       </div>
 
-      <div className="search-bar-wrap">
+      <div className="search-bar-wrap has-author">
         <Search className="search-icon" size={16} aria-hidden="true" />
         <input
           type="search"
@@ -144,13 +149,28 @@ export default function DocsAllPage() {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
+        <select
+          className="search-author"
+          title="Lọc theo tác giả"
+          aria-label="Lọc theo tác giả"
+          value={author}
+          onChange={(e) => setAuthor(e.target.value)}
+        >
+          <option value={ALL_AUTHORS}>Tất cả tác giả</option>
+          {authors.map((a) => (
+            <option key={a} value={a}>{a}</option>
+          ))}
+        </select>
         {searching && (
           <button
             type="button"
             className="search-clear"
             title="Xóa tìm kiếm"
             aria-label="Xóa tìm kiếm"
-            onClick={() => setQuery('')}
+            onClick={() => {
+              setQuery('');
+              setAuthor(ALL_AUTHORS);
+            }}
           >
             <X size={16} aria-hidden="true" />
           </button>
@@ -163,6 +183,7 @@ export default function DocsAllPage() {
         <SearchResults
           results={results}
           query={query}
+          author={author}
           foldersById={foldersById}
           showFolder
         />

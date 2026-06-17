@@ -7,6 +7,7 @@ import type { DocItem, Folder } from '../types';
 import HtmlContent from '../components/HtmlContent';
 import HtmlDocument from '../components/HtmlDocument';
 import PdfViewer from '../components/PdfViewer';
+import EmbedViewer from '../components/EmbedViewer';
 import MarkdownPreview from '../components/MarkdownPreview';
 import FullscreenViewer from '../components/FullscreenViewer';
 import ThemeToggle from '../components/ThemeToggle';
@@ -25,7 +26,7 @@ interface SharedFolderPayload {
   documents?: Record<string, DocItem>;
 }
 
-const GLYPH: Record<DocItem['type'], string> = { note: '✏️', markdown: '#', html: '<>', pdf: '📄' };
+const GLYPH: Record<DocItem['type'], string> = { note: '✏️', markdown: '#', html: '<>', pdf: '📄', embed: '🔗' };
 
 type ViewState = 'loading' | 'ready' | 'notfound' | 'error';
 
@@ -79,7 +80,7 @@ export default function SharedFolderPage() {
         <Link to="/" className="brand">📄 Docs Web</Link>
         <div className="share-header-actions">
           {state === 'ready' && current && control}
-          {state === 'ready' && current && current.type !== 'pdf' && (
+          {state === 'ready' && current && current.type !== 'pdf' && current.type !== 'embed' && (
             <button
               type="button"
               className="share-download-btn btn-icon"
@@ -136,6 +137,8 @@ export default function SharedFolderPage() {
                 <FullscreenViewer label="Xem toàn màn hình">
                   {current.type === 'pdf' ? (
                     <PdfViewer fileId={current.content} />
+                  ) : current.type === 'embed' ? (
+                    <EmbedViewer value={current.content} />
                   ) : current.type === 'note' ? (
                     <HtmlContent value={current.content} />
                   ) : current.type === 'html' ? (

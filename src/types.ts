@@ -1,4 +1,4 @@
-export type DocumentType = 'note' | 'markdown' | 'html' | 'pdf';
+export type DocumentType = 'note' | 'markdown' | 'html' | 'pdf' | 'embed';
 
 /** Kiểu hiển thị tài liệu bên trong folder: danh sách dọc hay lưới sticky note. */
 export type FolderViewType = 'list' | 'sticky';
@@ -36,6 +36,8 @@ export interface DocItem {
    * html: chuỗi HTML thô do người dùng tự viết;
    * pdf: KHÔNG phải nội dung file mà là Drive fileId của PDF đã upload lên
    *      Google Drive (file công khai, xem qua iframe preview — xem lib/googleDrive.ts).
+   * embed: URL GỐC do người dùng dán (YouTube, Google Slides/Docs, Drive, Figma…).
+   *      Khi hiển thị, lib/embed.ts tự chuyển sang URL nhúng chuẩn để bỏ vào iframe.
    */
   content: string;
   createdAt: string;

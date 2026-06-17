@@ -6,7 +6,7 @@ import { normalizeText, type SearchResult } from '../lib/search';
 import EmptyState from './EmptyState';
 
 // Biểu tượng theo loại tài liệu (đồng bộ với DocsAllPage).
-const BADGE: Record<string, string> = { note: 'note', markdown: 'markdown', html: 'html' };
+const BADGE: Record<string, string> = { note: 'note', markdown: 'markdown', html: 'html', pdf: 'pdf', embed: 'embed' };
 
 /**
  * Tô đậm phần khớp từ khóa trong một chuỗi. Khớp KHÔNG phân biệt hoa/thường và
@@ -35,6 +35,8 @@ function Highlighted({ text, query }: { text: string; query: string }) {
 interface Props {
   results: SearchResult[];
   query: string;
+  /** Tác giả đang lọc (rỗng = không lọc theo tác giả). Dùng để hiển thị thông báo. */
+  author?: string;
   /** Map id folder → folder, để hiển thị tài liệu thuộc folder nào (trang chủ). */
   foldersById?: Map<string, Folder>;
   /** Có hiển thị tên folder của mỗi kết quả không (trang chủ: có; trong folder: không). */
@@ -44,15 +46,26 @@ interface Props {
 export default function SearchResults({
   results,
   query,
+  author = '',
   foldersById,
   showFolder = false,
 }: Props) {
+  const q = query.trim();
+  const a = author.trim();
+  // Mô tả điều kiện đang lọc thành câu chữ: theo từ khóa và/hoặc theo tác giả.
+  const criteria = [
+    q ? `khớp “${q}”` : '',
+    a ? `của tác giả “${a}”` : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
+
   if (results.length === 0) {
     return (
       <EmptyState
         icon={<SearchX size={40} aria-hidden="true" />}
         title="Không tìm thấy kết quả"
-        description={`Không có tài liệu nào khớp “${query.trim()}”.`}
+        description={`Không có tài liệu nào ${criteria}.`}
       />
     );
   }
@@ -60,7 +73,7 @@ export default function SearchResults({
   return (
     <>
       <p className="search-count muted">
-        Tìm thấy {results.length} tài liệu khớp “{query.trim()}”
+        Tìm thấy {results.length} tài liệu {criteria}
       </p>
       <ul className="doc-list">
         {results.map(({ doc, matchedTitle, snippet }) => {

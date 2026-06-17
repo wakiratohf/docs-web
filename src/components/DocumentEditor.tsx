@@ -20,6 +20,7 @@ import AuthorInput from './AuthorInput';
 import MarkdownPreview from './MarkdownPreview';
 import HtmlDocument from './HtmlDocument';
 import PdfViewer from './PdfViewer';
+import EmbedViewer from './EmbedViewer';
 import FullscreenViewer from './FullscreenViewer';
 
 type DocUpdates = Partial<Pick<DocItem, 'title' | 'content' | 'type' | 'author'>>;
@@ -194,6 +195,7 @@ export default function DocumentEditor({ doc }: { doc: DocItem }) {
             <option value="note">Note (rich-text)</option>
             <option value="markdown">Markdown</option>
             <option value="html">HTML (mã thô)</option>
+            <option value="embed">Embed (nhúng link)</option>
           </select>
         )}
         <select
@@ -287,6 +289,19 @@ export default function DocumentEditor({ doc }: { doc: DocItem }) {
         <FullscreenViewer label="Xem PDF toàn màn hình">
           <PdfViewer fileId={content} />
         </FullscreenViewer>
+      ) : type === 'embed' ? (
+        // Embed: content chỉ là MỘT link → ô nhập 1 dòng + preview nhúng ngay dưới.
+        <div className="embed-editor">
+          <input
+            className="embed-url-input"
+            value={content}
+            onChange={(e) => onContent(e.target.value)}
+            placeholder="Dán link YouTube, Google Slides/Docs/Drive, Figma, CodePen, Vimeo…"
+          />
+          <FullscreenViewer label="Xem toàn màn hình">
+            <EmbedViewer value={content} />
+          </FullscreenViewer>
+        </div>
       ) : type === 'note' ? (
         <NoteEditor value={content} onChange={onContent} />
       ) : (

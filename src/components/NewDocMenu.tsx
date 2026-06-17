@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Plus, ChevronDown, FilePlus2, Hash, Code2 } from 'lucide-react';
+import { Plus, ChevronDown, FilePlus2, Hash, Code2, Link2 } from 'lucide-react';
 import PdfUploadButton from './PdfUploadButton';
 import type { DocumentType } from '../types';
 
@@ -83,6 +83,14 @@ export default function NewDocMenu({
             onClick={() => pick('html')}
           >
             <Code2 size={16} aria-hidden="true" /> New HTML
+          </button>
+          <button
+            type="button"
+            className="new-menu-item"
+            role="menuitem"
+            onClick={() => pick('embed')}
+          >
+            <Link2 size={16} aria-hidden="true" /> New embed
           </button>
           {/* PDF tự xử lý luồng Google Drive; click vẫn là gesture trực tiếp.
               Đóng menu sau khi PDF tạo xong để trở lại trạng thái gọn. */}

@@ -7,6 +7,7 @@ import type { DocItem } from '../types';
 import HtmlContent from '../components/HtmlContent';
 import HtmlDocument from '../components/HtmlDocument';
 import PdfViewer from '../components/PdfViewer';
+import EmbedViewer from '../components/EmbedViewer';
 import MarkdownPreview from '../components/MarkdownPreview';
 import FullscreenViewer from '../components/FullscreenViewer';
 import ThemeToggle from '../components/ThemeToggle';
@@ -64,7 +65,7 @@ export default function SharePage() {
         <Link to="/" className="brand">📄 Docs Web</Link>
         <div className="share-header-actions">
           {state === 'ready' && doc && control}
-          {state === 'ready' && doc && doc.type !== 'pdf' && (
+          {state === 'ready' && doc && doc.type !== 'pdf' && doc.type !== 'embed' && (
             <button
               type="button"
               className="share-download-btn btn-icon"
@@ -109,6 +110,8 @@ export default function SharePage() {
           <FullscreenViewer label="Xem toàn màn hình">
             {doc.type === 'pdf' ? (
               <PdfViewer fileId={doc.content} />
+            ) : doc.type === 'embed' ? (
+              <EmbedViewer value={doc.content} />
             ) : doc.type === 'note' ? (
               <HtmlContent value={doc.content} />
             ) : doc.type === 'html' ? (
