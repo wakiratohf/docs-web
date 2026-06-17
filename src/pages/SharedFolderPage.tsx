@@ -5,7 +5,10 @@ import { Download, FolderX, Inbox } from 'lucide-react';
 import { db } from '../lib/firebase';
 import type { DocItem, Folder } from '../types';
 import HtmlContent from '../components/HtmlContent';
+import HtmlDocument from '../components/HtmlDocument';
+import PdfViewer from '../components/PdfViewer';
 import MarkdownPreview from '../components/MarkdownPreview';
+import FullscreenViewer from '../components/FullscreenViewer';
 import ThemeToggle from '../components/ThemeToggle';
 import Spinner from '../components/Spinner';
 import EmptyState from '../components/EmptyState';
@@ -22,7 +25,7 @@ interface SharedFolderPayload {
   documents?: Record<string, DocItem>;
 }
 
-const GLYPH: Record<DocItem['type'], string> = { note: '✏️', markdown: '#' };
+const GLYPH: Record<DocItem['type'], string> = { note: '✏️', markdown: '#', html: '<>', pdf: '📄' };
 
 type ViewState = 'loading' | 'ready' | 'notfound' | 'error';
 
@@ -76,7 +79,7 @@ export default function SharedFolderPage() {
         <Link to="/" className="brand">📄 Docs Web</Link>
         <div className="share-header-actions">
           {state === 'ready' && current && control}
-          {state === 'ready' && current && (
+          {state === 'ready' && current && current.type !== 'pdf' && (
             <button
               type="button"
               className="share-download-btn btn-icon"
@@ -130,11 +133,17 @@ export default function SharedFolderPage() {
                     Tạo: {formatDate(current.createdAt)}
                   </span>
                 </p>
-                {current.type === 'note' ? (
-                  <HtmlContent value={current.content} />
-                ) : (
-                  <MarkdownPreview content={current.content} />
-                )}
+                <FullscreenViewer label="Xem toàn màn hình">
+                  {current.type === 'pdf' ? (
+                    <PdfViewer fileId={current.content} />
+                  ) : current.type === 'note' ? (
+                    <HtmlContent value={current.content} />
+                  ) : current.type === 'html' ? (
+                    <HtmlDocument value={current.content} />
+                  ) : (
+                    <MarkdownPreview content={current.content} />
+                  )}
+                </FullscreenViewer>
               </article>
             ) : (
               <p className="muted empty">

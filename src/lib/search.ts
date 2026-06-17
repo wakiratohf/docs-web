@@ -12,8 +12,30 @@ export function stripHtml(html: string): string {
 }
 
 /** Lấy phần chữ thuần để dò theo nội dung, tùy loại tài liệu. */
+/**
+ * Lấy chữ thuần từ một tài liệu HTML đầy đủ (loại 'html'): bỏ luôn nội dung
+ * thẻ <style>/<script> để không lẫn CSS/JS vào kết quả tìm kiếm.
+ */
+function plainTextOfHtmlDoc(raw: string): string {
+  if (!raw) return '';
+  try {
+    const parsed = new DOMParser().parseFromString(raw, 'text/html');
+    parsed.querySelectorAll('style, script').forEach((el) => el.remove());
+    return parsed.body?.textContent ?? '';
+  } catch {
+    return stripHtml(raw);
+  }
+}
+
 export function plainTextOf(doc: DocItem): string {
-  return doc.type === 'note' ? stripHtml(doc.content) : doc.content;
+  // note là fragment HTML ⇒ chỉ cần bỏ thẻ; html là cả trang ⇒ bỏ thêm style/script;
+  // markdown để nguyên.
+  if (doc.type === 'note') return stripHtml(doc.content);
+  if (doc.type === 'html') return plainTextOfHtmlDoc(doc.content);
+  // pdf: content là fileId Drive, không phải nội dung đọc được ⇒ không lấy làm
+  // text tìm kiếm/preview (chỉ tìm theo tiêu đề/tác giả ở chỗ gọi).
+  if (doc.type === 'pdf') return '';
+  return doc.content;
 }
 
 /**

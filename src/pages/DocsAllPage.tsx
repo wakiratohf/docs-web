@@ -9,6 +9,7 @@ import SearchResults from '../components/SearchResults';
 import Spinner from '../components/Spinner';
 import EmptyState from '../components/EmptyState';
 import CreateFolderModal from '../components/CreateFolderModal';
+import PdfUploadButton from '../components/PdfUploadButton';
 import { searchDocs } from '../lib/search';
 import { STICKY_COLORS, DEFAULT_STICKY_COLOR } from '../lib/stickyColors';
 import type { DocItem, DocumentType, Folder, FolderViewType } from '../types';
@@ -17,7 +18,7 @@ import type { DocItem, DocumentType, Folder, FolderViewType } from '../types';
 const SWATCH_BY_KEY = new Map(STICKY_COLORS.map((c) => [c.key, c.swatch]));
 
 // Biểu tượng hiển thị trên icon tài liệu theo loại.
-const GLYPH: Record<DocumentType, string> = { note: '✏️', markdown: '#' };
+const GLYPH: Record<DocumentType, string> = { note: '✏️', markdown: '#', html: '<>', pdf: '📄' };
 
 export default function DocsAllPage() {
   const {
@@ -131,6 +132,10 @@ export default function DocsAllPage() {
         <button type="button" className="btn-icon primary" onClick={() => create('markdown')}>
           <Plus size={16} aria-hidden="true" /> New markdown
         </button>
+        <button type="button" className="btn-icon primary" onClick={() => create('html')}>
+          <Plus size={16} aria-hidden="true" /> New HTML
+        </button>
+        <PdfUploadButton onCreated={(id) => navigate(`/docs/view/document/${id}`)} />
         <button type="button" className="btn-icon" onClick={() => navigate('/docs/upload')}>
           <Upload size={16} aria-hidden="true" /> Tải lên hàng loạt
         </button>

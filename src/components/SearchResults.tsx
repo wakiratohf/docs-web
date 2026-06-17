@@ -6,7 +6,7 @@ import { normalizeText, type SearchResult } from '../lib/search';
 import EmptyState from './EmptyState';
 
 // Biểu tượng theo loại tài liệu (đồng bộ với DocsAllPage).
-const BADGE: Record<string, string> = { note: 'note', markdown: 'markdown' };
+const BADGE: Record<string, string> = { note: 'note', markdown: 'markdown', html: 'html' };
 
 /**
  * Tô đậm phần khớp từ khóa trong một chuỗi. Khớp KHÔNG phân biệt hoa/thường và

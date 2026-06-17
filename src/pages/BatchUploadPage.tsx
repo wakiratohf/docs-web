@@ -80,6 +80,7 @@ export default function BatchUploadPage() {
       const payload = items.map((it, i) => ({
         type: it.type,
         title: it.title,
+        // note: chỉ lấy phần thân; html: giữ nguyên cả file để render độc lập.
         content:
           it.type === 'note' ? extractHtmlBody(contents[i]) : contents[i],
       }));
@@ -199,6 +200,7 @@ export default function BatchUploadPage() {
                 >
                   <option value="markdown">markdown</option>
                   <option value="note">note</option>
+                  <option value="html">html</option>
                 </select>
                 <span className="upload-filename muted" title={it.file.name}>
                   {it.file.name}

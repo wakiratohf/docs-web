@@ -5,7 +5,10 @@ import { Download, FileX } from 'lucide-react';
 import { db } from '../lib/firebase';
 import type { DocItem } from '../types';
 import HtmlContent from '../components/HtmlContent';
+import HtmlDocument from '../components/HtmlDocument';
+import PdfViewer from '../components/PdfViewer';
 import MarkdownPreview from '../components/MarkdownPreview';
+import FullscreenViewer from '../components/FullscreenViewer';
 import ThemeToggle from '../components/ThemeToggle';
 import Spinner from '../components/Spinner';
 import EmptyState from '../components/EmptyState';
@@ -61,7 +64,7 @@ export default function SharePage() {
         <Link to="/" className="brand">📄 Docs Web</Link>
         <div className="share-header-actions">
           {state === 'ready' && doc && control}
-          {state === 'ready' && doc && (
+          {state === 'ready' && doc && doc.type !== 'pdf' && (
             <button
               type="button"
               className="share-download-btn btn-icon"
@@ -103,11 +106,17 @@ export default function SharePage() {
               Tạo: {formatDate(doc.createdAt)}
             </span>
           </p>
-          {doc.type === 'note' ? (
-            <HtmlContent value={doc.content} />
-          ) : (
-            <MarkdownPreview content={doc.content} />
-          )}
+          <FullscreenViewer label="Xem toàn màn hình">
+            {doc.type === 'pdf' ? (
+              <PdfViewer fileId={doc.content} />
+            ) : doc.type === 'note' ? (
+              <HtmlContent value={doc.content} />
+            ) : doc.type === 'html' ? (
+              <HtmlDocument value={doc.content} />
+            ) : (
+              <MarkdownPreview content={doc.content} />
+            )}
+          </FullscreenViewer>
         </article>
       )}
     </div>

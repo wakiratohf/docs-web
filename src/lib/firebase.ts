@@ -21,4 +21,9 @@ export const app = isConfigured ? initializeApp(firebaseConfig) : null;
 export const auth = isConfigured ? getAuth(app!) : null;
 export const db = isConfigured ? getDatabase(app!) : null;
 export const googleProvider = isConfigured ? new GoogleAuthProvider() : null;
+// Xin thêm quyền Google Drive (chỉ phạm vi file do app này tạo — non-sensitive)
+// để upload & xem PDF mà không cần Firebase Storage. Lưu ý: thêm scope ở đây
+// không tự cấp quyền cho người đã đăng nhập từ trước; Google chỉ hỏi consent ở
+// lần signInWithPopup tiếp theo (xem getDriveAccessToken trong lib/googleDrive.ts).
+googleProvider?.addScope('https://www.googleapis.com/auth/drive.file');
 export const firebaseReady = isConfigured;

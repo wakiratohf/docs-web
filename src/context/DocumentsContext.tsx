@@ -158,7 +158,13 @@ export function DocumentsProvider({ children }: { children: ReactNode }) {
       const created: DocItem = {
         id: uuidv4(),
         type,
-        title: title ?? (type === 'note' ? 'New note' : 'New document'),
+        title:
+          title ??
+          (type === 'note'
+            ? 'New note'
+            : type === 'html'
+              ? 'New HTML'
+              : 'New document'),
         content: '',
         createdAt: now,
         updatedAt: now,
@@ -201,7 +207,12 @@ export function DocumentsProvider({ children }: { children: ReactNode }) {
           id: uuidv4(),
           type: it.type,
           title:
-            it.title.trim() || (it.type === 'note' ? 'New note' : 'New document'),
+            it.title.trim() ||
+            (it.type === 'note'
+              ? 'New note'
+              : it.type === 'html'
+                ? 'New HTML'
+                : 'New document'),
           content: it.content,
           createdAt: now,
           updatedAt: now,

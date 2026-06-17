@@ -1,4 +1,4 @@
-export type DocumentType = 'note' | 'markdown';
+export type DocumentType = 'note' | 'markdown' | 'html' | 'pdf';
 
 /** Kiểu hiển thị tài liệu bên trong folder: danh sách dọc hay lưới sticky note. */
 export type FolderViewType = 'list' | 'sticky';
@@ -31,7 +31,12 @@ export interface DocItem {
   id: string;
   type: DocumentType;
   title: string;
-  /** note: chuỗi HTML; markdown: chuỗi Markdown thuần */
+  /**
+   * note: chuỗi HTML (rich-text); markdown: chuỗi Markdown thuần;
+   * html: chuỗi HTML thô do người dùng tự viết;
+   * pdf: KHÔNG phải nội dung file mà là Drive fileId của PDF đã upload lên
+   *      Google Drive (file công khai, xem qua iframe preview — xem lib/googleDrive.ts).
+   */
   content: string;
   createdAt: string;
   updatedAt: string;

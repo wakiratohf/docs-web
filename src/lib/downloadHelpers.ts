@@ -41,10 +41,14 @@ ${body}
 // Tải tài liệu về máy người xem: note → file .html, markdown → file .md.
 // Dùng Blob + thẻ <a download> tạm rồi tự dọn dẹp (cách tải file thuần client).
 export function downloadDocument(doc: DocItem): void {
-  const isNote = doc.type === 'note';
-  const ext = isNote ? 'html' : 'md';
-  const mime = isNote ? 'text/html' : 'text/markdown';
-  const content = isNote ? wrapHtml(doc.title, doc.content) : doc.content;
+  // note (rich-text) & html (mã thô) đều xuất .html; markdown ⇒ .md.
+  const isHtmlFile = doc.type === 'note' || doc.type === 'html';
+  const ext = isHtmlFile ? 'html' : 'md';
+  const mime = isHtmlFile ? 'text/html' : 'text/markdown';
+  // note là fragment ⇒ bọc thành trang đầy đủ. html đã là file hoàn chỉnh
+  // (hoặc do người dùng tự viết) ⇒ giữ nguyên, không bọc lồng thêm lần nữa.
+  const content =
+    doc.type === 'note' ? wrapHtml(doc.title, doc.content) : doc.content;
 
   const blob = new Blob([content], { type: `${mime};charset=utf-8` });
   const url = URL.createObjectURL(blob);

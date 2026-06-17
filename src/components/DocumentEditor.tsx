@@ -9,6 +9,9 @@ import { collectAuthors } from '../lib/authors';
 import NoteEditor from './NoteEditor';
 import AuthorInput from './AuthorInput';
 import MarkdownPreview from './MarkdownPreview';
+import HtmlDocument from './HtmlDocument';
+import PdfViewer from './PdfViewer';
+import FullscreenViewer from './FullscreenViewer';
 
 type DocUpdates = Partial<Pick<DocItem, 'title' | 'content' | 'type' | 'author'>>;
 
@@ -164,14 +167,20 @@ export default function DocumentEditor({ doc }: { doc: DocItem }) {
             )}
           </span>
         )}
-        <select
-          className="type-select"
-          value={type}
-          onChange={(e) => onChangeType(e.target.value as DocumentType)}
-        >
-          <option value="note">Note (rich-text)</option>
-          <option value="markdown">Markdown</option>
-        </select>
+        {/* PDF không đổi loại được (nội dung là fileId Drive, không phải text) */}
+        {type === 'pdf' ? (
+          <span className="badge badge-pdf">PDF</span>
+        ) : (
+          <select
+            className="type-select"
+            value={type}
+            onChange={(e) => onChangeType(e.target.value as DocumentType)}
+          >
+            <option value="note">Note (rich-text)</option>
+            <option value="markdown">Markdown</option>
+            <option value="html">HTML (mã thô)</option>
+          </select>
+        )}
         <select
           className="folder-select"
           value={doc.folderId ?? ''}
@@ -231,9 +240,16 @@ export default function DocumentEditor({ doc }: { doc: DocItem }) {
         </div>
       )}
 
-      {type === 'note' ? (
+      {type === 'pdf' ? (
+        // PDF chỉ xem (content là fileId Drive); vẫn sửa được tiêu đề/tác giả ở trên.
+        <FullscreenViewer label="Xem PDF toàn màn hình">
+          <PdfViewer fileId={content} />
+        </FullscreenViewer>
+      ) : type === 'note' ? (
         <NoteEditor value={content} onChange={onContent} />
       ) : (
+        // markdown & html dùng chung khung soạn thảo có tab Edit/Preview;
+        // chỉ khác placeholder và cách render preview.
         <div className="md-editor">
           <div className="tabs">
             <button
@@ -256,10 +272,20 @@ export default function DocumentEditor({ doc }: { doc: DocItem }) {
               className="md-textarea"
               value={content}
               onChange={(e) => onContent(e.target.value)}
-              placeholder="# Tiêu đề&#10;&#10;Viết Markdown ở đây…"
+              placeholder={
+                type === 'html'
+                  ? '<h1>Tiêu đề</h1>&#10;&#10;<p>Viết HTML thô ở đây…</p>'
+                  : '# Tiêu đề&#10;&#10;Viết Markdown ở đây…'
+              }
             />
+          ) : type === 'html' ? (
+            <FullscreenViewer label="Xem nội dung toàn màn hình">
+              <HtmlDocument value={content} />
+            </FullscreenViewer>
           ) : (
-            <MarkdownPreview content={content} />
+            <FullscreenViewer label="Xem nội dung toàn màn hình">
+              <MarkdownPreview content={content} />
+            </FullscreenViewer>
           )}
         </div>
       )}

@@ -9,6 +9,7 @@
   --danger: #dc2626;
   --note: #7c3aed;
   --markdown: #0891b2;
+  --html: #ea580c;
 
   /* Bề mặt & màu phụ — tách riêng khỏi màu cứng để dark theme ghi đè dễ dàng */
   --subtle: #fafbfc; /* nền thanh công cụ, tab, select phụ */
@@ -37,6 +38,7 @@
   --danger: #f87171;
   --note: #a78bfa;
   --markdown: #22d3ee;
+  --html: #fb923c;
 
   --subtle: #20242c;
   --hover-bg: #2a2f39;
@@ -246,6 +248,12 @@ a:hover {
 .badge-markdown {
   background: var(--markdown);
 }
+.badge-html {
+  background: var(--html);
+}
+.badge-pdf {
+  background: var(--danger);
+}
 .badge-shared {
   background: #059669;
 }
@@ -311,6 +319,14 @@ a:hover {
 .note-content.readonly {
   min-height: auto;
   padding: 0;
+}
+/* Khung iframe hiển thị tài liệu HTML độc lập (giữ nguyên CSS riêng của file) */
+.html-frame {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+  display: block;
 }
 /* Trang chia sẻ cả folder: tiêu đề + danh sách tài liệu bấm để mở */
 .share-folder-title {
@@ -558,6 +574,60 @@ a:hover {
   resize: none;
   outline: none;
 }
+/* Khung xem PDF (iframe Google Drive preview) */
+.pdf-viewer {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+.pdf-frame {
+  width: 100%;
+  flex: 1;
+  min-height: 70vh;
+  border: none;
+}
+.pdf-empty {
+  padding: 18px;
+}
+
+/* Vùng xem có nút "toàn màn hình" ở góc trên phải */
+.fullscreen-viewer {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1;
+}
+.fullscreen-toggle {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 5;
+  opacity: 0.85;
+  background: var(--surface, #fff);
+}
+.fullscreen-toggle:hover {
+  opacity: 1;
+}
+/* Khi đang toàn màn hình: phủ nền theo theme và cho cuộn nội dung dài */
+.fullscreen-viewer:fullscreen {
+  background: var(--bg, #fff);
+  overflow: auto;
+  padding: 0;
+}
+.fullscreen-viewer:fullscreen .pdf-viewer,
+.fullscreen-viewer:fullscreen .pdf-frame,
+.fullscreen-viewer:fullscreen .html-frame {
+  flex: 1;
+  min-height: 100vh;
+}
+.fullscreen-viewer:fullscreen .markdown-body,
+.fullscreen-viewer:fullscreen .note-content.readonly {
+  max-width: 900px;
+  margin: 0 auto;
+  min-height: 100vh;
+}
+
 .markdown-body {
   padding: 18px;
 }
@@ -640,6 +710,11 @@ a:hover {
   font-weight: 800;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
 }
+.icon-html {
+  background: linear-gradient(160deg, #fb923c, #ea580c);
+  font-weight: 800;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
 .tile-share {
   position: absolute;
   top: -6px;
@@ -701,6 +776,9 @@ a:hover {
 }
 .mini-markdown {
   background: var(--markdown);
+}
+.mini-html {
+  background: var(--html);
 }
 /* Folder đang được kéo tài liệu vào */
 .folder-tile.drop-over .folder-icon-box {

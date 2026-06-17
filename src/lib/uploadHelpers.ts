@@ -8,10 +8,10 @@ export interface UploadItem {
 }
 
 // Phần mở rộng file (đã hạ chữ thường) → suy ra loại tài liệu.
-// .html/.htm là nội dung HTML ⇒ 'note'; còn lại coi như văn bản/Markdown thuần.
+// .html/.htm là nội dung HTML ⇒ 'html' (giữ nguyên mã thô); còn lại coi như văn bản/Markdown thuần.
 export function detectType(name: string): DocumentType {
   const ext = name.toLowerCase().split('.').pop() ?? '';
-  return ext === 'html' || ext === 'htm' ? 'note' : 'markdown';
+  return ext === 'html' || ext === 'htm' ? 'html' : 'markdown';
 }
 
 // Bỏ phần mở rộng để làm tiêu đề mặc định ("ghi-chu.md" → "ghi-chu").
@@ -45,6 +45,8 @@ export async function filesToItems(
     return {
       type,
       title: stripExt(f.name),
+      // note: chỉ lấy phần thân (rich-text là fragment). html: GIỮ NGUYÊN cả
+      // file (head/style/link) để render độc lập trong iframe, không mất CSS.
       content: type === 'note' ? extractHtmlBody(contents[i]) : contents[i],
     };
   });
