@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Plus, ChevronDown, FilePlus2, Hash, Code2, Link2 } from 'lucide-react';
+import { Plus, FilePlus2, Hash, Code2, Link2 } from 'lucide-react';
 import PdfUploadButton from './PdfUploadButton';
 import type { DocumentType } from '../types';
 
@@ -55,7 +55,6 @@ export default function NewDocMenu({
         onClick={() => setOpen((v) => !v)}
       >
         <Plus size={16} aria-hidden="true" /> New
-        <ChevronDown size={14} aria-hidden="true" />
       </button>
 
       {open && (

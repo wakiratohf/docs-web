@@ -645,8 +645,9 @@ a.btn-square {
 .md-editor {
   background: var(--card);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   overflow: hidden;
+  box-shadow: var(--shadow-sm);
 }
 .toolbar {
   display: flex;
@@ -978,7 +979,7 @@ a.btn-square {
 /* Folder đang được kéo tài liệu vào */
 .folder-tile.drop-over .folder-icon-box {
   border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.35);
+  box-shadow: 0 0 0 3px var(--ring);
 }
 
 /* Nút ghim ở góc trên-trái ô folder */
@@ -1022,7 +1023,7 @@ a.btn-square {
 }
 .folder-tile.is-pinned .folder-icon-box {
   border-color: var(--primary);
-  box-shadow: 0 8px 20px rgba(37, 99, 235, 0.22);
+  box-shadow: 0 8px 20px var(--primary-soft);
 }
 
 /* Icon "đang chia sẻ" trên ô folder: ẩn sẵn, chỉ hiện khi rê chuột vào folder */
@@ -1338,7 +1339,7 @@ a.btn-square {
 }
 .view-type-option.selected {
   border-color: var(--primary);
-  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.25);
+  box-shadow: 0 0 0 3px var(--ring);
 }
 .view-type-name {
   font-weight: 600;
@@ -1525,21 +1526,21 @@ a.btn-square {
   align-items: center;
   justify-content: center;
   gap: 6px;
-  padding: 40px 24px;
+  padding: 48px 24px;
   border: 2px dashed var(--border);
-  border-radius: 14px;
+  border-radius: var(--radius-lg);
   background: var(--card);
   text-align: center;
   cursor: pointer;
-  transition: border-color 0.15s, background 0.15s;
+  transition: border-color 0.2s var(--ease), background 0.2s var(--ease);
 }
 .drop-zone:hover {
   border-color: var(--primary);
 }
 .drop-zone.drag-over {
   border-color: var(--primary);
-  background: var(--hover-bg);
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.25);
+  background: var(--primary-soft);
+  box-shadow: 0 0 0 3px var(--ring);
 }
 .drop-icon {
   font-size: 40px;
@@ -1633,16 +1634,18 @@ a.btn-square {
 }
 .search-input {
   width: 100%;
-  padding: 11px 40px;
+  padding: 12px 40px;
   font-size: 15px;
   color: var(--text);
   background: var(--card);
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--radius-pill);
+  box-shadow: var(--shadow-sm);
 }
 .search-input:focus {
   outline: none;
   border-color: var(--primary);
+  box-shadow: 0 0 0 4px var(--ring);
 }
 .search-input::placeholder {
   color: var(--muted);
@@ -2031,8 +2034,13 @@ a.btn-icon:hover {
   .container {
     padding: 16px 14px 48px;
   }
+  /* Header dính: margin âm khớp với padding nhỏ hơn của container trên mobile */
+  .app-header {
+    margin: -16px -14px 8px;
+    padding: 12px 14px;
+  }
   .app-header h1 {
-    font-size: 18px;
+    font-size: 20px;
   }
   /* Lưới tile thu nhỏ để vừa điện thoại */
   .home-grid {
