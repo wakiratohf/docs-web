@@ -2,7 +2,7 @@
 
 Ứng dụng web quản lý & chia sẻ tài liệu (documents / notes) xây bằng **Vite + React 19 + TypeScript**, dùng **Firebase** (Authentication + Realtime Database) làm backend.
 
-**🔗 Demo:** https://docs-web-df5bb2.web.app/share/f/c24b8e94-e81e-4cf8-8794-be9bfd6ed533
+**🔗 Demo:** https://docs-web-df5bb2.web.app/share/f/49d50d35-4042-49aa-8b7a-a41613f37b17
 
 ## Tính năng chính
 - Đăng nhập bằng Google (Firebase Auth).
