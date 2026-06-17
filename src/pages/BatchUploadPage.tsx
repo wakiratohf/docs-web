@@ -1,7 +1,7 @@
 import { useRef, useState, type ChangeEvent, type DragEvent } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
-import { X } from 'lucide-react';
+import { X, ArrowLeft } from 'lucide-react';
 import { useDocuments } from '../context/DocumentsContext';
 import { useUploadDocuments } from '../hooks/useUploadDocuments';
 import { useToast } from '../context/ToastContext';
@@ -105,7 +105,14 @@ export default function BatchUploadPage() {
   return (
     <div className="container">
       <div className="back-bar">
-        <Link to="/docs">← Quay lại danh sách</Link>
+        <Link
+          to="/docs"
+          className="btn-icon btn-square back-link"
+          title="Quay lại danh sách"
+          aria-label="Quay lại danh sách"
+        >
+          <ArrowLeft size={16} aria-hidden="true" />
+        </Link>
       </div>
 
       <header className="app-header">

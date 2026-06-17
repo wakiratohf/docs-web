@@ -17,6 +17,7 @@ import {
   List,
   LayoutGrid,
   Droplet,
+  ArrowLeft,
 } from 'lucide-react';
 import { useDocuments } from '../context/DocumentsContext';
 import { useAuth } from '../auth/useAuth';
@@ -108,7 +109,14 @@ export default function FolderPage() {
 
   const backBar = (
     <div className="back-bar">
-      <Link to="/docs">← Quay lại danh sách</Link>
+      <Link
+        to="/docs"
+        className="btn-icon btn-square back-link"
+        title="Quay lại danh sách"
+        aria-label="Quay lại danh sách"
+      >
+        <ArrowLeft size={16} aria-hidden="true" />
+      </Link>
     </div>
   );
 
