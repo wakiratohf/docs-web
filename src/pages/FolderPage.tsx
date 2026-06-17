@@ -107,18 +107,20 @@ export default function FolderPage() {
     [docs, query, searching],
   );
 
-  const backBar = (
-    <div className="back-bar">
-      <Link
-        to="/docs"
-        className="btn-icon btn-square back-link"
-        title="Quay lại danh sách"
-        aria-label="Quay lại danh sách"
-      >
-        <ArrowLeft size={16} aria-hidden="true" />
-      </Link>
-    </div>
+  // Nút quay lại: dùng trực tiếp trong header (cùng hàng tiêu đề) khi đã có
+  // folder, và bọc trong .back-bar cho các trạng thái loading/không-tìm-thấy
+  // (lúc đó chưa render header).
+  const backLink = (
+    <Link
+      to="/docs"
+      className="btn-icon btn-square back-link"
+      title="Quay lại danh sách"
+      aria-label="Quay lại danh sách"
+    >
+      <ArrowLeft size={16} aria-hidden="true" />
+    </Link>
   );
+  const backBar = <div className="back-bar">{backLink}</div>;
 
   if (loading) {
     return (
@@ -332,10 +334,9 @@ export default function FolderPage() {
         </div>
       )}
 
-      {backBar}
-
       <header className="app-header">
         <h1 className="folder-title">
+          {backLink}
           <span>📁</span>
           {editing ? (
             <input
