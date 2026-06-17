@@ -23,12 +23,84 @@ export async function getDriveAccessToken(): Promise<string | null> {
   return cred?.accessToken ?? null;
 }
 
+// Tên folder mặc định mà web tạo trên Drive của người dùng để gom hết PDF vào
+// cho gọn (thay vì rải thẳng ra "My Drive").
+const APP_FOLDER_NAME = 'Docs Web';
+
+// Nhớ lại folderId đã tìm/tạo trong phiên để khỏi hỏi Drive lại mỗi lần upload.
+// Mất khi reload trang — không sao, lần upload đầu sẽ tìm lại.
+let cachedAppFolderId: string | null = null;
+
+/**
+ * Bảo đảm có folder mặc định "Docs Web" trên Drive: tìm trước, chưa có thì tạo.
+ * Trả về folderId để gắn làm cha (parents) cho file khi upload.
+ *
+ * Lưu ý: chỉ tìm trong các folder do app này tạo ('drive.file' chỉ thấy được
+ * file/folder mà app từng đụng tới), chưa bị xóa (trashed=false).
+ */
+export async function ensureAppFolder(token: string): Promise<string> {
+  if (cachedAppFolderId) return cachedAppFolderId;
+
+  // Tìm folder cùng tên chưa bị xóa.
+  const q = encodeURIComponent(
+    `name='${APP_FOLDER_NAME}' and mimeType='application/vnd.google-apps.folder' and trashed=false`,
+  );
+  const searchRes = await fetch(
+    `https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id)&pageSize=1`,
+    { headers: { Authorization: `Bearer ${token}` } },
+  );
+  if (searchRes.ok) {
+    const data = (await searchRes.json()) as { files?: { id?: string }[] };
+    const found = data.files?.[0]?.id;
+    if (found) {
+      cachedAppFolderId = found;
+      return found;
+    }
+  }
+
+  // Chưa có → tạo mới.
+  const createRes = await fetch(
+    'https://www.googleapis.com/drive/v3/files?fields=id',
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        name: APP_FOLDER_NAME,
+        mimeType: 'application/vnd.google-apps.folder',
+      }),
+    },
+  );
+  if (!createRes.ok) {
+    throw new Error(
+      `Tạo thư mục "${APP_FOLDER_NAME}" trên Drive thất bại (HTTP ${createRes.status}): ${await readDriveError(createRes)}`,
+    );
+  }
+  const created = (await createRes.json()) as { id?: string };
+  if (!created.id) throw new Error('Drive không trả về id thư mục');
+  cachedAppFolderId = created.id;
+  return created.id;
+}
+
 /**
  * Upload một file PDF lên Drive (multipart: metadata + nội dung nhị phân).
+ * Mặc định bỏ vào folder "Docs Web" (tạo nếu chưa có) cho gọn; truyền
+ * parentId rỗng để giữ hành vi cũ (đặt thẳng ở My Drive).
  * Trả về fileId của file vừa tạo.
  */
-export async function uploadPdfToDrive(file: File, token: string): Promise<string> {
-  const metadata = { name: file.name, mimeType: 'application/pdf' };
+export async function uploadPdfToDrive(
+  file: File,
+  token: string,
+  parentId?: string,
+): Promise<string> {
+  const metadata: {
+    name: string;
+    mimeType: string;
+    parents?: string[];
+  } = { name: file.name, mimeType: 'application/pdf' };
+  if (parentId) metadata.parents = [parentId];
   const form = new FormData();
   form.append(
     'metadata',

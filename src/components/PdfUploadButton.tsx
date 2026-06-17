@@ -4,6 +4,7 @@ import { useDocuments } from '../context/DocumentsContext';
 import { useToast } from '../context/ToastContext';
 import {
   getDriveAccessToken,
+  ensureAppFolder,
   uploadPdfToDrive,
   makeFilePublic,
 } from '../lib/googleDrive';
@@ -81,7 +82,9 @@ export default function PdfUploadButton({
     }
     setBusy(true);
     try {
-      const fileId = await uploadPdfToDrive(file, token);
+      // Gom file vào folder mặc định "Docs Web" trên Drive (tạo nếu chưa có).
+      const appFolderId = await ensureAppFolder(token);
+      const fileId = await uploadPdfToDrive(file, token, appFolderId);
       await makeFilePublic(fileId, token);
       // Tạo tài liệu rồi lưu fileId vào content (bỏ đuôi .pdf cho tiêu đề gọn).
       const created = addDocument('pdf', file.name.replace(/\.pdf$/i, ''), folderId);
