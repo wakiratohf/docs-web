@@ -146,6 +146,28 @@ export async function makeFilePublic(fileId: string, token: string): Promise<voi
 }
 
 /**
+ * Xóa hẳn một file trên Drive theo fileId (đưa vào thùng rác không đủ — dùng
+ * DELETE để xóa luôn). Gọi khi người dùng xóa tài liệu PDF và muốn dọn cả file
+ * gốc trên Drive. Cần token tươi (xem getDriveAccessToken).
+ *
+ * Lưu ý: 'drive.file' chỉ xóa được file do chính app này tạo. Nếu file đã bị xóa
+ * sẵn (HTTP 404) thì coi như xong, không ném lỗi.
+ */
+export async function deleteFileFromDrive(fileId: string, token: string): Promise<void> {
+  const res = await fetch(
+    `https://www.googleapis.com/drive/v3/files/${fileId}`,
+    {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` },
+    },
+  );
+  // 204 = xóa thành công; 404 = file vốn đã không còn → vẫn coi là thành công.
+  if (!res.ok && res.status !== 404) {
+    throw new Error(`Xóa file trên Drive thất bại (HTTP ${res.status}): ${await readDriveError(res)}`);
+  }
+}
+
+/**
  * Đọc thông điệp lỗi mà Google Drive API trả về trong body để biết NGUYÊN NHÂN
  * thật (vd: "Google Drive API has not been used in project … or it is disabled",
  * hoặc "insufficient authentication scopes"). Không đọc được thì trả chuỗi rỗng.

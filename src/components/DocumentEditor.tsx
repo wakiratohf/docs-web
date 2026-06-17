@@ -15,6 +15,7 @@ import { useDocuments } from '../context/DocumentsContext';
 import { useToast } from '../context/ToastContext';
 import { useConfirm } from '../context/ConfirmContext';
 import { collectAuthors } from '../lib/authors';
+import { getDriveAccessToken, deleteFileFromDrive } from '../lib/googleDrive';
 import NoteEditor from './NoteEditor';
 import AuthorInput from './AuthorInput';
 import MarkdownPreview from './MarkdownPreview';
@@ -148,6 +149,34 @@ export default function DocumentEditor({ doc }: { doc: DocItem }) {
       danger: true,
     });
     if (!ok) return;
+
+    // Với PDF: content là fileId Drive. Hỏi thêm có xóa luôn file gốc trên Drive
+    // không (cần đăng nhập Google). Dù người dùng từ chối/đóng popup hay lỗi, ta
+    // VẪN xóa tài liệu khỏi web — chỉ phần dọn file Drive là tùy chọn.
+    if (doc.type === 'pdf' && doc.content.trim()) {
+      const alsoDrive = await confirm({
+        title: 'Xóa file trên Google Drive?',
+        message:
+          'Xóa luôn file PDF gốc trên Google Drive của bạn? Việc này cần đăng nhập Google. Chọn "Chỉ xóa khỏi web" nếu muốn giữ file trên Drive.',
+        confirmText: 'Xóa cả trên Drive',
+        cancelText: 'Chỉ xóa khỏi web',
+        danger: true,
+      });
+      if (alsoDrive) {
+        try {
+          const token = await getDriveAccessToken();
+          if (token) {
+            await deleteFileFromDrive(doc.content, token);
+            toastSuccess('Đã xóa file trên Drive.');
+          } else {
+            toastError('Không lấy được quyền Drive — file trên Drive chưa bị xóa.');
+          }
+        } catch {
+          toastError('Không xóa được file trên Drive (tài liệu vẫn bị xóa khỏi web).');
+        }
+      }
+    }
+
     deleteDocument(doc.id);
     navigate('/docs');
   };
