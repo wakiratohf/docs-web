@@ -470,6 +470,9 @@ a:hover {
   gap: 10px;
   margin-bottom: 16px;
   flex-wrap: wrap;
+  /* Căn giữa theo chiều dọc để badge PDF (viên thuốc bo tròn) không bị
+     kéo giãn cao bằng ô tiêu đề → tránh méo thành hình bầu dục. */
+  align-items: center;
 }
 .title-input {
   flex: 1;
