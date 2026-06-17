@@ -45,7 +45,7 @@ export async function uploadPdfToDrive(file: File, token: string): Promise<strin
     },
   );
   if (!res.ok) {
-    throw new Error(`Upload Drive thất bại (HTTP ${res.status})`);
+    throw new Error(`Upload Drive thất bại (HTTP ${res.status}): ${await readDriveError(res)}`);
   }
   const data = (await res.json()) as { id?: string };
   if (!data.id) throw new Error('Drive không trả về fileId');
@@ -69,7 +69,21 @@ export async function makeFilePublic(fileId: string, token: string): Promise<voi
     },
   );
   if (!res.ok) {
-    throw new Error(`Đặt quyền công khai thất bại (HTTP ${res.status})`);
+    throw new Error(`Đặt quyền công khai thất bại (HTTP ${res.status}): ${await readDriveError(res)}`);
+  }
+}
+
+/**
+ * Đọc thông điệp lỗi mà Google Drive API trả về trong body để biết NGUYÊN NHÂN
+ * thật (vd: "Google Drive API has not been used in project … or it is disabled",
+ * hoặc "insufficient authentication scopes"). Không đọc được thì trả chuỗi rỗng.
+ */
+async function readDriveError(res: Response): Promise<string> {
+  try {
+    const data = (await res.json()) as { error?: { message?: string } };
+    return data.error?.message ?? '';
+  } catch {
+    return '';
   }
 }
 
