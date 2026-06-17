@@ -1,6 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Share2, Link2, Trash2, Copy, ExternalLink, Loader2, Check } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import {
+  Share2,
+  Link2,
+  Trash2,
+  Copy,
+  ExternalLink,
+  Loader2,
+  Check,
+  ArrowLeft,
+} from 'lucide-react';
 import type { DocItem, DocumentType } from '../types';
 import { useDocuments } from '../context/DocumentsContext';
 import { useToast } from '../context/ToastContext';
@@ -145,28 +154,33 @@ export default function DocumentEditor({ doc }: { doc: DocItem }) {
   return (
     <div className="doc-editor">
       <div className="doc-editor-bar">
+        {/* Nút quay lại gộp vào cùng hàng cho gọn (trước đây chiếm 1 dòng riêng) */}
+        <Link
+          to="/docs"
+          className="btn-icon btn-square back-link"
+          title="Quay lại danh sách"
+          aria-label="Quay lại danh sách"
+        >
+          <ArrowLeft size={16} aria-hidden="true" />
+        </Link>
         <input
           className="title-input"
           value={title}
           onChange={(e) => onTitle(e.target.value)}
           placeholder="Tiêu đề tài liệu"
         />
-        {saveState !== 'idle' && (
-          <span
-            className={`save-indicator ${saveState === 'saved' ? 'is-saved' : ''}`}
-            aria-live="polite"
-          >
-            {saveState === 'saving' ? (
-              <>
-                <Loader2 className="spin" size={14} aria-hidden="true" /> Đang lưu…
-              </>
-            ) : (
-              <>
-                <Check size={14} aria-hidden="true" /> Đã lưu
-              </>
-            )}
-          </span>
-        )}
+        {/* Tác giả gộp luôn vào thanh công cụ cho gọn (trước đây chiếm 1 hàng riêng) */}
+        <label htmlFor="doc-author" className="sr-only">
+          Tác giả
+        </label>
+        <AuthorInput
+          id="doc-author"
+          className="doc-author-input"
+          value={author}
+          authors={authors}
+          placeholder="✍ Tác giả"
+          onChange={onAuthor}
+        />
         {/* PDF không đổi loại được (nội dung là fileId Drive, không phải text) */}
         {type === 'pdf' ? (
           <span className="badge badge-pdf">PDF</span>
@@ -175,6 +189,7 @@ export default function DocumentEditor({ doc }: { doc: DocItem }) {
             className="type-select"
             value={type}
             onChange={(e) => onChangeType(e.target.value as DocumentType)}
+            title="Loại tài liệu"
           >
             <option value="note">Note (rich-text)</option>
             <option value="markdown">Markdown</option>
@@ -194,48 +209,75 @@ export default function DocumentEditor({ doc }: { doc: DocItem }) {
             </option>
           ))}
         </select>
+        {/* Nút chia sẻ/xóa gọn lại còn icon (chữ chỉ hiện qua tooltip) */}
         <button
           type="button"
-          className={`btn-icon ${doc.isShared ? 'primary' : ''}`}
+          className={`btn-icon btn-square ${doc.isShared ? 'primary' : ''}`}
           onClick={() => toggleShareDocument(doc.id)}
-          title="Bật/tắt chia sẻ công khai"
+          title={doc.isShared ? 'Đang chia sẻ — bấm để tắt' : 'Chia sẻ công khai'}
+          aria-label={doc.isShared ? 'Đang chia sẻ' : 'Chia sẻ'}
         >
           {doc.isShared ? (
-            <>
-              <Link2 size={16} aria-hidden="true" /> Đang chia sẻ
-            </>
+            <Link2 size={16} aria-hidden="true" />
           ) : (
-            <>
-              <Share2 size={16} aria-hidden="true" /> Chia sẻ
-            </>
+            <Share2 size={16} aria-hidden="true" />
           )}
         </button>
-        <button type="button" className="btn-icon danger" onClick={onDelete}>
-          <Trash2 size={16} aria-hidden="true" /> Xóa
+        <button
+          type="button"
+          className="btn-icon btn-square danger"
+          onClick={onDelete}
+          title="Xóa tài liệu"
+          aria-label="Xóa tài liệu"
+        >
+          <Trash2 size={16} aria-hidden="true" />
         </button>
-      </div>
-
-      <div className="doc-author-row">
-        <label htmlFor="doc-author">✍ Tác giả</label>
-        <AuthorInput
-          id="doc-author"
-          className="doc-author-input"
-          value={author}
-          authors={authors}
-          placeholder="Người viết tài liệu này"
-          onChange={onAuthor}
-        />
+        {saveState !== 'idle' && (
+          <span
+            className={`save-indicator ${saveState === 'saved' ? 'is-saved' : ''}`}
+            aria-live="polite"
+          >
+            {saveState === 'saving' ? (
+              <>
+                <Loader2 className="spin" size={14} aria-hidden="true" /> Đang lưu…
+              </>
+            ) : (
+              <>
+                <Check size={14} aria-hidden="true" /> Đã lưu
+              </>
+            )}
+          </span>
+        )}
       </div>
 
       {doc.isShared && (
         <div className="share-bar">
-          <span className="muted">Link công khai (ai có link đều xem được):</span>
-          <input className="share-url" readOnly value={shareUrl} onFocus={(e) => e.target.select()} />
-          <button type="button" className="btn-icon" onClick={onCopyShare}>
-            <Copy size={16} aria-hidden="true" /> Copy
+          <Link2 size={15} aria-hidden="true" className="share-bar-icon" />
+          <input
+            className="share-url"
+            readOnly
+            value={shareUrl}
+            onFocus={(e) => e.target.select()}
+            title="Link công khai — ai có link đều xem được"
+          />
+          <button
+            type="button"
+            className="btn-icon btn-square"
+            onClick={onCopyShare}
+            title="Copy link"
+            aria-label="Copy link"
+          >
+            <Copy size={16} aria-hidden="true" />
           </button>
-          <a className="btn-icon" href={shareUrl} target="_blank" rel="noreferrer">
-            <ExternalLink size={16} aria-hidden="true" /> Mở
+          <a
+            className="btn-icon btn-square"
+            href={shareUrl}
+            target="_blank"
+            rel="noreferrer"
+            title="Mở link trong tab mới"
+            aria-label="Mở link"
+          >
+            <ExternalLink size={16} aria-hidden="true" />
           </a>
         </div>
       )}

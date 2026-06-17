@@ -12,10 +12,6 @@ export default function DocViewerPage() {
 
   return (
     <div className="doc-page">
-      <div className="back-bar">
-        <Link to="/docs">← Quay lại danh sách</Link>
-      </div>
-
       {loading ? (
         <Spinner />
       ) : !doc ? (
