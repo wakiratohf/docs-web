@@ -448,7 +448,7 @@ export default function FolderPage() {
           <input
             type="search"
             className="search-input"
-            placeholder={`Tìm trong folder “${folder.name}” (theo tiêu đề & nội dung)…`}
+            placeholder={`Tìm trong folder “${folder.name}”…`}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />

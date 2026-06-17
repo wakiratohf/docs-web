@@ -145,7 +145,7 @@ export default function DocsAllPage() {
         <input
           type="search"
           className="search-input"
-          placeholder="Tìm tài liệu trên tất cả folder (theo tiêu đề & nội dung)…"
+          placeholder="Tìm tài liệu trên tất cả folder…"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
