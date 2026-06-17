@@ -540,6 +540,14 @@ a:hover {
 .share-view .share-header {
   margin-bottom: 6px;
 }
+/* Trang share là nơi người ngoài đọc tài liệu — không cần thương hiệu chiếm chỗ.
+   Ẩn brand "Docs Web", dồn các nút điều khiển về sát phải. */
+.share-view .share-header .brand {
+  display: none;
+}
+.share-view .share-header {
+  justify-content: flex-end;
+}
 .share-view .share-doc {
   flex: 1;
   min-height: 0;
