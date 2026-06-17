@@ -538,16 +538,39 @@ a:hover {
   padding: 10px 20px;
   gap: 4px;
 }
+/* Header trang share gom THÀNH MỘT HÀNG: tiêu đề + ngày bên trái, cụm nút bên
+   phải. Tiết kiệm chiều cao, dành tối đa chỗ cho nội dung. */
 .share-view .share-header {
   margin-bottom: 6px;
+  justify-content: space-between;
+  align-items: center;
 }
-/* Trang share là nơi người ngoài đọc tài liệu — không cần thương hiệu chiếm chỗ.
-   Ẩn brand "Docs Web", dồn các nút điều khiển về sát phải. */
-.share-view .share-header .brand {
-  display: none;
+/* Khối tiêu đề + ngày (bên trái), co lại được để không đẩy nút xuống dòng */
+.share-header-info {
+  min-width: 0;
+  flex: 1;
 }
-.share-view .share-header {
-  justify-content: flex-end;
+.share-view .share-header .share-title {
+  font-size: 18px;
+  margin: 0;
+  /* Tiêu đề dài chỉ 1 dòng + "…", tránh kéo cao header */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* Meta (tác giả, ngày) là thông tin phụ — thu nhỏ, mờ, sát tiêu đề */
+.share-view .share-header-info .share-doc-dates {
+  margin: 1px 0 0;
+  gap: 12px;
+  font-size: 12px;
+  opacity: 0.7;
+}
+.share-view .share-header-info .share-doc-dates .doc-date {
+  font-size: 12px;
+}
+/* Cụm nút không co lại, luôn giữ nguyên kích thước bên phải */
+.share-view .share-header-actions {
+  flex-shrink: 0;
 }
 .share-view .share-doc {
   flex: 1;
@@ -555,20 +578,6 @@ a:hover {
   display: flex;
   flex-direction: column;
   margin: 0;
-}
-.share-view .share-doc h1 {
-  font-size: 18px;
-  margin: 0 0 2px;
-}
-/* Meta (tác giả, ngày) là thông tin phụ — thu nhỏ, mờ, sát tiêu đề */
-.share-view .share-doc-dates {
-  margin: 0 0 6px;
-  gap: 12px;
-  font-size: 12px;
-  opacity: 0.7;
-}
-.share-view .share-doc-dates .doc-date {
-  font-size: 12px;
 }
 /* Vùng viewer chiếm hết chỗ còn lại; nội dung dài tự cuộn bên trong.
    PDF/embed dùng flex lấp đầy; tài liệu HTML (html-frame tự đo cao) thì cuộn. */
@@ -766,6 +775,9 @@ a.btn-square {
 .tabs {
   display: flex;
   gap: 4px;
+  padding: 8px;
+  border-bottom: 1px solid var(--border);
+  background: var(--subtle);
 }
 .tabs button.active {
   background: var(--primary);
@@ -828,29 +840,32 @@ a.btn-square {
   width: 100%;
 }
 
-/* Vùng xem có thanh công cụ (tab + nút "toàn màn hình") ở trên cùng */
+/* Vùng xem có nút "toàn màn hình" ở góc trên phải */
 .fullscreen-viewer {
+  position: relative;
   display: flex;
   flex-direction: column;
   min-height: 0;
   flex: 1;
 }
-/* Thanh trên cùng: tab/nút tùy chọn dồn trái, nút toàn màn hình đẩy về phải */
-.fullscreen-bar {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 8px;
-  border-bottom: 1px solid var(--border);
-  background: var(--subtle);
-}
 .fullscreen-toggle {
-  margin-left: auto;
-  flex-shrink: 0;
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 5;
   opacity: 0.85;
+  background: var(--surface, #fff);
 }
 .fullscreen-toggle:hover {
   opacity: 1;
+}
+/* Với PDF/embed (iframe Google Drive… tự vẽ nút "mở/pop-out" ở góc PHẢI trên),
+   dời nút full screen của app sang góc TRÁI để hai nút không đè nhau.
+   Dùng :has() nên áp dụng đồng nhất cho cả view owner lẫn view share. */
+.fullscreen-viewer:has(.pdf-viewer) .fullscreen-toggle,
+.fullscreen-viewer:has(.embed-viewer) .fullscreen-toggle {
+  left: 8px;
+  right: auto;
 }
 /* Khi đang toàn màn hình: phủ nền theo theme và cho cuộn nội dung dài */
 .fullscreen-viewer:fullscreen {

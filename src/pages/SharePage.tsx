@@ -62,7 +62,26 @@ export default function SharePage() {
       style={{ '--share-font-size': `${fontPx}px` } as CSSProperties}
     >
       <header className="share-header">
-        <Link to="/" className="brand">📄 Docs Web</Link>
+        {state === 'ready' && doc ? (
+          <div className="share-header-info">
+            <h1 className="share-title">{doc.title || '(không tiêu đề)'}</h1>
+            <p className="share-doc-dates muted">
+              {doc.author && (
+                <span className="doc-date" title="Tác giả">
+                  ✍ {doc.author}
+                </span>
+              )}
+              <span className="doc-date" title="Thời gian cập nhật gần nhất">
+                Sửa: {formatDate(doc.updatedAt)}
+              </span>
+              <span className="doc-date" title="Thời gian tạo">
+                Tạo: {formatDate(doc.createdAt)}
+              </span>
+            </p>
+          </div>
+        ) : (
+          <Link to="/" className="brand">📄 Docs Web</Link>
+        )}
         <div className="share-header-actions">
           {state === 'ready' && doc && control}
           {state === 'ready' && doc && doc.type !== 'pdf' && doc.type !== 'embed' && (
@@ -93,20 +112,6 @@ export default function SharePage() {
       )}
       {state === 'ready' && doc && (
         <article className="share-doc">
-          <h1>{doc.title || '(không tiêu đề)'}</h1>
-          <p className="share-doc-dates muted">
-            {doc.author && (
-              <span className="doc-date" title="Tác giả">
-                ✍ {doc.author}
-              </span>
-            )}
-            <span className="doc-date" title="Thời gian cập nhật gần nhất">
-              Sửa: {formatDate(doc.updatedAt)}
-            </span>
-            <span className="doc-date" title="Thời gian tạo">
-              Tạo: {formatDate(doc.createdAt)}
-            </span>
-          </p>
           <FullscreenViewer label="Xem toàn màn hình">
             {doc.type === 'pdf' ? (
               <PdfViewer fileId={doc.content} />
