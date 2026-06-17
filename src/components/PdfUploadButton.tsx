@@ -21,9 +21,12 @@ import {
 export default function PdfUploadButton({
   folderId,
   onCreated,
+  // 'button' = nút primary đứng riêng (mặc định); 'menu' = một dòng trong dropdown New.
+  variant = 'button',
 }: {
   folderId?: string;
   onCreated?: (id: string) => void;
+  variant?: 'button' | 'menu';
 }) {
   const { addDocument, updateDocument } = useDocuments();
   const { toastSuccess, toastError } = useToast();
@@ -101,21 +104,35 @@ export default function PdfUploadButton({
     }
   };
 
+  const icon = busy ? (
+    <Loader2 className="spin" size={16} aria-hidden="true" />
+  ) : (
+    <FileUp size={16} aria-hidden="true" />
+  );
+  const label = busy ? 'Đang tải…' : 'New PDF';
+
   return (
     <>
-      <button
-        type="button"
-        className="btn-icon primary"
-        disabled={busy}
-        onClick={onClick}
-      >
-        {busy ? (
-          <Loader2 className="spin" size={16} aria-hidden="true" />
-        ) : (
-          <FileUp size={16} aria-hidden="true" />
-        )}{' '}
-        {busy ? 'Đang tải…' : 'New PDF'}
-      </button>
+      {variant === 'menu' ? (
+        <button
+          type="button"
+          className="new-menu-item"
+          role="menuitem"
+          disabled={busy}
+          onClick={onClick}
+        >
+          {icon} {label}
+        </button>
+      ) : (
+        <button
+          type="button"
+          className="btn-icon primary"
+          disabled={busy}
+          onClick={onClick}
+        >
+          {icon} {label}
+        </button>
+      )}
       <input
         ref={inputRef}
         type="file"

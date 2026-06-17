@@ -9,7 +9,7 @@ import SearchResults from '../components/SearchResults';
 import Spinner from '../components/Spinner';
 import EmptyState from '../components/EmptyState';
 import CreateFolderModal from '../components/CreateFolderModal';
-import PdfUploadButton from '../components/PdfUploadButton';
+import NewDocMenu from '../components/NewDocMenu';
 import { searchDocs } from '../lib/search';
 import { STICKY_COLORS, DEFAULT_STICKY_COLOR } from '../lib/stickyColors';
 import type { DocItem, DocumentType, Folder, FolderViewType } from '../types';
@@ -126,16 +126,10 @@ export default function DocsAllPage() {
       </header>
 
       <div className="actions">
-        <button type="button" className="btn-icon primary" onClick={() => create('note')}>
-          <Plus size={16} aria-hidden="true" /> New note
-        </button>
-        <button type="button" className="btn-icon primary" onClick={() => create('markdown')}>
-          <Plus size={16} aria-hidden="true" /> New markdown
-        </button>
-        <button type="button" className="btn-icon primary" onClick={() => create('html')}>
-          <Plus size={16} aria-hidden="true" /> New HTML
-        </button>
-        <PdfUploadButton onCreated={(id) => navigate(`/docs/view/document/${id}`)} />
+        <NewDocMenu
+          onCreate={create}
+          onPdfCreated={(id) => navigate(`/docs/view/document/${id}`)}
+        />
         <button type="button" className="btn-icon" onClick={() => navigate('/docs/upload')}>
           <Upload size={16} aria-hidden="true" /> Tải lên hàng loạt
         </button>

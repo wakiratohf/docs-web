@@ -1728,6 +1728,46 @@ mark {
 .btn-icon svg {
   flex-shrink: 0;
 }
+/* ----- Dropdown "New" (gộp New note/markdown/HTML/PDF vào một nút) ----- */
+.new-menu {
+  position: relative;
+  display: inline-flex;
+}
+/* Bảng menu xổ xuống ngay dưới nút New */
+.new-menu-pop {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 30;
+  min-width: 180px;
+  display: flex;
+  flex-direction: column;
+  padding: 6px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 10px 28px var(--shadow);
+}
+/* Mỗi dòng trong menu: căn trái, full chiều ngang, viền trong suốt cho gọn */
+.new-menu-item {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid transparent;
+  background: transparent;
+  border-radius: 8px;
+  text-align: left;
+}
+.new-menu-item:hover {
+  background: var(--hover-bg);
+}
+.new-menu-item svg {
+  flex-shrink: 0;
+}
+
 /* Link "Mở" trong share-bar trông như nút cho đồng bộ */
 a.btn-icon {
   padding: 8px 14px;

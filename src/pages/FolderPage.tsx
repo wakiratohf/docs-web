@@ -28,7 +28,7 @@ import SearchResults from '../components/SearchResults';
 import Spinner from '../components/Spinner';
 import EmptyState from '../components/EmptyState';
 import QuickNoteModal from '../components/QuickNoteModal';
-import PdfUploadButton from '../components/PdfUploadButton';
+import NewDocMenu from '../components/NewDocMenu';
 import NoteEditDialog from '../components/NoteEditDialog';
 import { searchDocs, plainTextOf } from '../lib/search';
 import { collectAuthors } from '../lib/authors';
@@ -427,21 +427,11 @@ export default function FolderPage() {
             <Plus size={16} aria-hidden="true" /> New note
           </button>
         ) : (
-          <>
-            <button type="button" className="btn-icon primary" onClick={() => create('note')}>
-              <Plus size={16} aria-hidden="true" /> New note
-            </button>
-            <button type="button" className="btn-icon primary" onClick={() => create('markdown')}>
-              <Plus size={16} aria-hidden="true" /> New markdown
-            </button>
-            <button type="button" className="btn-icon primary" onClick={() => create('html')}>
-              <Plus size={16} aria-hidden="true" /> New HTML
-            </button>
-            <PdfUploadButton
-              folderId={folder.id}
-              onCreated={(id) => navigate(`/docs/view/document/${id}`)}
-            />
-          </>
+          <NewDocMenu
+            folderId={folder.id}
+            onCreate={create}
+            onPdfCreated={(id) => navigate(`/docs/view/document/${id}`)}
+          />
         )}
         <button
           type="button"
