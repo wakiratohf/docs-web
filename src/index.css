@@ -35,6 +35,8 @@
   --glass-blur: saturate(180%) blur(20px);
 
   /* Bo góc — thang đo nhất quán kiểu Apple (góc bo lớn, mềm) */
+  --bottom-nav-h: 46px; /* chiều cao footer cố định, dùng để chừa padding cho body */
+
   --radius-sm: 8px;
   --radius: 12px;
   --radius-lg: 18px;
@@ -105,6 +107,9 @@ body {
   line-height: 1.5;
   letter-spacing: -0.01em; /* đậm chất Apple: chữ hơi siết lại */
   transition: background 0.3s var(--ease), color 0.3s var(--ease);
+  /* Chừa chỗ cho footer cố định (.bottom-nav) để không che nội dung cuối trang.
+     env(safe-area-inset-bottom) lo phần "vạch home" trên iPhone. */
+  padding-bottom: calc(var(--bottom-nav-h) + env(safe-area-inset-bottom, 0px));
 }
 
 /* Tiêu đề: siết letter-spacing mạnh hơn cho dáng "display" của Apple */
@@ -2089,6 +2094,68 @@ a.btn-icon {
 a.btn-icon:hover {
   background: var(--hover-bg);
   text-decoration: none;
+}
+
+/* ============================================================
+   Footer cố định: bản quyền + công nghệ đã triển khai
+   ============================================================ */
+.bottom-nav {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 50;
+  min-height: var(--bottom-nav-h);
+  /* Nền kính mờ giống các thanh khác của app (đồng bộ với --glass-*) */
+  background: var(--glass-bg);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  border-top: 1px solid var(--glass-border);
+  /* Chừa "vạch home" iPhone */
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+.bottom-nav-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 8px 28px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.bottom-nav-copy {
+  white-space: nowrap;
+}
+.bottom-nav-tech {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.bottom-nav-tech-label {
+  margin-right: 2px;
+}
+.bottom-nav-badge {
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  background: var(--subtle);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-weight: 500;
+  line-height: 1.6;
+}
+
+@media (max-width: 600px) {
+  .bottom-nav-inner {
+    padding: 7px 14px;
+    gap: 6px 10px;
+    font-size: 11px;
+  }
+  /* Trên màn hình hẹp, gỡ chữ "Xây dựng bằng" cho gọn */
+  .bottom-nav-tech-label {
+    display: none;
+  }
 }
 
 /* ============================================================

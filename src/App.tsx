@@ -5,6 +5,7 @@ import { ThemeProvider } from './context/ThemeContext';
 import { ToastProvider } from './context/ToastContext';
 import { ConfirmProvider } from './context/ConfirmContext';
 import Spinner from './components/Spinner';
+import BottomNav from './components/BottomNav';
 import DocsAllPage from './pages/DocsAllPage';
 import FolderPage from './pages/FolderPage';
 import BatchUploadPage from './pages/BatchUploadPage';
@@ -57,6 +58,8 @@ export default function App() {
               {/* Mọi route còn lại đi qua lớp đăng nhập */}
               <Route path="/*" element={<AppShell />} />
             </Routes>
+            {/* Footer cố định: bản quyền + công nghệ, hiện trên mọi trang */}
+            <BottomNav />
           </AuthProvider>
         </ConfirmProvider>
       </ToastProvider>
