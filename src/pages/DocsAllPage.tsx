@@ -24,6 +24,7 @@ export default function DocsAllPage() {
   const {
     documents,
     folders,
+    skills,
     loading,
     addDocument,
     addFolder,
@@ -58,6 +59,7 @@ export default function DocsAllPage() {
   );
 
   const docsOf = (fid: string) => documents.filter((d) => d.folderId === fid);
+  const skillsOf = (fid: string) => skills.filter((s) => s.folderId === fid);
   const looseDocs = documents.filter((d) => !d.folderId);
 
   const create = (type: DocumentType) => {
@@ -238,24 +240,33 @@ export default function DocsAllPage() {
                   <span className="tile-share" title="Đang chia sẻ công khai">🔗</span>
                 )}
                 <span className="folder-mini">
-                  {docsOf(f.id)
-                    .slice(0, 9)
-                    .map((d) =>
-                      // Folder sticky: ô mini tô theo màu giấy nhớ của tài liệu.
-                      f.viewType === 'sticky' ? (
-                        <span
-                          key={d.id}
-                          className="mini-doc"
-                          style={{
-                            background: SWATCH_BY_KEY.get(
-                              d.color ?? DEFAULT_STICKY_COLOR,
-                            ),
-                          }}
-                        />
-                      ) : (
-                        <span key={d.id} className={`mini-doc mini-${d.type}`} />
-                      ),
-                    )}
+                  {f.viewType === 'skill'
+                    ? // Folder skill: ô mini hiện emoji của từng skill.
+                      skillsOf(f.id)
+                        .slice(0, 9)
+                        .map((s) => (
+                          <span key={s.id} className="mini-skill" aria-hidden="true">
+                            {s.icon || '🧩'}
+                          </span>
+                        ))
+                    : docsOf(f.id)
+                        .slice(0, 9)
+                        .map((d) =>
+                          // Folder sticky: ô mini tô theo màu giấy nhớ của tài liệu.
+                          f.viewType === 'sticky' ? (
+                            <span
+                              key={d.id}
+                              className="mini-doc"
+                              style={{
+                                background: SWATCH_BY_KEY.get(
+                                  d.color ?? DEFAULT_STICKY_COLOR,
+                                ),
+                              }}
+                            />
+                          ) : (
+                            <span key={d.id} className={`mini-doc mini-${d.type}`} />
+                          ),
+                        )}
                 </span>
               </span>
               <span className="tile-label">{f.name}</span>

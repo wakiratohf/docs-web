@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { createPortal } from 'react-dom';
-import { List, LayoutGrid } from 'lucide-react';
+import { List, LayoutGrid, Boxes } from 'lucide-react';
 import type { FolderViewType } from '../types';
 
 export interface CreateFolderModalProps {
@@ -93,6 +93,16 @@ export default function CreateFolderModal({
             <LayoutGrid size={18} aria-hidden="true" />
             <span className="view-type-name">Sticky note</span>
             <span className="view-type-desc muted">Ô giấy nhớ màu, dạng lưới</span>
+          </button>
+          <button
+            type="button"
+            className={`view-type-option${viewType === 'skill' ? ' selected' : ''}`}
+            aria-pressed={viewType === 'skill'}
+            onClick={() => setViewType('skill')}
+          >
+            <Boxes size={18} aria-hidden="true" />
+            <span className="view-type-name">Skill AI</span>
+            <span className="view-type-desc muted">Bộ sưu tập skill, file nén tải về</span>
           </button>
         </div>
 

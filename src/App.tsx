@@ -6,13 +6,16 @@ import { ToastProvider } from './context/ToastContext';
 import { ConfirmProvider } from './context/ConfirmContext';
 import Spinner from './components/Spinner';
 import BottomNav from './components/BottomNav';
+import DriveSyncBanner from './components/DriveSyncBanner';
 import DocsAllPage from './pages/DocsAllPage';
 import FolderPage from './pages/FolderPage';
 import BatchUploadPage from './pages/BatchUploadPage';
 import DocViewerPage from './pages/DocViewerPage';
+import SkillDetailPage from './pages/SkillDetailPage';
 import LoginPage from './pages/LoginPage';
 import SharePage from './pages/SharePage';
 import SharedFolderPage from './pages/SharedFolderPage';
+import SharedSkillPage from './pages/SharedSkillPage';
 
 // Khu vực cần đăng nhập.
 function AppShell() {
@@ -28,12 +31,15 @@ function AppShell() {
 
   return (
     <DocumentsProvider>
+      {/* Banner nhắc & chạy đồng bộ folder Google Drive (hiện khi có việc chờ) */}
+      <DriveSyncBanner />
       <Routes>
         <Route path="/" element={<Navigate to="/docs" replace />} />
         <Route path="/docs" element={<DocsAllPage />} />
         <Route path="/docs/upload" element={<BatchUploadPage />} />
         <Route path="/docs/folder/:folderId" element={<FolderPage />} />
         <Route path="/docs/view/document/:id" element={<DocViewerPage />} />
+        <Route path="/docs/skill/:id" element={<SkillDetailPage />} />
         <Route path="*" element={<Navigate to="/docs" replace />} />
       </Routes>
     </DocumentsProvider>
@@ -55,6 +61,8 @@ export default function App() {
               {/* Chia sẻ cả folder: danh sách tài liệu + xem từng tài liệu */}
               <Route path="/share/f/:id" element={<SharedFolderPage />} />
               <Route path="/share/f/:id/:docId" element={<SharedFolderPage />} />
+              {/* Chia sẻ một skill lẻ */}
+              <Route path="/share/skill/:id" element={<SharedSkillPage />} />
               {/* Mọi route còn lại đi qua lớp đăng nhập */}
               <Route path="/*" element={<AppShell />} />
             </Routes>

@@ -18,6 +18,7 @@ import {
   LayoutGrid,
   Droplet,
   ArrowLeft,
+  Boxes,
 } from 'lucide-react';
 import { useDocuments } from '../context/DocumentsContext';
 import { useAuth } from '../auth/useAuth';
@@ -31,6 +32,8 @@ import EmptyState from '../components/EmptyState';
 import QuickNoteModal from '../components/QuickNoteModal';
 import NewDocMenu from '../components/NewDocMenu';
 import NoteEditDialog from '../components/NoteEditDialog';
+import SkillCard from '../components/SkillCard';
+import SkillEditModal from '../components/SkillEditModal';
 import { searchDocs, plainTextOf } from '../lib/search';
 import { collectAuthors } from '../lib/authors';
 import { STICKY_COLORS, DEFAULT_STICKY_COLOR } from '../lib/stickyColors';
@@ -46,6 +49,7 @@ export default function FolderPage() {
   const {
     documents,
     folders,
+    skills,
     loading,
     addDocument,
     addDocuments,
@@ -83,6 +87,22 @@ export default function FolderPage() {
         ),
     [documents, folderId],
   );
+
+  // Skill trong folder này (chỉ dùng khi folder kiểu 'skill'); sắp theo order.
+  const folderSkills = useMemo(
+    () =>
+      skills
+        .filter((s) => s.folderId === folderId)
+        .sort(
+          (a, b) =>
+            a.order - b.order || a.createdAt.localeCompare(b.createdAt),
+        ),
+    [skills, folderId],
+  );
+  // Mở hộp thoại tạo skill mới (chỉ folder kiểu skill).
+  const [creatingSkill, setCreatingSkill] = useState(false);
+  // Tag đang lọc trong folder skill ('' = tất cả).
+  const [tagFilter, setTagFilter] = useState('');
 
   const [editing, setEditing] = useState(false);
   const [editName, setEditName] = useState('');
@@ -140,6 +160,22 @@ export default function FolderPage() {
   }
 
   const isSticky = folder.viewType === 'sticky';
+  const isSkill = folder.viewType === 'skill';
+
+  // Lọc skill theo từ khóa (tên/mô tả/tags) + tag đang chọn.
+  const skillQ = query.trim().toLowerCase();
+  const allTags = Array.from(
+    new Set(folderSkills.flatMap((s) => s.tags ?? [])),
+  ).sort();
+  const visibleSkills = folderSkills.filter((s) => {
+    const matchQ =
+      !skillQ ||
+      s.title.toLowerCase().includes(skillQ) ||
+      s.description.toLowerCase().includes(skillQ) ||
+      (s.tags ?? []).some((t) => t.toLowerCase().includes(skillQ));
+    const matchTag = !tagFilter || (s.tags ?? []).includes(tagFilter);
+    return matchQ && matchTag;
+  });
 
   const create = (type: DocumentType) => {
     const created = addDocument(type, undefined, folder.id);
@@ -358,27 +394,30 @@ export default function FolderPage() {
         </h1>
         <div className="user-box">
           <ThemeToggle />
-          {/* Chuyển kiểu hiển thị tài liệu trong folder: danh sách ↔ sticky note */}
-          <div className="view-toggle" role="group" aria-label="Kiểu hiển thị">
-            <button
-              type="button"
-              className={`btn-icon ${!isSticky ? 'primary' : ''}`}
-              onClick={() => setFolderViewType(folder.id, 'list')}
-              title="Hiển thị dạng danh sách"
-              aria-pressed={!isSticky}
-            >
-              <List size={16} aria-hidden="true" /> List
-            </button>
-            <button
-              type="button"
-              className={`btn-icon ${isSticky ? 'primary' : ''}`}
-              onClick={() => setFolderViewType(folder.id, 'sticky')}
-              title="Hiển thị dạng sticky note"
-              aria-pressed={isSticky}
-            >
-              <LayoutGrid size={16} aria-hidden="true" /> Sticky
-            </button>
-          </div>
+          {/* Chuyển kiểu hiển thị tài liệu trong folder: danh sách ↔ sticky note.
+              Folder skill có layout marketplace riêng nên ẩn bộ chuyển này. */}
+          {!isSkill && (
+            <div className="view-toggle" role="group" aria-label="Kiểu hiển thị">
+              <button
+                type="button"
+                className={`btn-icon ${!isSticky ? 'primary' : ''}`}
+                onClick={() => setFolderViewType(folder.id, 'list')}
+                title="Hiển thị dạng danh sách"
+                aria-pressed={!isSticky}
+              >
+                <List size={16} aria-hidden="true" /> List
+              </button>
+              <button
+                type="button"
+                className={`btn-icon ${isSticky ? 'primary' : ''}`}
+                onClick={() => setFolderViewType(folder.id, 'sticky')}
+                title="Hiển thị dạng sticky note"
+                aria-pressed={isSticky}
+              >
+                <LayoutGrid size={16} aria-hidden="true" /> Sticky
+              </button>
+            </div>
+          )}
           <button
             type="button"
             className={`btn-icon ${folder.isPinned ? 'primary' : ''}`}
@@ -426,7 +465,16 @@ export default function FolderPage() {
       )}
 
       <div className="actions">
-        {isSticky ? (
+        {isSkill ? (
+          // Folder skill: tạo skill qua hộp thoại (metadata + file nén).
+          <button
+            type="button"
+            className="btn-icon primary"
+            onClick={() => setCreatingSkill(true)}
+          >
+            <Plus size={16} aria-hidden="true" /> New skill
+          </button>
+        ) : isSticky ? (
           // Folder sticky: tạo ghi chú qua hộp thoại tại chỗ, ẩn nút New markdown.
           <button
             type="button"
@@ -442,48 +490,119 @@ export default function FolderPage() {
             onPdfCreated={(id) => navigate(`/docs/view/document/${id}`)}
           />
         )}
-        <button
-          type="button"
-          className="btn-icon"
-          onClick={() => navigate(`/docs/upload?folder=${folder.id}`)}
-        >
-          <Upload size={16} aria-hidden="true" /> Tải lên hàng loạt
-        </button>
+        {!isSkill && (
+          <button
+            type="button"
+            className="btn-icon"
+            onClick={() => navigate(`/docs/upload?folder=${folder.id}`)}
+          >
+            <Upload size={16} aria-hidden="true" /> Tải lên hàng loạt
+          </button>
+        )}
       </div>
 
-      {docs.length > 0 && (
-        <div className="search-bar-wrap">
-          <Search className="search-icon" size={16} aria-hidden="true" />
-          <input
-            type="search"
-            className="search-input"
-            placeholder={`Tìm trong folder “${folder.name}”…`}
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-          />
-          {searching && (
-            <button
-              type="button"
-              className="search-clear"
-              title="Xóa tìm kiếm"
-              aria-label="Xóa tìm kiếm"
-              onClick={() => setQuery('')}
-            >
-              <X size={16} aria-hidden="true" />
-            </button>
+      {/* ----- Folder kiểu Skill AI: marketplace card + lọc tag ----- */}
+      {isSkill && folderSkills.length > 0 && (
+        <>
+          <div className="search-bar-wrap">
+            <Search className="search-icon" size={16} aria-hidden="true" />
+            <input
+              type="search"
+              className="search-input"
+              placeholder={`Tìm skill trong “${folder.name}”…`}
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+            />
+            {query.trim() && (
+              <button
+                type="button"
+                className="search-clear"
+                title="Xóa tìm kiếm"
+                aria-label="Xóa tìm kiếm"
+                onClick={() => setQuery('')}
+              >
+                <X size={16} aria-hidden="true" />
+              </button>
+            )}
+          </div>
+          {allTags.length > 0 && (
+            <div className="skill-tag-filter">
+              <button
+                type="button"
+                className={`skill-tag-chip${!tagFilter ? ' selected' : ''}`}
+                onClick={() => setTagFilter('')}
+              >
+                Tất cả
+              </button>
+              {allTags.map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  className={`skill-tag-chip${tagFilter === t ? ' selected' : ''}`}
+                  onClick={() => setTagFilter(tagFilter === t ? '' : t)}
+                >
+                  {t}
+                </button>
+              ))}
+            </div>
           )}
-        </div>
+        </>
       )}
 
-      {searching ? (
-        <SearchResults results={results} query={query} />
-      ) : docs.length === 0 ? (
-        <EmptyState
-          icon={<Inbox size={40} aria-hidden="true" />}
-          title="Folder trống"
-          description="Bấm nút phía trên để tạo tài liệu, hoặc kéo tài liệu vào folder này từ trang chủ."
-        />
-      ) : isSticky ? (
+      {isSkill ? (
+        folderSkills.length === 0 ? (
+          <EmptyState
+            icon={<Boxes size={40} aria-hidden="true" />}
+            title="Chưa có skill nào"
+            description="Bấm “New skill” để thêm skill đầu tiên (kèm file nén để tải về)."
+          />
+        ) : visibleSkills.length === 0 ? (
+          <EmptyState
+            icon={<Search size={40} aria-hidden="true" />}
+            title="Không tìm thấy skill phù hợp"
+          />
+        ) : (
+          <div className="skills-grid">
+            {visibleSkills.map((s) => (
+              <SkillCard key={s.id} skill={s} to={`/docs/skill/${s.id}`} />
+            ))}
+          </div>
+        )
+      ) : (
+        <>
+          {docs.length > 0 && (
+            <div className="search-bar-wrap">
+              <Search className="search-icon" size={16} aria-hidden="true" />
+              <input
+                type="search"
+                className="search-input"
+                placeholder={`Tìm trong folder “${folder.name}”…`}
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+              />
+              {searching && (
+                <button
+                  type="button"
+                  className="search-clear"
+                  title="Xóa tìm kiếm"
+                  aria-label="Xóa tìm kiếm"
+                  onClick={() => setQuery('')}
+                >
+                  <X size={16} aria-hidden="true" />
+                </button>
+              )}
+            </div>
+          )}
+
+          {searching ? (
+            <SearchResults results={results} query={query} />
+          ) : docs.length === 0 ? (
+            <EmptyState
+              icon={<Inbox size={40} aria-hidden="true" />}
+              title="Folder trống"
+              description="Bấm nút phía trên để tạo tài liệu, hoặc kéo tài liệu vào folder này từ trang chủ."
+            />
+          ) : isSticky ? (
         <>
           {openColorFor && (
             <div
@@ -524,6 +643,20 @@ export default function FolderPage() {
             </li>
           ))}
         </ul>
+          )}
+        </>
+      )}
+
+      {creatingSkill && (
+        <SkillEditModal
+          open={creatingSkill}
+          folderId={folder.id}
+          onCancel={() => setCreatingSkill(false)}
+          onDone={(skillId) => {
+            setCreatingSkill(false);
+            navigate(`/docs/skill/${skillId}`);
+          }}
+        />
       )}
 
       {creatingNote && (

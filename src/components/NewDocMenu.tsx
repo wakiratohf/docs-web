@@ -1,14 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
-import { Plus, FilePlus2, Hash, Code2, Link2 } from 'lucide-react';
-import PdfUploadButton from './PdfUploadButton';
+import { Plus, FilePlus2, Hash, Code2, Link2, FileUp } from 'lucide-react';
+import AddPdfModal from './AddPdfModal';
 import type { DocumentType } from '../types';
 
 // Gộp các nút "New note / New markdown / New HTML / New PDF" thành MỘT nút "New"
 // có dropdown. Tái dùng ở trang chủ và trong folder.
 //
-// - note/markdown/html: gọi onCreate(type) (trang tự điều hướng tới trang soạn thảo).
-// - pdf: dùng lại PdfUploadButton ở biến thể 'menu'. Lưu ý quan trọng: click vào
-//   dòng PDF vẫn là "user gesture" trực tiếp nên popup Google Drive không bị chặn.
+// - note/markdown/html/embed: gọi onCreate(type) (trang tự điều hướng tới trang soạn thảo).
+// - pdf: mở AddPdfModal cho người dùng chọn hình thức (dán link Drive / upload file).
 export default function NewDocMenu({
   folderId,
   onCreate,
@@ -20,6 +19,7 @@ export default function NewDocMenu({
   onPdfCreated?: (id: string) => void;
 }) {
   const [open, setOpen] = useState(false);
+  const [pdfOpen, setPdfOpen] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
 
   // Bấm ra ngoài hoặc nhấn Esc thì đóng menu.
@@ -91,18 +91,31 @@ export default function NewDocMenu({
           >
             <Link2 size={16} aria-hidden="true" /> New embed
           </button>
-          {/* PDF tự xử lý luồng Google Drive; click vẫn là gesture trực tiếp.
-              Đóng menu sau khi PDF tạo xong để trở lại trạng thái gọn. */}
-          <PdfUploadButton
-            folderId={folderId}
-            variant="menu"
-            onCreated={(id) => {
+          {/* PDF mở modal chọn hình thức (link Drive / upload). Đóng dropdown
+              trước, modal tự là một lớp portal riêng. */}
+          <button
+            type="button"
+            className="new-menu-item"
+            role="menuitem"
+            onClick={() => {
               setOpen(false);
-              onPdfCreated?.(id);
+              setPdfOpen(true);
             }}
-          />
+          >
+            <FileUp size={16} aria-hidden="true" /> New PDF
+          </button>
         </div>
       )}
+
+      <AddPdfModal
+        open={pdfOpen}
+        folderId={folderId}
+        onCancel={() => setPdfOpen(false)}
+        onCreated={(id) => {
+          setPdfOpen(false);
+          onPdfCreated?.(id);
+        }}
+      />
     </div>
   );
 }
