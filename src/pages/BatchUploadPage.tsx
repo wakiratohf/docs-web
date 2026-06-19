@@ -93,7 +93,10 @@ export default function BatchUploadPage() {
         if (res.replaced) parts.push(`ghi đè ${res.replaced}`);
         if (res.skipped) parts.push(`bỏ qua ${res.skipped}`);
         toastSuccess(`Đã tải lên: ${parts.join(', ')} tài liệu.`);
-        navigate(folderId ? `/docs/folder/${folderId}` : '/docs');
+        // Không chọn folder thì tài liệu đã được gom vào folder mặc định
+        // (res.folderId) — điều hướng thẳng vào đó thay vì về danh sách.
+        const dest = res.folderId ?? folderId;
+        navigate(dest ? `/docs/folder/${dest}` : '/docs');
       } else if (res.skipped > 0) {
         toastInfo(`Đã bỏ qua ${res.skipped} tài liệu trùng tên.`);
       }

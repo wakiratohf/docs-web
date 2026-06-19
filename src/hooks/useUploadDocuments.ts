@@ -3,11 +3,15 @@ import { useDocuments } from '../context/DocumentsContext';
 import { useConfirm } from '../context/ConfirmContext';
 import { filesToItems, type UploadItem } from '../lib/uploadHelpers';
 
+// Tên folder mặc định dùng khi tải lên mà không chọn folder đích.
+export const DEFAULT_UPLOAD_FOLDER_NAME = 'Uncategorized';
+
 // Kết quả một lần tải lên, để nơi gọi báo lại cho người dùng nếu cần.
 export interface UploadResult {
   created: number; // số tài liệu tạo mới
   replaced: number; // số tài liệu cũ bị ghi đè nội dung
   skipped: number; // số file trùng tên bị bỏ qua (người dùng chọn không thay thế)
+  folderId?: string; // folder thực tế đã ghi vào (kể cả folder mặc định tự tạo)
 }
 
 /**
@@ -20,7 +24,8 @@ export interface UploadResult {
  *   - Cancel → bỏ qua các file trùng, vẫn tạo những file còn lại
  */
 export function useUploadDocuments() {
-  const { documents, addDocuments, updateDocument } = useDocuments();
+  const { documents, folders, addDocuments, addFolder, updateDocument } =
+    useDocuments();
   const confirm = useConfirm();
 
   // Ghi danh sách item đã đọc sẵn nội dung vào folder đích.
@@ -29,10 +34,21 @@ export function useUploadDocuments() {
       const result: UploadResult = { created: 0, replaced: 0, skipped: 0 };
       if (items.length === 0) return result;
 
+      // Không chọn folder ⇒ gom vào folder mặc định "Uncategorized",
+      // dùng lại nếu đã có để tránh tạo trùng nhiều folder rỗng.
+      let targetFolderId = folderId;
+      if (!targetFolderId) {
+        const existing = folders.find(
+          (f) => f.name === DEFAULT_UPLOAD_FOLDER_NAME,
+        );
+        targetFolderId = existing?.id ?? addFolder(DEFAULT_UPLOAD_FOLDER_NAME)?.id;
+      }
+      result.folderId = targetFolderId;
+
       // Tài liệu hiện có trong folder đích, tra theo tiêu đề đã chuẩn hóa.
       const byTitle = new Map<string, string>(); // tiêu đề (thường) → id
       for (const d of documents) {
-        if ((d.folderId ?? '') === (folderId ?? '')) {
+        if ((d.folderId ?? '') === (targetFolderId ?? '')) {
           byTitle.set(d.title.trim().toLowerCase(), d.id);
         }
       }
@@ -63,7 +79,7 @@ export function useUploadDocuments() {
 
       // Tạo mới các file không trùng.
       if (fresh.length > 0) {
-        const made = addDocuments(fresh, folderId);
+        const made = addDocuments(fresh, targetFolderId);
         result.created = made.length;
       }
       // Ghi đè các file trùng nếu người dùng đồng ý.
@@ -82,7 +98,7 @@ export function useUploadDocuments() {
       }
       return result;
     },
-    [documents, addDocuments, updateDocument, confirm],
+    [documents, folders, addDocuments, addFolder, updateDocument, confirm],
   );
 
   // Đọc nội dung các file rồi ghi vào folder đích (dùng cho kéo-thả trực tiếp).
