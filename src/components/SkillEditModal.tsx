@@ -7,7 +7,7 @@ import {
   type DragEvent,
 } from 'react';
 import { createPortal } from 'react-dom';
-import { Link2, FileUp, FileArchive, Loader2, Info, Check } from 'lucide-react';
+import { Link2, FileUp, FileArchive, Loader2, Info, Check, Plus, Trash2 } from 'lucide-react';
 import { useDocuments } from '../context/DocumentsContext';
 import { useAuth } from '../auth/useAuth';
 import { useToast } from '../context/ToastContext';
@@ -20,7 +20,7 @@ import {
   makeFilePublic,
   parseDriveFileId,
 } from '../lib/googleDrive';
-import type { SkillItem } from '../types';
+import type { SkillItem, SkillPrompt } from '../types';
 
 // Hộp thoại TẠO / SỬA một skill. Gộp 2 phần:
 //  1. Metadata: tên, emoji, mô tả ngắn, tags (tách dấu phẩy), nội dung markdown.
@@ -82,6 +82,19 @@ export default function SkillEditModal({
     return Array.from(set).sort((a, b) => a.localeCompare(b, 'vi'));
   }, [documents, skills]);
 
+  // Gợi ý nền tảng cho ô prompt: gom mọi platform đã dùng trong skill + vài mặc
+  // định phổ biến, bỏ trùng, sort tiếng Việt.
+  const platformOptions = useMemo(() => {
+    const set = new Set<string>(['Android', 'iOS', 'Web']);
+    for (const s of skills) {
+      for (const p of s.prompts ?? []) {
+        const v = (p.platform ?? '').trim();
+        if (v) set.add(v);
+      }
+    }
+    return Array.from(set).sort((a, b) => a.localeCompare(b, 'vi'));
+  }, [skills]);
+
   const editing = !!skill;
   const targetFolderId = skill?.folderId ?? folderId;
   const folder = targetFolderId
@@ -96,6 +109,7 @@ export default function SkillEditModal({
   const [tagsText, setTagsText] = useState('');
   const [author, setAuthor] = useState('');
   const [content, setContent] = useState('');
+  const [prompts, setPrompts] = useState<SkillPrompt[]>([]);
 
   // --- Nguồn file ---
   const [tab, setTab] = useState<Tab>('upload');
@@ -119,6 +133,7 @@ export default function SkillEditModal({
     // Sửa: giữ tác giả cũ. Tạo mới: gợi ý sẵn người đang đăng nhập.
     setAuthor(skill?.author ?? defaultAuthor);
     setContent(skill?.content ?? '');
+    setPrompts(skill?.prompts ?? []);
     setTab('upload');
     setLink('');
     setUploaded(null);
@@ -136,6 +151,17 @@ export default function SkillEditModal({
       .split(',')
       .map((t) => t.trim())
       .filter(Boolean);
+
+  // --- Mẫu prompt -------------------------------------------------------------
+  const addPrompt = () =>
+    setPrompts((prev) => [
+      ...prev,
+      { id: crypto.randomUUID(), platform: '', text: '' },
+    ]);
+  const updatePrompt = (id: string, patch: Partial<SkillPrompt>) =>
+    setPrompts((prev) => prev.map((p) => (p.id === id ? { ...p, ...patch } : p)));
+  const removePrompt = (id: string) =>
+    setPrompts((prev) => prev.filter((p) => p.id !== id));
 
   // --- Tab Upload: kết nối Drive rồi chọn/kéo-thả file .zip --------------------
   const connectDrive = async () => {
@@ -279,6 +305,10 @@ export default function SkillEditModal({
 
     const tags = parseTags(tagsText);
     const iconVal = icon.trim();
+    // Chuẩn hóa prompt: bỏ prompt rỗng text; trim platform (rỗng = Cơ bản).
+    const cleanedPrompts: SkillPrompt[] = prompts
+      .map((p) => ({ id: p.id, platform: p.platform?.trim() || '', text: p.text.trim() }))
+      .filter((p) => p.text.length > 0);
 
     if (editing && skill) {
       updateSkill(skill.id, {
@@ -288,6 +318,7 @@ export default function SkillEditModal({
         icon: iconVal,
         tags,
         author: author.trim(),
+        prompts: cleanedPrompts,
         fileId: file.fileId,
         fileName: file.fileName,
         fileSize: file.fileSize,
@@ -310,6 +341,7 @@ export default function SkillEditModal({
       icon: iconVal || undefined,
       tags,
       author: author.trim() || undefined,
+      prompts: cleanedPrompts.length ? cleanedPrompts : undefined,
       fileId: file.fileId,
       fileName: file.fileName,
       fileSize: file.fileSize,
@@ -423,6 +455,59 @@ export default function SkillEditModal({
           value={content}
           onChange={(e) => setContent(e.target.value)}
         />
+
+        {/* Mẫu prompt kích hoạt */}
+        <div className="skill-prompt-editor-head">
+          <span className="modal-field-label">Mẫu prompt kích hoạt</span>
+          <button
+            type="button"
+            className="btn-icon skill-prompt-add"
+            onClick={addPrompt}
+          >
+            <Plus size={14} aria-hidden="true" /> Thêm prompt
+          </button>
+        </div>
+        {prompts.length === 0 ? (
+          <p className="pdf-hint">
+            <Info size={14} aria-hidden="true" />
+            <span>
+              Thêm các câu prompt để người dùng copy nhanh. Để trống nền tảng = prompt "Cơ bản".
+            </span>
+          </p>
+        ) : (
+          <div className="skill-prompt-editor-list">
+            {prompts.map((p) => (
+              <div key={p.id} className="skill-prompt-editor-row">
+                <div className="skill-prompt-editor-top">
+                  <AuthorInput
+                    className="modal-input"
+                    value={p.platform ?? ''}
+                    authors={platformOptions}
+                    addLabel="Thêm nền tảng mới:"
+                    placeholder="Nền tảng (để trống = Cơ bản)"
+                    onChange={(v) => updatePrompt(p.id, { platform: v })}
+                  />
+                  <button
+                    type="button"
+                    className="btn-icon btn-square danger"
+                    onClick={() => removePrompt(p.id)}
+                    title="Xóa prompt này"
+                    aria-label="Xóa prompt này"
+                  >
+                    <Trash2 size={16} aria-hidden="true" />
+                  </button>
+                </div>
+                <textarea
+                  className="modal-input skill-prompt-editor-text"
+                  rows={3}
+                  placeholder="Nội dung prompt để kích hoạt skill…"
+                  value={p.text}
+                  onChange={(e) => updatePrompt(p.id, { text: e.target.value })}
+                />
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* Nguồn file nén */}
         <span className="modal-field-label">File nén (.zip)</span>

@@ -16,6 +16,8 @@ interface Props {
   id?: string;
   className?: string;
   placeholder?: string;
+  /** Nhãn dòng "thêm mục mới" trong dropdown. Mặc định cho ô tác giả. */
+  addLabel?: string;
 }
 
 // Ô nhập tác giả kiểu combobox tự dựng (không dùng <datalist> native vì nó
@@ -32,6 +34,7 @@ export default function AuthorInput({
   id,
   className,
   placeholder,
+  addLabel = 'Thêm tác giả mới:',
 }: Props) {
   const listId = useId();
   const [open, setOpen] = useState(false);
@@ -162,7 +165,7 @@ export default function AuthorInput({
             >
               <Plus size={14} aria-hidden="true" />
               <span>
-                Thêm tác giả mới: <strong>{trimmed}</strong>
+                {addLabel} <strong>{trimmed}</strong>
               </span>
             </li>
           )}

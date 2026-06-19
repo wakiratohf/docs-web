@@ -5,6 +5,7 @@ import { Download, FileX } from 'lucide-react';
 import { db } from '../lib/firebase';
 import type { SkillItem } from '../types';
 import MarkdownPreview from '../components/MarkdownPreview';
+import SkillPrompts from '../components/SkillPrompts';
 import ThemeToggle from '../components/ThemeToggle';
 import Spinner from '../components/Spinner';
 import EmptyState from '../components/EmptyState';
@@ -119,6 +120,8 @@ export default function SharedSkillPage() {
           >
             <Download size={16} aria-hidden="true" /> Tải file nén
           </a>
+
+          <SkillPrompts prompts={skill.prompts} />
 
           {skill.content.trim() ? (
             <div className="skill-detail-content">

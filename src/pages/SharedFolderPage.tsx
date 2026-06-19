@@ -9,6 +9,7 @@ import HtmlDocument from '../components/HtmlDocument';
 import PdfViewer from '../components/PdfViewer';
 import EmbedViewer from '../components/EmbedViewer';
 import MarkdownPreview from '../components/MarkdownPreview';
+import SkillPrompts from '../components/SkillPrompts';
 import FullscreenViewer from '../components/FullscreenViewer';
 import ThemeToggle from '../components/ThemeToggle';
 import Spinner from '../components/Spinner';
@@ -174,6 +175,7 @@ export default function SharedFolderPage() {
                   >
                     <Download size={16} aria-hidden="true" /> Tải file nén
                   </a>
+                  <SkillPrompts prompts={currentSkill.prompts} />
                   {currentSkill.content.trim() && (
                     <div className="skill-detail-content">
                       <MarkdownPreview content={currentSkill.content} />

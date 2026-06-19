@@ -18,6 +18,7 @@ import type {
   Folder,
   FolderViewType,
   SkillItem,
+  SkillPrompt,
   StickyColor,
 } from '../types';
 
@@ -34,6 +35,7 @@ type NewSkill = {
   icon?: string;
   tags?: string[];
   author?: string;
+  prompts?: SkillPrompt[];
   fileId: string;
   fileName?: string;
   fileSize?: number;
@@ -50,6 +52,7 @@ type SkillUpdates = Partial<
     | 'icon'
     | 'tags'
     | 'author'
+    | 'prompts'
     | 'fileId'
     | 'fileName'
     | 'fileSize'
@@ -684,6 +687,7 @@ export function DocumentsProvider({ children }: { children: ReactNode }) {
         fileId: fields.fileId,
         ...(fields.icon ? { icon: fields.icon } : {}),
         ...(fields.tags && fields.tags.length ? { tags: fields.tags } : {}),
+        ...(fields.prompts && fields.prompts.length ? { prompts: fields.prompts } : {}),
         ...(fields.fileName ? { fileName: fields.fileName } : {}),
         ...(typeof fields.fileSize === 'number' ? { fileSize: fields.fileSize } : {}),
         ...(typeof fields.driveOwned === 'boolean' ? { driveOwned: fields.driveOwned } : {}),

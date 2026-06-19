@@ -93,6 +93,18 @@ export interface DocItem {
 }
 
 /**
+ * Một mẫu prompt để kích hoạt skill (câu lệnh sẵn cho người dùng copy-dán cho AI).
+ * platform rỗng = prompt "Cơ bản" (dùng chung, không gắn nền tảng cụ thể).
+ */
+export interface SkillPrompt {
+  id: string;
+  /** Nền tảng áp dụng, vd 'Android', 'iOS', 'Web'. Rỗng/undefined = Cơ bản. */
+  platform?: string;
+  /** Nội dung prompt, hiển thị & copy nguyên văn (không render Markdown). */
+  text: string;
+}
+
+/**
  * Một "skill" của AI (tập trung Claude), hiển thị dạng marketplace trong folder
  * có viewType='skill'. Đây là kiểu dữ liệu RIÊNG (không phải DocItem): mỗi skill
  * gồm phần metadata để dựng card + một file nén (.zip) lưu trên Google Drive cho
@@ -123,6 +135,8 @@ export interface SkillItem {
   isShared?: boolean;
   /** Tác giả đóng góp skill (tùy chọn). */
   author?: string;
+  /** Các mẫu prompt để kích hoạt skill (tùy chọn). Xem SkillPrompt. */
+  prompts?: SkillPrompt[];
   // --- File nén (.zip) trên Google Drive ---
   /**
    * Drive fileId của file nén. Với skill upload: file do app tạo, đã đặt công khai

@@ -2632,3 +2632,109 @@ a.btn-icon:hover {
   color: var(--muted);
   margin: 0 0 16px;
 }
+
+/* ----- Khu mẫu prompt (trang chi tiết + share) ----- */
+.skill-prompts {
+  margin-bottom: 22px;
+}
+.skill-prompts-title {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0 0 12px;
+}
+.skill-prompt-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+  padding: 4px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+.skill-prompt-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.skill-prompt-tab.selected {
+  background: var(--card);
+  color: var(--text);
+  box-shadow: var(--shadow-sm);
+}
+.skill-prompt-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.skill-prompt-block {
+  position: relative;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 14px 16px;
+}
+.skill-prompt-copy {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  font-size: 13px;
+}
+.skill-prompt-text {
+  margin: 0;
+  padding-right: 84px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: var(--mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--text);
+}
+
+/* ----- Khu editor prompt trong modal tạo/sửa skill ----- */
+.skill-prompt-editor-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 6px;
+}
+.skill-prompt-add {
+  font-size: 13px;
+}
+.skill-prompt-editor-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 10px 0 16px;
+}
+.skill-prompt-editor-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+.skill-prompt-editor-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.skill-prompt-editor-top .author-combo {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.skill-prompt-editor-text {
+  resize: vertical;
+  line-height: 1.5;
+}

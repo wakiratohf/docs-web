@@ -16,6 +16,7 @@ import { useConfirm } from '../context/ConfirmContext';
 import ThemeToggle from '../components/ThemeToggle';
 import Spinner from '../components/Spinner';
 import MarkdownPreview from '../components/MarkdownPreview';
+import SkillPrompts from '../components/SkillPrompts';
 import SkillEditModal from '../components/SkillEditModal';
 import { driveDownloadUrl } from '../lib/googleDrive';
 import { formatDate } from '../lib/formatDate';
@@ -190,6 +191,8 @@ export default function SkillDetailPage() {
           <Download size={16} aria-hidden="true" /> Tải file nén
           {sizeLabel ? ` (${sizeLabel})` : ''}
         </a>
+
+        <SkillPrompts prompts={skill.prompts} />
 
         {skill.content.trim() ? (
           <div className="skill-detail-content">
