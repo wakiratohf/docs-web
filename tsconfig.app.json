@@ -14,6 +14,14 @@
     "noEmit": true,
     "jsx": "react-jsx",
 
+    /* Path alias — "@/..." trỏ vào "src/...", để code mới không cần
+       import tương đối dài kiểu "../../context/...". Import tương đối cũ vẫn
+       dùng được bình thường, không bắt buộc đổi lại toàn bộ repo. */
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"]
+    },
+
     /* Linting */
     "strict": true,
     "noUnusedLocals": true,

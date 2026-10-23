@@ -75,18 +75,19 @@ export default function FolderPage() {
   const navigate = useNavigate();
 
   const folder = folders.find((f) => f.id === folderId);
+  // Tiêu chí sắp xếp trong folder: 'manual' theo order (kéo-thả), hoặc theo
+  // tên/ngày tạo. Ghi chú ghim luôn ở trên, bất kể tiêu chí.
+  const [sortBy, setSortBy] = useState<'manual' | 'name' | 'date'>('manual');
   const docs = useMemo(
     () =>
-      documents
-        .filter((d) => d.folderId === folderId)
-        // Ghi chú được ghim luôn lên đầu; trong mỗi nhóm vẫn theo order rồi createdAt.
-        .sort(
-          (a, b) =>
-            Number(b.isPinned ?? false) - Number(a.isPinned ?? false) ||
-            a.order - b.order ||
-            a.createdAt.localeCompare(b.createdAt),
-        ),
-    [documents, folderId],
+      documents.filter((d) => d.folderId === folderId).sort((a, b) => {
+        const pinDiff = Number(b.isPinned ?? false) - Number(a.isPinned ?? false);
+        if (pinDiff !== 0) return pinDiff;
+        if (sortBy === 'name') return a.title.localeCompare(b.title, 'vi');
+        if (sortBy === 'date') return b.createdAt.localeCompare(a.createdAt);
+        return a.order - b.order || a.createdAt.localeCompare(b.createdAt);
+      }),
+    [documents, folderId, sortBy],
   );
 
   // Skill trong folder này (chỉ dùng khi folder kiểu 'skill'); sắp theo order.
@@ -399,6 +400,19 @@ export default function FolderPage() {
           <ThemeToggle />
           {/* Chuyển kiểu hiển thị tài liệu trong folder: danh sách ↔ sticky note.
               Folder skill có layout marketplace riêng nên ẩn bộ chuyển này. */}
+          {!isSkill && (
+            <select
+              className="sort-select"
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
+              title="Sắp xếp tài liệu"
+              aria-label="Sắp xếp tài liệu"
+            >
+              <option value="manual">Thứ tự kéo-thả</option>
+              <option value="name">Tên (A–Z)</option>
+              <option value="date">Ngày tạo (mới nhất)</option>
+            </select>
+          )}
           {!isSkill && (
             <div className="view-toggle" role="group" aria-label="Kiểu hiển thị">
               <button
