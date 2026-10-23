@@ -499,26 +499,47 @@ a:hover {
 .font-control {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 4px;
+  gap: 4px;
+  padding: 3px;
   border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--card);
+  border-radius: var(--radius-sm);
+  background: var(--code-bg);
 }
 .font-control-btn {
-  min-width: 36px;
+  min-width: 32px;
   padding: 4px 8px;
   font-weight: 700;
-  background: var(--subtle);
+  font-size: 13px;
+  line-height: 1;
+  background: var(--card);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: calc(var(--radius-sm) - 2px);
+  box-shadow: var(--shadow-sm);
+  transition: background 0.15s var(--ease), border-color 0.15s var(--ease),
+    color 0.15s var(--ease), transform 0.1s var(--ease);
 }
 .font-control-btn:hover:not(:disabled) {
+  background: var(--hover-bg);
   border-color: var(--primary);
+  color: var(--primary);
+}
+.font-control-btn:active:not(:disabled) {
+  transform: scale(0.95);
+}
+.font-control-btn:disabled {
+  opacity: 0.35;
+  box-shadow: none;
+  cursor: not-allowed;
 }
 .font-control-value {
   min-width: 44px;
   text-align: center;
   font-size: 13px;
-  color: var(--muted);
+  font-weight: 600;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+  user-select: none;
 }
 
 /* Nút tải tài liệu về máy cho người xem trang chia sẻ */
@@ -858,11 +879,24 @@ a.btn-square {
   top: 8px;
   right: 8px;
   z-index: 5;
-  opacity: 0.85;
-  background: var(--surface, #fff);
+  padding: 8px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--text);
+  box-shadow: var(--shadow-md);
+  opacity: 0.92;
+  transition: background 0.2s var(--ease), border-color 0.2s var(--ease),
+    color 0.2s var(--ease), transform 0.15s var(--ease), opacity 0.2s var(--ease);
 }
 .fullscreen-toggle:hover {
   opacity: 1;
+  background: var(--hover-bg);
+  border-color: var(--primary);
+  color: var(--primary);
+}
+.fullscreen-toggle:active {
+  transform: scale(0.95);
 }
 /* Với PDF/embed (iframe Google Drive… tự vẽ nút "mở/pop-out" ở góc PHẢI trên),
    dời nút full screen của app sang góc TRÁI để hai nút không đè nhau.
@@ -977,6 +1011,25 @@ a.btn-square {
   z-index: 1;
   display: flex;
   gap: 8px;
+}
+.mermaid-modal-actions button {
+  background: var(--card);
+  color: var(--text);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-md);
+  padding: 8px;
+  border-radius: var(--radius-sm);
+  transition: background 0.15s var(--ease), border-color 0.15s var(--ease),
+    color 0.15s var(--ease);
+}
+.mermaid-modal-actions button:hover:not(:disabled) {
+  background: var(--hover-bg);
+  border-color: var(--primary);
+  color: var(--primary);
+}
+.mermaid-modal-actions button:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
 }
 .mermaid-modal-content {
   width: 95vw;

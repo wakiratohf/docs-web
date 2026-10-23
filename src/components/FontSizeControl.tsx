@@ -46,8 +46,8 @@ export function useFontScale() {
         className="font-control-btn"
         onClick={() => change(-STEP_PX)}
         disabled={fontPx <= MIN_PX}
-        aria-label="Giảm cỡ chữ"
-        title="Giảm cỡ chữ"
+        aria-label="Thu nhỏ cỡ chữ (Zoom out)"
+        title="Thu nhỏ cỡ chữ (Zoom out)"
       >
         A−
       </button>
@@ -59,8 +59,8 @@ export function useFontScale() {
         className="font-control-btn"
         onClick={() => change(STEP_PX)}
         disabled={fontPx >= MAX_PX}
-        aria-label="Tăng cỡ chữ"
-        title="Tăng cỡ chữ"
+        aria-label="Phóng to cỡ chữ (Zoom in)"
+        title="Phóng to cỡ chữ (Zoom in)"
       >
         A+
       </button>

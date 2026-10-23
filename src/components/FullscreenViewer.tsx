@@ -47,8 +47,8 @@ export default function FullscreenViewer({
         type="button"
         className="fullscreen-toggle btn-icon"
         onClick={toggle}
-        title={isFull ? 'Thoát toàn màn hình (Esc)' : label}
-        aria-label={isFull ? 'Thoát toàn màn hình' : label}
+        title={isFull ? 'Thu nhỏ — thoát toàn màn hình (Esc)' : `${label} (Phóng to)`}
+        aria-label={isFull ? 'Thu nhỏ — thoát toàn màn hình' : `${label} (Phóng to)`}
       >
         {isFull ? (
           <Minimize2 size={16} aria-hidden="true" />

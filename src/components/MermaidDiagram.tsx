@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState, type PointerEvent as ReactPointerEvent, type WheelEvent as ReactWheelEvent } from 'react';
-import { X, RotateCcw } from 'lucide-react';
+import { X, RotateCcw, ZoomIn, ZoomOut } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 
 const MIN_SCALE = 0.5;
@@ -134,6 +134,26 @@ function MermaidZoomModal({ svg, onClose }: { svg: string; onClose: () => void }
   return (
     <div className="mermaid-modal-overlay" onClick={onClose}>
       <div className="mermaid-modal-actions">
+        <button
+          type="button"
+          className="btn-icon"
+          onClick={() => setScale((s) => Math.min(MAX_SCALE, Number((s + 0.25).toFixed(2))))}
+          disabled={scale >= MAX_SCALE}
+          title="Phóng to (Zoom in)"
+          aria-label="Phóng to"
+        >
+          <ZoomIn size={16} aria-hidden="true" />
+        </button>
+        <button
+          type="button"
+          className="btn-icon"
+          onClick={() => setScale((s) => Math.max(MIN_SCALE, Number((s - 0.25).toFixed(2))))}
+          disabled={scale <= MIN_SCALE}
+          title="Thu nhỏ (Zoom out)"
+          aria-label="Thu nhỏ"
+        >
+          <ZoomOut size={16} aria-hidden="true" />
+        </button>
         <button type="button" className="btn-icon" onClick={reset} title="Đưa về mặc định" aria-label="Đưa về mặc định">
           <RotateCcw size={16} aria-hidden="true" />
         </button>
