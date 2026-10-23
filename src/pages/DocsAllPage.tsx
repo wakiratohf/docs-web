@@ -203,7 +203,10 @@ export default function DocsAllPage() {
       ) : (
         <div className="home-grid">
           {/* Ô folder — bấm để mở trang chi tiết */}
-          {folders.map((f) => (
+          {folders.map((f) => {
+            // Số tệp hiển thị trong badge: đúng loại nội dung đang đổ vào lưới mini bên dưới.
+            const count = f.viewType === 'skill' ? skillsOf(f.id).length : docsOf(f.id).length;
+            return (
             <div
               key={f.id}
               className={`tile folder-tile${dragOver === f.id ? ' drop-over' : ''}${
@@ -236,8 +239,8 @@ export default function DocsAllPage() {
                 >
                   <Pin size={14} aria-hidden="true" />
                 </button>
-                {f.isShared && (
-                  <span className="tile-share" title="Đang chia sẻ công khai">🔗</span>
+                {count > 0 && (
+                  <span className="folder-count" title={`${count} tệp`}>{count}</span>
                 )}
                 <span className="folder-mini">
                   {f.viewType === 'skill'
@@ -271,7 +274,8 @@ export default function DocsAllPage() {
               </span>
               <span className="tile-label">{f.name}</span>
             </div>
-          ))}
+            );
+          })}
 
           {/* Ô placeholder tạo folder: viền nét đứt + dấu cộng ở giữa, nằm ngay trong lưới folder */}
           <button
