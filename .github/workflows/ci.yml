@@ -1,0 +1,23 @@
+name: CI
+
+# Chỉ kiểm tra build (tsc -b + vite build) — cổng kiểm tra duy nhất của repo
+# này (không có test runner/ESLint). KHÔNG deploy — deploy vẫn làm thủ công
+# bằng `firebase deploy` (xem CLAUDE.md), vì workflow này không có secrets
+# Firebase.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
