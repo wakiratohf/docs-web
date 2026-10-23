@@ -120,19 +120,18 @@ export default function BatchUploadPage() {
 
   return (
     <div className="container">
-      <div className="back-bar">
-        <Link
-          to="/docs"
-          className="btn-icon btn-square back-link"
-          title="Quay lại danh sách"
-          aria-label="Quay lại danh sách"
-        >
-          <ArrowLeft size={16} aria-hidden="true" />
-        </Link>
-      </div>
-
       <header className="app-header">
-        <h1>⬆️ Tải lên hàng loạt</h1>
+        <h1 className="folder-title">
+          <Link
+            to="/docs"
+            className="btn-icon btn-square back-link"
+            title="Quay lại danh sách"
+            aria-label="Quay lại danh sách"
+          >
+            <ArrowLeft size={16} aria-hidden="true" />
+          </Link>
+          <span>⬆️ Tải lên hàng loạt</span>
+        </h1>
         <div className="user-box">
           <ThemeToggle />
         </div>
