@@ -1,18 +1,12 @@
-import {
-  useEffect,
-  useRef,
-  useState,
-  type ChangeEvent,
-  type DragEvent,
-} from 'react';
+import { useEffect, useState, type ChangeEvent, type DragEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { Link2, FileUp, FolderOpen, Loader2, Info } from 'lucide-react';
 import { useDocuments } from '../context/DocumentsContext';
 import { useToast } from '../context/ToastContext';
 import { useFocusTrap } from '../hooks/useFocusTrap';
+import { useDriveUpload } from '../hooks/useDriveUpload';
 import {
   APP_FOLDER_NAME,
-  getDriveAccessToken,
   ensureAppFolder,
   ensureWebFolderDrive,
   uploadPdfToDrive,
@@ -63,15 +57,22 @@ export default function AddPdfModal({
   const [tab, setTab] = useState<Tab>('link');
   const [link, setLink] = useState('');
   const [linkTitle, setLinkTitle] = useState('');
-  const [busy, setBusy] = useState(false);
 
-  // Token Drive còn hạn, giữ trong bộ nhớ (mất khi reload — Firebase không lưu).
-  const tokenRef = useRef<{ value: string; exp: number } | null>(null);
-  const [hasToken, setHasToken] = useState(false);
-  const [dragOver, setDragOver] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const {
+    hasToken,
+    busy,
+    setBusy,
+    dragOver,
+    setDragOver,
+    inputRef,
+    connectDrive,
+    pickFile,
+    requireFreshToken,
+    runUpload,
+  } = useDriveUpload();
 
-  // Mỗi lần mở lại: đặt về trạng thái sạch.
+  // Mỗi lần mở lại: đặt về trạng thái sạch (token Drive giữ nguyên nếu còn hạn
+  // — không cần kết nối lại nếu vừa đóng rồi mở lại modal).
   useEffect(() => {
     if (!open) return;
     setTab('link');
@@ -83,9 +84,6 @@ export default function AddPdfModal({
   const trapRef = useFocusTrap<HTMLDivElement>(open);
 
   if (!open) return null;
-
-  const hasFreshToken = () =>
-    tokenRef.current != null && Date.now() < tokenRef.current.exp;
 
   // --- Tab 1: dán link Drive -------------------------------------------------
   const submitLink = () => {
@@ -108,40 +106,7 @@ export default function AddPdfModal({
     onCreated?.(created.id);
   };
 
-  // --- Tab 2: upload file ----------------------------------------------------
-  const connectDrive = async () => {
-    if (busy) return;
-    setBusy(true);
-    try {
-      const token = await getDriveAccessToken();
-      if (!token) {
-        toastError('Không lấy được quyền Google Drive.');
-        return;
-      }
-      // Access token của Google sống ~1 giờ; trừ hao còn 50 phút cho chắc.
-      tokenRef.current = { value: token, exp: Date.now() + 50 * 60 * 1000 };
-      setHasToken(true);
-    } catch (err) {
-      console.error('[AddPdf] kết nối Drive thất bại:', err);
-      const msg = err instanceof Error ? err.message : String(err);
-      toastError(`Kết nối Drive thất bại: ${msg}`);
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  // Bấm "Chọn file": nếu token còn hạn thì mở hộp chọn file ngay trong cú click
-  // này (gesture trực tiếp); nếu hết hạn thì quay lại bước kết nối.
-  const pickFile = () => {
-    if (busy) return;
-    if (!hasFreshToken()) {
-      tokenRef.current = null;
-      setHasToken(false);
-      toastError('Phiên Drive đã hết hạn — bấm "Kết nối Google Drive" lại.');
-      return;
-    }
-    inputRef.current?.click();
-  };
+  // --- Tab 2: upload file (kết nối Drive + chọn/kéo-thả: xem useDriveUpload) --
 
   // Người dùng chọn file qua hộp chọn file.
   const onPick = (e: ChangeEvent<HTMLInputElement>) => {
@@ -156,12 +121,7 @@ export default function AddPdfModal({
     e.preventDefault();
     setDragOver(false);
     if (busy) return;
-    if (!hasFreshToken()) {
-      tokenRef.current = null;
-      setHasToken(false);
-      toastError('Hãy bấm "Kết nối Google Drive" trước khi thả file.');
-      return;
-    }
+    if (!requireFreshToken('Hãy bấm "Kết nối Google Drive" trước khi thả file.')) return;
     const file = e.dataTransfer.files?.[0];
     if (file) void uploadFile(file);
   };
@@ -169,18 +129,11 @@ export default function AddPdfModal({
   // Đẩy một file PDF lên Drive rồi tạo tài liệu — dùng chung cho cả chọn file và
   // kéo-thả.
   const uploadFile = async (file: File) => {
-    if (busy) return;
     if (file.type !== 'application/pdf') {
       toastError('Chỉ nhận file PDF.');
       return;
     }
-    const token = tokenRef.current?.value;
-    if (!token) {
-      toastError('Mất kết nối Drive — bấm "Kết nối Google Drive" lại.');
-      return;
-    }
-    setBusy(true);
-    try {
+    await runUpload(async (token) => {
       // Tính folder Drive đích để MIRROR theo folder web: có folder → "Docs Web /
       // {tên folder}" (tạo nếu chưa có, lưu lại driveFolderId); General → thẳng
       // trong "Docs Web".
@@ -210,17 +163,7 @@ export default function AddPdfModal({
       updateDocument(created.id, { content: fileId, driveOwned: true });
       toastSuccess('Đã tải PDF lên.');
       onCreated?.(created.id);
-    } catch (err) {
-      // Lộ nguyên nhân thật để chẩn đoán (Drive API chưa bật, thiếu scope…).
-      console.error('[AddPdf] upload thất bại:', err);
-      const msg = err instanceof Error ? err.message : String(err);
-      // Token có thể đã hết hạn/bị thu hồi → buộc kết nối lại lần sau.
-      tokenRef.current = null;
-      setHasToken(false);
-      toastError(`Tải PDF thất bại: ${msg}`);
-    } finally {
-      setBusy(false);
-    }
+    }, 'Tải PDF thất bại');
   };
 
   return createPortal(

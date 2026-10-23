@@ -1,7 +1,6 @@
 import {
   useEffect,
   useMemo,
-  useRef,
   useState,
   type ChangeEvent,
   type DragEvent,
@@ -12,10 +11,10 @@ import { useDocuments } from '../context/DocumentsContext';
 import { useAuth } from '../auth/useAuth';
 import { useToast } from '../context/ToastContext';
 import { useFocusTrap } from '../hooks/useFocusTrap';
+import { useDriveUpload } from '../hooks/useDriveUpload';
 import AuthorInput from './AuthorInput';
 import {
   APP_FOLDER_NAME,
-  getDriveAccessToken,
   ensureWebFolderDrive,
   uploadFileToDrive,
   makeFilePublic,
@@ -118,11 +117,18 @@ export default function SkillEditModal({
   // File đã sẵn sàng (upload xong / sẽ parse từ link lúc lưu). null = giữ file cũ (khi sửa).
   const [uploaded, setUploaded] = useState<FileResult | null>(null);
 
-  const [busy, setBusy] = useState(false);
-  const tokenRef = useRef<{ value: string; exp: number } | null>(null);
-  const [hasToken, setHasToken] = useState(false);
-  const [dragOver, setDragOver] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const {
+    hasToken,
+    busy,
+    setBusy,
+    dragOver,
+    setDragOver,
+    inputRef,
+    connectDrive,
+    pickFile,
+    requireFreshToken,
+    runUpload,
+  } = useDriveUpload();
 
   // Mỗi lần mở: nạp lại giá trị từ skill (nếu sửa) hoặc về mặc định (nếu tạo).
   useEffect(() => {
@@ -145,9 +151,6 @@ export default function SkillEditModal({
 
   if (!open) return null;
 
-  const hasFreshToken = () =>
-    tokenRef.current != null && Date.now() < tokenRef.current.exp;
-
   const parseTags = (s: string): string[] =>
     s
       .split(',')
@@ -165,36 +168,7 @@ export default function SkillEditModal({
   const removePrompt = (id: string) =>
     setPrompts((prev) => prev.filter((p) => p.id !== id));
 
-  // --- Tab Upload: kết nối Drive rồi chọn/kéo-thả file .zip --------------------
-  const connectDrive = async () => {
-    if (busy) return;
-    setBusy(true);
-    try {
-      const token = await getDriveAccessToken();
-      if (!token) {
-        toastError('Không lấy được quyền Google Drive.');
-        return;
-      }
-      tokenRef.current = { value: token, exp: Date.now() + 50 * 60 * 1000 };
-      setHasToken(true);
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      toastError(`Kết nối Drive thất bại: ${msg}`);
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const pickFile = () => {
-    if (busy) return;
-    if (!hasFreshToken()) {
-      tokenRef.current = null;
-      setHasToken(false);
-      toastError('Phiên Drive đã hết hạn — bấm "Kết nối Google Drive" lại.');
-      return;
-    }
-    inputRef.current?.click();
-  };
+  // --- Tab Upload: kết nối Drive rồi chọn/kéo-thả file .zip (xem useDriveUpload) --
 
   const onPick = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -206,12 +180,7 @@ export default function SkillEditModal({
     e.preventDefault();
     setDragOver(false);
     if (busy) return;
-    if (!hasFreshToken()) {
-      tokenRef.current = null;
-      setHasToken(false);
-      toastError('Hãy bấm "Kết nối Google Drive" trước khi thả file.');
-      return;
-    }
+    if (!requireFreshToken('Hãy bấm "Kết nối Google Drive" trước khi thả file.')) return;
     const file = e.dataTransfer.files?.[0];
     if (file) void uploadZip(file);
   };
@@ -223,18 +192,11 @@ export default function SkillEditModal({
     file.type === 'application/x-zip-compressed';
 
   const uploadZip = async (file: File) => {
-    if (busy) return;
     if (!isZip(file)) {
       toastError('Chỉ nhận file nén .zip.');
       return;
     }
-    const token = tokenRef.current?.value;
-    if (!token) {
-      toastError('Mất kết nối Drive — bấm "Kết nối Google Drive" lại.');
-      return;
-    }
-    setBusy(true);
-    try {
+    await runUpload(async (token) => {
       // Mirror folder Drive theo folder skill (tạo nếu chưa có, lưu lại id).
       let destFolderId: string | undefined;
       if (folder) {
@@ -261,14 +223,7 @@ export default function SkillEditModal({
         driveOwned: true,
       });
       toastSuccess('Đã tải file nén lên Drive.');
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      tokenRef.current = null;
-      setHasToken(false);
-      toastError(`Tải file thất bại: ${msg}`);
-    } finally {
-      setBusy(false);
-    }
+    }, 'Tải file thất bại');
   };
 
   // --- Lưu (tạo / cập nhật) ---------------------------------------------------
