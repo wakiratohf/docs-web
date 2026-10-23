@@ -18,11 +18,27 @@ export function useFocusTrap<T extends HTMLElement>(active: boolean) {
     if (!active) return;
     previouslyFocused.current = document.activeElement as HTMLElement | null;
 
+    const getFocusables = () =>
+      ref.current
+        ? Array.from(
+            ref.current.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR),
+          ).filter((el) => el.offsetParent !== null)
+        : [];
+
+    // Nếu component không tự focus gì khi mở (vd NoteEditDialog), đưa focus
+    // vào phần tử đầu tiên — nếu không thì Tab-trap vô dụng (document.activeElement
+    // vẫn ở ngoài dialog) và phím Escape của dialog cũng không nhận được sự kiện
+    // (onKeyDown React chỉ bắt được khi target nằm trong cây DOM của dialog).
+    // Chạy sau các effect focus riêng (setTimeout 0) của component, nên không
+    // ghi đè nếu component đã tự chọn phần tử focus cụ thể.
+    const focusTimer = window.setTimeout(() => {
+      if (ref.current?.contains(document.activeElement)) return;
+      getFocusables()[0]?.focus();
+    }, 0);
+
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key !== 'Tab' || !ref.current) return;
-      const focusables = Array.from(
-        ref.current.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR),
-      ).filter((el) => el.offsetParent !== null);
+      if (e.key !== 'Tab') return;
+      const focusables = getFocusables();
       if (focusables.length === 0) return;
       const first = focusables[0];
       const last = focusables[focusables.length - 1];
@@ -37,6 +53,7 @@ export function useFocusTrap<T extends HTMLElement>(active: boolean) {
 
     document.addEventListener('keydown', onKeyDown);
     return () => {
+      window.clearTimeout(focusTimer);
       document.removeEventListener('keydown', onKeyDown);
       previouslyFocused.current?.focus?.();
     };

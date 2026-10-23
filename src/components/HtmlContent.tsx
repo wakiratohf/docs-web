@@ -11,6 +11,16 @@ import DOMPurify from 'dompurify';
 // tới cách mermaid tự sanitize SVG sơ đồ bằng cùng gói dompurify.
 const purifier = DOMPurify(window);
 
+// DOMPurify mặc định vẫn giữ target="_blank" trên <a>. Một link độc hại với
+// target="_blank" mà thiếu rel="noopener" cho phép trang đích truy cập
+// window.opener (reverse tabnabbing) — ép thêm rel để chặn, chỉ ảnh hưởng
+// instance riêng này (không đụng tới mermaid).
+purifier.addHook('afterSanitizeAttributes', (node) => {
+  if (node.tagName === 'A' && node.getAttribute('target') === '_blank') {
+    node.setAttribute('rel', 'noopener noreferrer');
+  }
+});
+
 export default function HtmlContent({ value }: { value: string }) {
   const looksLikeHtml = /<[a-z][\s\S]*>/i.test(value);
 
