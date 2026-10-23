@@ -70,13 +70,25 @@ export default function NoteEditor({ value, onChange }: Props) {
   };
 
   const onLink = async () => {
+    // Hộp thoại nhập URL là async nên sẽ cướp focus/selection khỏi vùng soạn
+    // thảo; phải lưu lại vùng chọn trước khi mở, rồi khôi phục trước khi
+    // execCommand, nếu không createLink sẽ chạy trên selection rỗng (không
+    // làm gì) khi hộp thoại đóng lại.
+    const sel = window.getSelection();
+    const savedRange = sel && sel.rangeCount > 0 ? sel.getRangeAt(0).cloneRange() : null;
     const url = await prompt({
       title: 'Chèn link',
       message: 'Dán đường link (URL):',
       placeholder: 'https://…',
       confirmText: 'Chèn',
     });
-    if (url) exec('createLink', url);
+    if (url && savedRange) {
+      elRef.current?.focus();
+      const sel2 = window.getSelection();
+      sel2?.removeAllRanges();
+      sel2?.addRange(savedRange);
+      exec('createLink', url);
+    }
   };
 
   // Giữ selection khi bấm nút toolbar.

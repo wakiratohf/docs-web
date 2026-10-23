@@ -451,7 +451,7 @@ export default function SkillEditModal({
           id="skill-content"
           className="modal-input skill-content-input"
           rows={6}
-          placeholder="# Cách dùng&#10;Mô tả chi tiết, ví dụ prompt…"
+          placeholder={'# Cách dùng\nMô tả chi tiết, ví dụ prompt…'}
           value={content}
           onChange={(e) => setContent(e.target.value)}
         />

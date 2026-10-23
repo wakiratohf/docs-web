@@ -6,6 +6,7 @@ import { useDocuments } from '../context/DocumentsContext';
 import { useUploadDocuments } from '../hooks/useUploadDocuments';
 import { useToast } from '../context/ToastContext';
 import { detectType, extractHtmlBody, stripExt } from '../lib/uploadHelpers';
+import { htmlToMarkdown, isMeaningfulHtml } from '../lib/htmlToMarkdown';
 import ThemeToggle from '../components/ThemeToggle';
 import type { DocumentType } from '../types';
 
@@ -77,13 +78,25 @@ export default function BatchUploadPage() {
     try {
       // Đọc nội dung text của từng file (không lưu file gốc, chỉ lưu nội dung).
       const contents = await Promise.all(items.map((it) => it.file.text()));
-      const payload = items.map((it, i) => ({
-        type: it.type,
-        title: it.title,
-        // note: chỉ lấy phần thân; html: giữ nguyên cả file để render độc lập.
-        content:
-          it.type === 'note' ? extractHtmlBody(contents[i]) : contents[i],
-      }));
+      const payload = items.map((it, i) => {
+        let content = contents[i];
+        const isHtmlFile =
+          it.file.name.toLowerCase().endsWith('.html') ||
+          it.file.name.toLowerCase().endsWith('.htm');
+
+        // Nếu người dùng chọn lưu loại markdown nhưng file gốc là HTML: tự động convert sang Markdown
+        if (it.type === 'markdown' && (isHtmlFile || isMeaningfulHtml(content))) {
+          content = htmlToMarkdown(content);
+        } else if (it.type === 'note') {
+          content = extractHtmlBody(content);
+        }
+
+        return {
+          type: it.type,
+          title: it.title,
+          content,
+        };
+      });
       // commitItems lo việc hỏi thay thế khi trùng tên rồi tạo/ghi đè.
       const res = await commitItems(payload, folderId || undefined);
       const done = res.created + res.replaced;
@@ -184,9 +197,33 @@ export default function BatchUploadPage() {
             <span>
               Đã chọn <strong>{items.length}</strong> file
             </span>
-            <button type="button" onClick={() => setItems([])}>
-              Xóa hết
-            </button>
+            <div style={{ display: 'flex', gap: 8 }}>
+              {items.some(
+                (it) =>
+                  it.file.name.toLowerCase().endsWith('.html') ||
+                  it.file.name.toLowerCase().endsWith('.htm'),
+              ) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setItems((prev) =>
+                      prev.map((it) =>
+                        it.file.name.toLowerCase().endsWith('.html') ||
+                        it.file.name.toLowerCase().endsWith('.htm')
+                          ? { ...it, type: 'markdown' }
+                          : it,
+                      ),
+                    );
+                  }}
+                  title="Chuyển toàn bộ file HTML sang loại Markdown"
+                >
+                  Chuyển file HTML → Markdown
+                </button>
+              )}
+              <button type="button" onClick={() => setItems([])}>
+                Xóa hết
+              </button>
+            </div>
           </div>
 
           <ul className="upload-list">

@@ -924,6 +924,83 @@ a.btn-square {
   padding: 6px 10px;
 }
 
+/* ---------- Sơ đồ Mermaid trong Markdown ---------- */
+.mermaid-diagram {
+  display: flex;
+  justify-content: center;
+  cursor: pointer;
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+  margin: 10px 0;
+  overflow-x: auto;
+  transition: box-shadow 0.15s;
+}
+.mermaid-diagram:hover {
+  box-shadow: 0 0 0 2px var(--border);
+}
+.mermaid-diagram svg {
+  max-width: 100%;
+  height: auto;
+}
+.mermaid-loading {
+  cursor: default;
+}
+.mermaid-error {
+  background: var(--danger-bg);
+  border: 1px solid var(--danger-border);
+  border-radius: 8px;
+  padding: 12px;
+  overflow-x: auto;
+}
+.mermaid-error-msg {
+  display: block;
+  margin-top: 8px;
+  color: var(--danger);
+  font-size: 0.9em;
+  white-space: pre-wrap;
+}
+.mermaid-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.mermaid-modal-actions {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 1;
+  display: flex;
+  gap: 8px;
+}
+.mermaid-modal-content {
+  width: 95vw;
+  height: 90vh;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: grab;
+}
+.mermaid-modal-content:active {
+  cursor: grabbing;
+}
+.mermaid-modal-canvas {
+  transform-origin: center;
+}
+.mermaid-modal-canvas.is-resetting {
+  transition: transform 0.15s;
+}
+.mermaid-modal-canvas svg {
+  max-width: none;
+  max-height: none;
+}
+
 /* ---------- Trang chủ kiểu màn hình iOS ---------- */
 .home-grid {
   display: grid;

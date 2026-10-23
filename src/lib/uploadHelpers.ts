@@ -1,4 +1,5 @@
 import type { DocumentType } from '../types';
+import { htmlToMarkdown, isMeaningfulHtml } from './htmlToMarkdown';
 
 // Một tài liệu sắp được tạo từ file: nội dung đã đọc xong, sẵn sàng ghi.
 export interface UploadItem {
@@ -42,12 +43,18 @@ export async function filesToItems(
   const contents = await Promise.all(files.map((f) => f.text()));
   return files.map((f, i) => {
     const type = detectType(f.name);
+    let content = contents[i];
+    if (type === 'note') {
+      content = extractHtmlBody(content);
+    } else if (type === 'markdown' && (f.name.endsWith('.html') || f.name.endsWith('.htm') || isMeaningfulHtml(content))) {
+      content = htmlToMarkdown(content);
+    }
     return {
       type,
       title: stripExt(f.name),
       // note: chỉ lấy phần thân (rich-text là fragment). html: GIỮ NGUYÊN cả
       // file (head/style/link) để render độc lập trong iframe, không mất CSS.
-      content: type === 'note' ? extractHtmlBody(contents[i]) : contents[i],
+      content,
     };
   });
 }

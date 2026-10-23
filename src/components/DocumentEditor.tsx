@@ -16,6 +16,7 @@ import { useToast } from '../context/ToastContext';
 import { useConfirm } from '../context/ConfirmContext';
 import { collectAuthors } from '../lib/authors';
 import { getDriveAccessToken, deleteFileFromDrive } from '../lib/googleDrive';
+import { htmlToMarkdown, isMeaningfulHtml } from '../lib/htmlToMarkdown';
 import NoteEditor from './NoteEditor';
 import AuthorInput from './AuthorInput';
 import MarkdownPreview from './MarkdownPreview';
@@ -127,6 +128,27 @@ export default function DocumentEditor({ doc }: { doc: DocItem }) {
 
   const onChangeType = async (v: DocumentType) => {
     if (v === type) return;
+
+    // Chuyển đổi thông minh: từ HTML sang Markdown nếu người dùng đồng ý
+    if (type === 'html' && v === 'markdown' && content.trim()) {
+      const convert = await confirm({
+        title: 'Chuyển đổi sang Markdown',
+        message:
+          'Bạn đang đổi từ tài liệu HTML sang Markdown. Bạn có muốn tự động chuyển đổi mã HTML này thành cú pháp Markdown chuẩn không?',
+        confirmText: 'Chuyển đổi sang Markdown',
+        cancelText: 'Giữ nguyên mã thô',
+      });
+      let nextContent = content;
+      if (convert) {
+        nextContent = htmlToMarkdown(content);
+        setContent(nextContent);
+        toastSuccess('Đã chuyển đổi nội dung sang Markdown.');
+      }
+      setType(v);
+      updateDocument(doc.id, { type: v, content: nextContent });
+      return;
+    }
+
     // Đổi loại không tự chuyển định dạng → cảnh báo nếu đang có nội dung.
     if (content.trim()) {
       const ok = await confirm({
@@ -139,6 +161,33 @@ export default function DocumentEditor({ doc }: { doc: DocItem }) {
     }
     setType(v);
     updateDocument(doc.id, { type: v });
+  };
+
+  // Smart Paste: khi dán nội dung từ web (có cấu trúc HTML) vào editor Markdown,
+  // tự động chuyển thành Markdown (bảng, link, heading, bold...) thay vì dán text trần.
+  const onMarkdownPaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    if (type !== 'markdown') return;
+
+    const html = e.clipboardData.getData('text/html');
+    if (!html || !isMeaningfulHtml(html)) return;
+
+    const md = htmlToMarkdown(html);
+    if (!md) return;
+
+    e.preventDefault();
+    const textarea = e.currentTarget;
+    const start = textarea.selectionStart ?? 0;
+    const end = textarea.selectionEnd ?? 0;
+
+    const nextContent = content.slice(0, start) + md + content.slice(end);
+    onContent(nextContent);
+
+    // Đưa con trỏ chuột về sau phần markdown vừa chèn
+    const nextCursor = start + md.length;
+    window.requestAnimationFrame(() => {
+      textarea.selectionStart = nextCursor;
+      textarea.selectionEnd = nextCursor;
+    });
   };
 
   const onDelete = async () => {
@@ -178,15 +227,16 @@ export default function DocumentEditor({ doc }: { doc: DocItem }) {
     }
 
     deleteDocument(doc.id);
-    navigate('/docs');
+    navigate(doc.folderId ? `/docs/folder/${doc.folderId}` : '/docs');
   };
 
   return (
     <div className="doc-editor">
       <div className="doc-editor-bar">
-        {/* Nút quay lại gộp vào cùng hàng cho gọn (trước đây chiếm 1 dòng riêng) */}
+        {/* Nút quay lại gộp vào cùng hàng cho gọn (trước đây chiếm 1 dòng riêng).
+            Quay về đúng folder chứa tài liệu (nếu có), không phải luôn về trang chủ. */}
         <Link
-          to="/docs"
+          to={doc.folderId ? `/docs/folder/${doc.folderId}` : '/docs'}
           className="btn-icon btn-square back-link"
           title="Quay lại danh sách"
           aria-label="Quay lại danh sách"
@@ -358,10 +408,11 @@ export default function DocumentEditor({ doc }: { doc: DocItem }) {
               className="md-textarea"
               value={content}
               onChange={(e) => onContent(e.target.value)}
+              onPaste={onMarkdownPaste}
               placeholder={
                 type === 'html'
-                  ? '<h1>Tiêu đề</h1>&#10;&#10;<p>Viết HTML thô ở đây…</p>'
-                  : '# Tiêu đề&#10;&#10;Viết Markdown ở đây…'
+                  ? '<h1>Tiêu đề</h1>\n\n<p>Viết HTML thô ở đây…</p>'
+                  : '# Tiêu đề\n\nViết Markdown ở đây… (hỗ trợ Smart Paste từ web)'
               }
             />
           ) : type === 'html' ? (
