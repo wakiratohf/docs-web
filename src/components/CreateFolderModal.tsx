@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { List, LayoutGrid, Boxes } from 'lucide-react';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 import type { FolderViewType } from '../types';
 
 export interface CreateFolderModalProps {
@@ -31,6 +32,7 @@ export default function CreateFolderModal({
     }, 0);
     return () => window.clearTimeout(t);
   }, [open]);
+  const trapRef = useFocusTrap<HTMLDivElement>(open);
 
   if (!open) return null;
 
@@ -50,6 +52,7 @@ export default function CreateFolderModal({
   return createPortal(
     <div className="modal-backdrop" onMouseDown={onCancel}>
       <div
+        ref={trapRef}
         className="modal"
         role="dialog"
         aria-modal="true"

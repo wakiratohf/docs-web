@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { createPortal } from 'react-dom';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 
 export interface ConfirmDialogProps {
   open: boolean;
@@ -34,6 +35,7 @@ export default function ConfirmDialog({
   const [value, setValue] = useState(defaultValue);
   const inputRef = useRef<HTMLInputElement>(null);
   const okRef = useRef<HTMLButtonElement>(null);
+  const trapRef = useFocusTrap<HTMLDivElement>(open);
 
   // Mỗi lần mở: nạp lại giá trị mặc định và đưa focus vào ô nhập (prompt) hoặc nút OK.
   useEffect(() => {
@@ -64,6 +66,7 @@ export default function ConfirmDialog({
   return createPortal(
     <div className="modal-backdrop" onMouseDown={onCancel}>
       <div
+        ref={trapRef}
         className="modal"
         role="dialog"
         aria-modal="true"

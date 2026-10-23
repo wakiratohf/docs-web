@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { createPortal } from 'react-dom';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 import { STICKY_COLORS, DEFAULT_STICKY_COLOR } from '../lib/stickyColors';
 import type { StickyColor } from '../types';
 import NoteEditor from './NoteEditor';
@@ -31,6 +32,7 @@ export default function QuickNoteModal({
   const [color, setColor] = useState<StickyColor>(DEFAULT_STICKY_COLOR);
   const [author, setAuthor] = useState(defaultAuthor);
   const titleRef = useRef<HTMLInputElement>(null);
+  const trapRef = useFocusTrap<HTMLDivElement>(true);
 
   // Đưa con trỏ vào ô tiêu đề ngay khi mở.
   useEffect(() => {
@@ -54,6 +56,7 @@ export default function QuickNoteModal({
   return createPortal(
     <div className="modal-backdrop" onMouseDown={onCancel}>
       <div
+        ref={trapRef}
         className="modal modal-wide note-dialog"
         role="dialog"
         aria-modal="true"

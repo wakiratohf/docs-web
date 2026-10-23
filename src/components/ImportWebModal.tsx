@@ -4,6 +4,7 @@ import { Globe, Code2, Loader2, AlertCircle, ArrowRight, Check } from 'lucide-re
 import { useDocuments } from '../context/DocumentsContext';
 import { useToast } from '../context/ToastContext';
 import { useConfirm } from '../context/ConfirmContext';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 import { fetchAndExtractArticle, extractArticleFromHtml } from '../lib/webExtractor';
 import { htmlToMarkdown } from '../lib/htmlToMarkdown';
 import MarkdownPreview from './MarkdownPreview';
@@ -42,6 +43,7 @@ export default function ImportWebModal({
   const [extractedAuthor, setExtractedAuthor] = useState('');
   const [extractedMarkdown, setExtractedMarkdown] = useState('');
   const [previewTab, setPreviewTab] = useState<'preview' | 'edit'>('preview');
+  const trapRef = useFocusTrap<HTMLDivElement>(open);
 
   if (!open) return null;
 
@@ -166,6 +168,7 @@ export default function ImportWebModal({
   return createPortal(
     <div className="modal-backdrop" onMouseDown={onCancel}>
       <div
+        ref={trapRef}
         className="modal modal-wide import-web-modal"
         role="dialog"
         aria-modal="true"

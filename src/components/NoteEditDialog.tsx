@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { Maximize2, X, Loader2, Check } from 'lucide-react';
 import type { DocItem } from '../types';
 import { useDocuments } from '../context/DocumentsContext';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 import { collectAuthors } from '../lib/authors';
 import NoteEditor from './NoteEditor';
 import AuthorInput from './AuthorInput';
@@ -29,6 +30,7 @@ export default function NoteEditDialog({ doc, onClose }: Props) {
   const [title, setTitle] = useState(doc.title);
   const [author, setAuthor] = useState(doc.author ?? '');
   const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved'>('idle');
+  const trapRef = useFocusTrap<HTMLDivElement>(true);
 
   // Auto-save có debounce ~600ms (cùng cơ chế với DocumentEditor).
   const timer = useRef<number | undefined>(undefined);
@@ -95,6 +97,7 @@ export default function NoteEditDialog({ doc, onClose }: Props) {
   return createPortal(
     <div className="modal-backdrop" onMouseDown={onClose}>
       <div
+        ref={trapRef}
         className="modal modal-wide note-dialog"
         role="dialog"
         aria-modal="true"

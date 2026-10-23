@@ -9,6 +9,7 @@ import { createPortal } from 'react-dom';
 import { Link2, FileUp, FolderOpen, Loader2, Info } from 'lucide-react';
 import { useDocuments } from '../context/DocumentsContext';
 import { useToast } from '../context/ToastContext';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 import {
   APP_FOLDER_NAME,
   getDriveAccessToken,
@@ -79,6 +80,7 @@ export default function AddPdfModal({
     setBusy(false);
     setDragOver(false);
   }, [open]);
+  const trapRef = useFocusTrap<HTMLDivElement>(open);
 
   if (!open) return null;
 
@@ -224,6 +226,7 @@ export default function AddPdfModal({
   return createPortal(
     <div className="modal-backdrop" onMouseDown={onCancel}>
       <div
+        ref={trapRef}
         className="modal"
         role="dialog"
         aria-modal="true"

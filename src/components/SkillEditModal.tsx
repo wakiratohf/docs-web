@@ -11,6 +11,7 @@ import { Link2, FileUp, FileArchive, Loader2, Info, Check, Plus, Trash2 } from '
 import { useDocuments } from '../context/DocumentsContext';
 import { useAuth } from '../auth/useAuth';
 import { useToast } from '../context/ToastContext';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 import AuthorInput from './AuthorInput';
 import {
   APP_FOLDER_NAME,
@@ -140,6 +141,7 @@ export default function SkillEditModal({
     setBusy(false);
     setDragOver(false);
   }, [open, skill, defaultAuthor]);
+  const trapRef = useFocusTrap<HTMLDivElement>(open);
 
   if (!open) return null;
 
@@ -365,6 +367,7 @@ export default function SkillEditModal({
   return createPortal(
     <div className="modal-backdrop" onMouseDown={onCancel}>
       <div
+        ref={trapRef}
         className="modal modal-wide"
         role="dialog"
         aria-modal="true"
