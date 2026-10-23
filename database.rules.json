@@ -3,14 +3,63 @@
     "users": {
       "$uid": {
         ".read": "auth != null && auth.uid === $uid",
-        ".write": "auth != null && auth.uid === $uid"
+        ".write": "auth != null && auth.uid === $uid",
+        "documents": {
+          "$docId": {
+            "title": { ".validate": "newData.isString() && newData.val().length <= 500" },
+            "content": { ".validate": "newData.isString() && newData.val().length <= 2000000" },
+            "author": { ".validate": "newData.isString() && newData.val().length <= 200" }
+          }
+        },
+        "folders": {
+          "$folderId": {
+            "name": { ".validate": "newData.isString() && newData.val().length <= 300" }
+          }
+        },
+        "skills": {
+          "$skillId": {
+            "title": { ".validate": "newData.isString() && newData.val().length <= 500" },
+            "description": { ".validate": "newData.isString() && newData.val().length <= 1000" },
+            "content": { ".validate": "newData.isString() && newData.val().length <= 2000000" },
+            "author": { ".validate": "newData.isString() && newData.val().length <= 200" }
+          }
+        }
       }
     },
     "shared": {
       ".read": true,
       "$type": {
         "$id": {
-          ".write": "auth != null && (!data.exists() ? newData.child('ownerId').val() === auth.uid : data.child('ownerId').val() === auth.uid)"
+          ".write": "auth != null && (!data.exists() ? newData.child('ownerId').val() === auth.uid : data.child('ownerId').val() === auth.uid)",
+          "document": {
+            "title": { ".validate": "newData.isString() && newData.val().length <= 500" },
+            "content": { ".validate": "newData.isString() && newData.val().length <= 2000000" },
+            "author": { ".validate": "newData.isString() && newData.val().length <= 200" }
+          },
+          "skill": {
+            "title": { ".validate": "newData.isString() && newData.val().length <= 500" },
+            "description": { ".validate": "newData.isString() && newData.val().length <= 1000" },
+            "content": { ".validate": "newData.isString() && newData.val().length <= 2000000" },
+            "author": { ".validate": "newData.isString() && newData.val().length <= 200" }
+          },
+          "folder": {
+            "name": { ".validate": "newData.isString() && newData.val().length <= 300" }
+          },
+          "documents": {
+            "$docId": {
+              "title": { ".validate": "newData.isString() && newData.val().length <= 500" },
+              "content": { ".validate": "newData.isString() && newData.val().length <= 2000000" },
+              "author": { ".validate": "newData.isString() && newData.val().length <= 200" }
+            }
+          },
+          "skills": {
+            "$skillId": {
+              "title": { ".validate": "newData.isString() && newData.val().length <= 500" },
+              "description": { ".validate": "newData.isString() && newData.val().length <= 1000" },
+              "content": { ".validate": "newData.isString() && newData.val().length <= 2000000" },
+              "author": { ".validate": "newData.isString() && newData.val().length <= 200" }
+            }
+          }
         }
       }
     }
