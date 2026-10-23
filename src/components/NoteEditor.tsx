@@ -39,7 +39,6 @@ export default function NoteEditor({ value, onChange }: Props) {
     if (elRef.current && elRef.current.innerHTML !== value) {
       elRef.current.innerHTML = value;
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const emit = () => {

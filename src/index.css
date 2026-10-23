@@ -836,6 +836,25 @@ a.btn-square {
 .pdf-empty {
   padding: 18px;
 }
+.pdf-loading {
+  flex: 1;
+  min-height: 70vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  text-align: center;
+  padding: 0 18px;
+}
+.pdf-timeout {
+  max-width: 360px;
+}
+.pdf-timeout a {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
 
 /* Khung nhúng link ngoài (iframe) — dùng chung dáng với PDF */
 .embed-viewer {

@@ -36,6 +36,7 @@ import SkillCard from '../components/SkillCard';
 import SkillEditModal from '../components/SkillEditModal';
 import { searchDocs, plainTextOf } from '../lib/search';
 import { collectAuthors } from '../lib/authors';
+import { useDebouncedValue } from '../hooks/useDebouncedValue';
 import { STICKY_COLORS, DEFAULT_STICKY_COLOR } from '../lib/stickyColors';
 import type { DocItem, DocumentType, StickyColor } from '../types';
 
@@ -119,12 +120,14 @@ export default function FolderPage() {
     ? docs.find((d) => d.id === editingNoteId)
     : undefined;
 
-  // Tìm kiếm trong phạm vi folder này.
+  // Tìm kiếm trong phạm vi folder này. Trễ 200ms trước khi lọc thật sự chạy,
+  // tránh tính search (DOMParser cho note/html) trên mỗi keystroke khi gõ nhanh.
   const [query, setQuery] = useState('');
-  const searching = query.trim().length > 0;
+  const debouncedQuery = useDebouncedValue(query, 200);
+  const searching = debouncedQuery.trim().length > 0;
   const results = useMemo(
-    () => (searching ? searchDocs(docs, query) : []),
-    [docs, query, searching],
+    () => (searching ? searchDocs(docs, debouncedQuery) : []),
+    [docs, debouncedQuery, searching],
   );
 
   // Nút quay lại: dùng trực tiếp trong header (cùng hàng tiêu đề) khi đã có
@@ -163,7 +166,7 @@ export default function FolderPage() {
   const isSkill = folder.viewType === 'skill';
 
   // Lọc skill theo từ khóa (tên/mô tả/tags) + tag đang chọn.
-  const skillQ = query.trim().toLowerCase();
+  const skillQ = debouncedQuery.trim().toLowerCase();
   const allTags = Array.from(
     new Set(folderSkills.flatMap((s) => s.tags ?? [])),
   ).sort();

@@ -72,7 +72,6 @@ export default function DocumentEditor({ doc }: { doc: DocItem }) {
     setContent(doc.content);
     setType(doc.type);
     setTab(doc.content.trim() ? 'preview' : 'edit');
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [doc.id]);
 
   // Auto-save có debounce ~600ms.
@@ -108,7 +107,6 @@ export default function DocumentEditor({ doc }: { doc: DocItem }) {
       window.clearTimeout(savedTimer.current);
       flush();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const onTitle = (v: string) => {

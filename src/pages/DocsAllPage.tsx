@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Plus, Upload, Search, X, Pin, FolderOpen } from 'lucide-react';
 import { useDocuments } from '../context/DocumentsContext';
 import { useUploadDocuments } from '../hooks/useUploadDocuments';
+import { useDebouncedValue } from '../hooks/useDebouncedValue';
 import { useAuth } from '../auth/useAuth';
 import ThemeToggle from '../components/ThemeToggle';
 import SearchResults from '../components/SearchResults';
@@ -12,7 +13,7 @@ import CreateFolderModal from '../components/CreateFolderModal';
 import NewDocMenu from '../components/NewDocMenu';
 import { searchDocs, collectAuthors, ALL_AUTHORS } from '../lib/search';
 import { STICKY_COLORS, DEFAULT_STICKY_COLOR } from '../lib/stickyColors';
-import type { DocItem, DocumentType, Folder, FolderViewType } from '../types';
+import type { DocItem, DocumentType, Folder, FolderViewType, SkillItem } from '../types';
 
 // Tra nhanh mã màu swatch theo key để tô ô mini của folder sticky.
 const SWATCH_BY_KEY = new Map(STICKY_COLORS.map((c) => [c.key, c.swatch]));
@@ -46,11 +47,14 @@ export default function DocsAllPage() {
   const [author, setAuthor] = useState<string>(ALL_AUTHORS);
   // Danh sách tác giả load động từ dữ liệu để đổ vào dropdown.
   const authors = useMemo(() => collectAuthors(documents), [documents]);
+  // Trễ 200ms trước khi search thật sự chạy, tránh tính search (DOMParser cho
+  // note/html) trên mỗi keystroke khi gõ nhanh.
+  const debouncedQuery = useDebouncedValue(query, 200);
   // Đang ở chế độ tìm/lọc khi có từ khóa HOẶC đã chọn một tác giả cụ thể.
-  const searching = query.trim().length > 0 || author !== ALL_AUTHORS;
+  const searching = debouncedQuery.trim().length > 0 || author !== ALL_AUTHORS;
   const results = useMemo(
-    () => (searching ? searchDocs(documents, query, author) : []),
-    [documents, query, author, searching],
+    () => (searching ? searchDocs(documents, debouncedQuery, author) : []),
+    [documents, debouncedQuery, author, searching],
   );
   // Map id → folder để kết quả tìm kiếm cho biết tài liệu nằm ở folder nào.
   const foldersById = useMemo(
@@ -58,8 +62,30 @@ export default function DocsAllPage() {
     [folders],
   );
 
-  const docsOf = (fid: string) => documents.filter((d) => d.folderId === fid);
-  const skillsOf = (fid: string) => skills.filter((s) => s.folderId === fid);
+  // Gom document/skill theo folderId một lần (O(n)) thay vì filter lại cho mỗi
+  // folder tile mỗi lần render (O(số folder × số document)).
+  const docsByFolder = useMemo(() => {
+    const map = new Map<string, DocItem[]>();
+    for (const d of documents) {
+      if (!d.folderId) continue;
+      const arr = map.get(d.folderId);
+      if (arr) arr.push(d);
+      else map.set(d.folderId, [d]);
+    }
+    return map;
+  }, [documents]);
+  const skillsByFolder = useMemo(() => {
+    const map = new Map<string, SkillItem[]>();
+    for (const s of skills) {
+      if (!s.folderId) continue;
+      const arr = map.get(s.folderId);
+      if (arr) arr.push(s);
+      else map.set(s.folderId, [s]);
+    }
+    return map;
+  }, [skills]);
+  const docsOf = (fid: string) => docsByFolder.get(fid) ?? [];
+  const skillsOf = (fid: string) => skillsByFolder.get(fid) ?? [];
   const looseDocs = documents.filter((d) => !d.folderId);
 
   const create = (type: DocumentType) => {

@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { Globe, Code2, Loader2, AlertCircle, ArrowRight, Check } from 'lucide-react';
 import { useDocuments } from '../context/DocumentsContext';
 import { useToast } from '../context/ToastContext';
+import { useConfirm } from '../context/ConfirmContext';
 import { fetchAndExtractArticle, extractArticleFromHtml } from '../lib/webExtractor';
 import { htmlToMarkdown } from '../lib/htmlToMarkdown';
 import MarkdownPreview from './MarkdownPreview';
@@ -25,6 +26,7 @@ export default function ImportWebModal({
 }: ImportWebModalProps) {
   const { folders, addDocuments } = useDocuments();
   const { toastSuccess, toastError } = useToast();
+  const confirm = useConfirm();
 
   const [tab, setTab] = useState<Tab>('url');
   const [url, setUrl] = useState('');
@@ -50,19 +52,38 @@ export default function ImportWebModal({
       setError('Vui lòng nhập đường link URL của trang web.');
       return;
     }
+    let parsed: URL;
+    try {
+      parsed = new URL(trimmed);
+    } catch {
+      setError('URL không hợp lệ. Vui lòng nhập đầy đủ, vd: https://example.com/bai-viet.');
+      return;
+    }
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+      setError('Chỉ hỗ trợ URL http:// hoặc https://.');
+      return;
+    }
 
     setBusy(true);
     setError(null);
     try {
-      const article = await fetchAndExtractArticle(trimmed);
+      const article = await fetchAndExtractArticle(trimmed, {
+        confirmProxyFallback: (proxyHost) =>
+          confirm({
+            title: 'Gửi URL qua dịch vụ bên thứ ba?',
+            message: `Không tải trực tiếp được trang này (có thể do CORS). Để tiếp tục, URL bạn nhập sẽ được gửi qua proxy công khai "${proxyHost}" để lấy nội dung — họ sẽ thấy URL này. Tiếp tục?`,
+            confirmText: 'Tiếp tục',
+            cancelText: 'Hủy',
+          }),
+      });
       setExtractedTitle(article.title || 'Tài liệu từ web');
       setExtractedAuthor(article.author || '');
       setExtractedMarkdown(article.markdown);
       setPreviewTab('preview');
       toastSuccess('Đã trích xuất nội dung bài viết thành công!');
     } catch (err) {
-      console.error('[ImportWeb] Lỗi trích xuất:', err);
       const msg = err instanceof Error ? err.message : String(err);
+      console.error('[ImportWeb] Lỗi trích xuất:', msg);
       setError(msg);
     } finally {
       setBusy(false);
@@ -95,7 +116,8 @@ export default function ImportWebModal({
       setPreviewTab('preview');
       toastSuccess('Đã chuyển đổi HTML sang Markdown thành công!');
     } catch (err) {
-      console.error('[ImportWeb] Lỗi chuyển đổi HTML:', err);
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error('[ImportWeb] Lỗi chuyển đổi HTML:', msg);
       setError('Không thể chuyển đổi nội dung HTML này sang Markdown.');
     }
   };
@@ -149,6 +171,12 @@ export default function ImportWebModal({
         aria-modal="true"
         aria-labelledby="import-web-title"
         onMouseDown={(e) => e.stopPropagation()}
+        onKeyDown={(e) => {
+          if (e.key === 'Escape') {
+            e.preventDefault();
+            onCancel();
+          }
+        }}
       >
         <h2 id="import-web-title" className="modal-title">
           Nhập từ Web / HTML → Markdown

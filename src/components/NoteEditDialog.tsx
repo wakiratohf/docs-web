@@ -63,7 +63,6 @@ export default function NoteEditDialog({ doc, onClose }: Props) {
       window.clearTimeout(savedTimer.current);
       flush();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const onTitle = (v: string) => {

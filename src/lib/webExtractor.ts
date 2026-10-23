@@ -81,9 +81,21 @@ export function extractArticleFromHtml(
       markdown,
     };
   } catch (err) {
-    console.error('Lỗi khi bóc tách bài viết từ HTML:', err);
+    console.error('Lỗi khi bóc tách bài viết từ HTML:', err instanceof Error ? err.message : err);
     return null;
   }
+}
+
+/** Domain của CORS proxy công khai dùng làm fallback tầng 2. */
+export const CORS_PROXY_HOST = 'api.allorigins.win';
+
+export interface FetchHtmlOptions {
+  /**
+   * Gọi trước khi gửi URL sang proxy bên thứ ba (fallback tầng 2), để hỏi ý
+   * người dùng vì URL sẽ rời khỏi trình duyệt tới một dịch vụ ngoài tầm kiểm
+   * soát của app. Trả về false (hoặc không truyền callback) = không gọi proxy.
+   */
+  confirmProxyFallback?: (proxyHost: string) => Promise<boolean>;
 }
 
 /**
@@ -91,7 +103,7 @@ export function extractArticleFromHtml(
  *
  * @param url Đường dẫn trang web cần fetch
  */
-export async function fetchHtmlFromUrl(url: string): Promise<string> {
+export async function fetchHtmlFromUrl(url: string, options?: FetchHtmlOptions): Promise<string> {
   const trimmedUrl = url.trim();
   if (!/^https?:\/\//i.test(trimmedUrl)) {
     throw new Error('URL không hợp lệ. Vui lòng nhập đường link bắt đầu bằng http:// hoặc https://');
@@ -113,17 +125,23 @@ export async function fetchHtmlFromUrl(url: string): Promise<string> {
     // Có thể bị chặn CORS bởi trình duyệt, tiếp tục thử tầng 2
   }
 
-  // Tầng 2: Thử qua CORS Proxy công khai (allorigins)
-  try {
-    const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(trimmedUrl)}`;
-    const proxyRes = await fetch(proxyUrl);
+  // Tầng 2: Thử qua CORS Proxy công khai (allorigins) — URL người dùng nhập sẽ
+  // được gửi cho dịch vụ bên thứ ba này, nên cần hỏi ý trước khi gọi.
+  const proceedWithProxy = options?.confirmProxyFallback
+    ? await options.confirmProxyFallback(CORS_PROXY_HOST)
+    : false;
+  if (proceedWithProxy) {
+    try {
+      const proxyUrl = `https://${CORS_PROXY_HOST}/raw?url=${encodeURIComponent(trimmedUrl)}`;
+      const proxyRes = await fetch(proxyUrl);
 
-    if (proxyRes.ok) {
-      const proxyHtml = await proxyRes.text();
-      if (proxyHtml.trim()) return proxyHtml;
+      if (proxyRes.ok) {
+        const proxyHtml = await proxyRes.text();
+        if (proxyHtml.trim()) return proxyHtml;
+      }
+    } catch {
+      // Proxy cũng không lấy được
     }
-  } catch {
-    // Proxy cũng không lấy được
   }
 
   throw new Error(
@@ -134,8 +152,11 @@ export async function fetchHtmlFromUrl(url: string): Promise<string> {
 /**
  * Tải trang web từ URL và tự động bóc tách thành bài viết Markdown.
  */
-export async function fetchAndExtractArticle(url: string): Promise<ExtractedArticle> {
-  const html = await fetchHtmlFromUrl(url);
+export async function fetchAndExtractArticle(
+  url: string,
+  options?: FetchHtmlOptions,
+): Promise<ExtractedArticle> {
+  const html = await fetchHtmlFromUrl(url, options);
   const article = extractArticleFromHtml(html, url);
 
   if (!article || !article.markdown.trim()) {
