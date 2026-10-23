@@ -10,12 +10,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 npm run dev        # Chạy dev server (Vite)
 npm run build      # tsc -b (type-check toàn bộ project references) RỒI vite build → dist/
 npm run preview    # Xem thử bản đã build
+npm test           # vitest run — hiện chỉ có test cho DocumentsContext (shared mirror)
 
 firebase deploy --only hosting    # Deploy web (cần build trước, public = dist/)
 firebase deploy --only database   # Deploy luật Realtime Database (database.rules.json)
 ```
 
-- **Không có test runner và không có ESLint config** trong repo. `build` chính là cổng kiểm tra duy nhất (TypeScript strict qua `tsc -b`). Một số comment có `// eslint-disable-next-line` là phòng xa, không có lint thực sự chạy.
+- **Không có ESLint config** trong repo. `build` (type-check qua `tsc -b`) + `test` (vitest) là cổng kiểm tra. GitHub Actions (`.github/workflows/ci.yml`) chạy cả hai trên mỗi push/PR vào `main`, KHÔNG deploy (không có secrets Firebase).
+- Test hiện chỉ phủ `src/context/DocumentsContext.tsx` — phần rủi ro cao nhất (logic "shared mirror" đồng bộ bản riêng/bản công khai, xem mục bên dưới). Các phần khác của repo chưa có test; viết thêm khi sửa logic phức tạp tương tự.
 - Cần file `.env` với các biến `VITE_FIREBASE_*` (xem `.env.example`). Thiếu `.env` thì app **không crash** — xem mục null-safety bên dưới.
 - Project ID Firebase mặc định: `docs-web-df5bb2` (`.firebaserc`).
 

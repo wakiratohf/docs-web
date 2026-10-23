@@ -1,9 +1,8 @@
 name: CI
 
-# Chỉ kiểm tra build (tsc -b + vite build) — cổng kiểm tra duy nhất của repo
-# này (không có test runner/ESLint). KHÔNG deploy — deploy vẫn làm thủ công
-# bằng `firebase deploy` (xem CLAUDE.md), vì workflow này không có secrets
-# Firebase.
+# Kiểm tra build (tsc -b + vite build) + test (vitest). KHÔNG deploy — deploy
+# vẫn làm thủ công bằng `firebase deploy` (xem CLAUDE.md), vì workflow này
+# không có secrets Firebase.
 on:
   push:
     branches: [main]
@@ -21,3 +20,4 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
+      - run: npm test
