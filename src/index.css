@@ -1025,6 +1025,26 @@ a.btn-square {
   opacity: 0.85;
 }
 
+/* ---------- Công thức toán học LaTeX (KaTeX) ---------- */
+.markdown-body .katex-display {
+  margin: 1.2em 0;
+  padding: 10px 14px;
+  background: var(--subtle);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+}
+.markdown-body .katex {
+  font-size: 1.08em;
+  color: var(--text);
+}
+.markdown-body .katex-display > .katex {
+  display: inline-block;
+  white-space: nowrap;
+}
+
 /* ---------- Sơ đồ Mermaid trong Markdown ---------- */
 .mermaid-diagram {
   display: flex;

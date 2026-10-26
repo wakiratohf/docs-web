@@ -83,4 +83,27 @@ describe('MarkdownPreview task list checkboxes', () => {
     fireEvent.click(checkbox);
     expect(checkbox.checked).toBe(true);
   });
+
+  it('hiển thị công thức toán học LaTeX inline ($E = mc^2$)', () => {
+    const md = `Năng lượng là $E = mc^2$ theo thuyết tương đối.`;
+
+    const { container } = render(<MarkdownPreview content={md} />);
+    const katexEl = container.querySelector('.katex');
+    expect(katexEl).not.toBeNull();
+    expect(katexEl?.textContent).toContain('E=mc2');
+  });
+
+  it('hiển thị công thức toán học LaTeX dạng khối ($$ ... $$)', () => {
+    const md = `
+Định lý Pythagoras:
+$$
+a^2 + b^2 = c^2
+$$
+`;
+
+    const { container } = render(<MarkdownPreview content={md} />);
+    const displayEl = container.querySelector('.katex-display');
+    expect(displayEl).not.toBeNull();
+    expect(displayEl?.textContent).toContain('a2+b2=c2');
+  });
 });
