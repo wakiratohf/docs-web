@@ -1,5 +1,6 @@
 import {
   isValidElement,
+  useEffect,
   useMemo,
   useState,
   type ReactNode,
@@ -19,6 +20,7 @@ import {
 import MermaidDiagram from './MermaidDiagram';
 import { slugifyHeading } from '../lib/toc';
 import { highlightCode } from '../lib/highlight';
+import { toggleTaskAtIndex, toggleTaskAtLine } from '../lib/taskLists';
 
 /**
  * Trích xuất chữ thuần từ ReactNode (dùng để tạo id / anchor cho tiêu đề).
@@ -230,10 +232,74 @@ function TableBlock({ children }: { children?: ReactNode }) {
   );
 }
 
-export default function MarkdownPreview({ content }: { content: string }) {
+/**
+ * Hộp kiểm công việc (task checkbox) có thể tương tác trực tiếp bằng click chuột.
+ * Khi được bấm, nó sẽ tự động cập nhật lại mã nguồn Markdown (- [ ] <-> - [x]).
+ */
+interface TaskCheckboxProps {
+  checked?: boolean;
+  index: number;
+  line?: number;
+  content: string;
+  onContentChange?: (newContent: string) => void;
+}
+
+function TaskCheckbox({
+  checked,
+  index,
+  line,
+  content,
+  onContentChange,
+}: TaskCheckboxProps) {
+  const [localChecked, setLocalChecked] = useState(Boolean(checked));
+
+  useEffect(() => {
+    setLocalChecked(Boolean(checked));
+  }, [checked]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    e.stopPropagation();
+    const nextVal = e.target.checked;
+    setLocalChecked(nextVal);
+
+    if (onContentChange) {
+      let nextContent = content;
+      if (line) {
+        nextContent = toggleTaskAtLine(content, line, nextVal);
+      }
+      if (nextContent === content) {
+        nextContent = toggleTaskAtIndex(content, index, nextVal);
+      }
+      onContentChange(nextContent);
+    }
+  };
+
+  return (
+    <input
+      type="checkbox"
+      className="task-list-item-checkbox"
+      checked={localChecked}
+      onChange={handleChange}
+      aria-label="Đánh dấu hoàn thành"
+    />
+  );
+}
+
+export interface MarkdownPreviewProps {
+  content: string;
+  onContentChange?: (newContent: string) => void;
+}
+
+export default function MarkdownPreview({
+  content,
+  onContentChange,
+}: MarkdownPreviewProps) {
   if (!content.trim()) {
     return <p className="muted">Chưa có nội dung. Gõ Markdown ở tab Edit.</p>;
   }
+
+  // Khởi tạo bộ đếm checkbox theo thứ tự xuất hiện trong lần render này
+  let checkboxCounter = 0;
 
   return (
     <div className="markdown-body">
@@ -246,6 +312,22 @@ export default function MarkdownPreview({ content }: { content: string }) {
           h2: (props) => <HeadingBlock level={2} {...props} />,
           h3: (props) => <HeadingBlock level={3} {...props} />,
           table: TableBlock,
+          input: ({ node, ...props }) => {
+            if (props.type === 'checkbox') {
+              const taskIndex = checkboxCounter++;
+              const line = node?.position?.start?.line;
+              return (
+                <TaskCheckbox
+                  checked={Boolean(props.checked)}
+                  index={taskIndex}
+                  line={line}
+                  content={content}
+                  onContentChange={onContentChange}
+                />
+              );
+            }
+            return <input {...props} />;
+          },
         }}
       >
         {content}

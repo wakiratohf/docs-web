@@ -23,6 +23,7 @@ import { getDriveAccessToken, deleteFileFromDrive } from '../lib/googleDrive';
 import { htmlToMarkdown, isMeaningfulHtml } from '../lib/htmlToMarkdown';
 import { calculateReadingStats } from '../lib/readingStats';
 import { extractTocFromHtml, extractTocFromMarkdown } from '../lib/toc';
+import { getTasksSummary } from '../lib/taskLists';
 import { useReadingPreferences } from '../hooks/useReadingPreferences';
 import NoteEditor from './NoteEditor';
 import AuthorInput from './AuthorInput';
@@ -70,6 +71,12 @@ export default function DocumentEditor({ doc }: { doc: DocItem }) {
 
   // Thống kê bài viết (tổng số từ & thời gian đọc ước tính)
   const stats = useMemo(() => calculateReadingStats(content), [content]);
+
+  // Thống kê tiến độ công việc nếu tài liệu chứa checklist GFM
+  const tasksSummary = useMemo(() => {
+    if (type !== 'markdown' && type !== 'html') return { total: 0, completed: 0, percent: 0 };
+    return getTasksSummary(content);
+  }, [content, type]);
 
   // Mục lục động tự trích xuất từ tiêu đề bài viết
   const tocItems = useMemo(() => {
@@ -460,6 +467,14 @@ export default function DocumentEditor({ doc }: { doc: DocItem }) {
                   {stats.label}
                 </span>
               )}
+              {tasksSummary.total > 0 && (
+                <span
+                  className="reading-stats-badge"
+                  title="Tiến độ công việc hoàn thành"
+                >
+                  ✓ {tasksSummary.completed}/{tasksSummary.total} ({tasksSummary.percent}%)
+                </span>
+              )}
               {tocItems.length > 0 && (
                 <button
                   type="button"
@@ -539,7 +554,7 @@ export default function DocumentEditor({ doc }: { doc: DocItem }) {
                   {showToc && tocItems.length > 0 && (
                     <TableOfContents items={tocItems} onClose={() => setShowToc(false)} />
                   )}
-                  <MarkdownPreview content={content} />
+                  <MarkdownPreview content={content} onContentChange={onContent} />
                 </div>
               </div>
             </div>
@@ -561,7 +576,7 @@ export default function DocumentEditor({ doc }: { doc: DocItem }) {
                   {showToc && tocItems.length > 0 && (
                     <TableOfContents items={tocItems} onClose={() => setShowToc(false)} />
                   )}
-                  <MarkdownPreview content={content} />
+                  <MarkdownPreview content={content} onContentChange={onContent} />
                 </div>
               </div>
             </FullscreenViewer>

@@ -22,6 +22,7 @@ import PrevNextDocNav from '../components/reading/PrevNextDocNav';
 import { useReadingPreferences } from '../hooks/useReadingPreferences';
 import { getDocReadingStats } from '../lib/readingStats';
 import { extractTocFromHtml, extractTocFromMarkdown } from '../lib/toc';
+import { getTasksSummary } from '../lib/taskLists';
 import { downloadDocument } from '../lib/downloadHelpers';
 import { driveDownloadUrl } from '../lib/googleDrive';
 import { formatDate } from '../lib/formatDate';
@@ -119,6 +120,14 @@ export default function SharedFolderPage() {
     if (current.type === 'note' || current.type === 'html')
       return extractTocFromHtml(current.content);
     return [];
+  }, [current]);
+
+  // Thống kê tiến độ checklist
+  const tasksSummary = useMemo(() => {
+    if (!current?.content || (current.type !== 'markdown' && current.type !== 'html')) {
+      return { total: 0, completed: 0, percent: 0 };
+    }
+    return getTasksSummary(current.content);
   }, [current]);
 
   return (
@@ -322,6 +331,14 @@ export default function SharedFolderPage() {
                   {stats && stats.words > 0 && (
                     <span className="reading-stats-badge" title="Ước tính thời gian đọc">
                       {stats.label}
+                    </span>
+                  )}
+                  {tasksSummary.total > 0 && (
+                    <span
+                      className="reading-stats-badge"
+                      title="Tiến độ công việc hoàn thành"
+                    >
+                      ✓ {tasksSummary.completed}/{tasksSummary.total} ({tasksSummary.percent}%)
                     </span>
                   )}
                   <span className="doc-date" title="Thời gian cập nhật gần nhất">

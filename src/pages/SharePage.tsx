@@ -19,6 +19,7 @@ import TableOfContents from '../components/reading/TableOfContents';
 import { useReadingPreferences } from '../hooks/useReadingPreferences';
 import { getDocReadingStats } from '../lib/readingStats';
 import { extractTocFromHtml, extractTocFromMarkdown } from '../lib/toc';
+import { getTasksSummary } from '../lib/taskLists';
 import { downloadDocument } from '../lib/downloadHelpers';
 import { formatDate } from '../lib/formatDate';
 
@@ -76,6 +77,14 @@ export default function SharePage() {
     return [];
   }, [doc]);
 
+  // Thống kê tiến độ checklist
+  const tasksSummary = useMemo(() => {
+    if (!doc?.content || (doc.type !== 'markdown' && doc.type !== 'html')) {
+      return { total: 0, completed: 0, percent: 0 };
+    }
+    return getTasksSummary(doc.content);
+  }, [doc]);
+
   return (
     <div
       className="container share-view"
@@ -97,6 +106,14 @@ export default function SharePage() {
               {stats && stats.words > 0 && (
                 <span className="reading-stats-badge" title="Ước tính thời gian đọc">
                   {stats.label}
+                </span>
+              )}
+              {tasksSummary.total > 0 && (
+                <span
+                  className="reading-stats-badge"
+                  title="Tiến độ công việc hoàn thành"
+                >
+                  ✓ {tasksSummary.completed}/{tasksSummary.total} ({tasksSummary.percent}%)
                 </span>
               )}
               <span className="doc-date" title="Thời gian cập nhật gần nhất">
