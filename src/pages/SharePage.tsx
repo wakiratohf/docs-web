@@ -1,7 +1,7 @@
-import { useEffect, useState, type CSSProperties } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { get, ref } from 'firebase/database';
-import { Download, FileX } from 'lucide-react';
+import { Download, FileX, Type, ListTree, FoldHorizontal, UnfoldHorizontal } from 'lucide-react';
 import { db } from '../lib/firebase';
 import type { DocItem } from '../types';
 import HtmlContent from '../components/HtmlContent';
@@ -13,7 +13,12 @@ import FullscreenViewer from '../components/FullscreenViewer';
 import ThemeToggle from '../components/ThemeToggle';
 import Spinner from '../components/Spinner';
 import EmptyState from '../components/EmptyState';
-import { useFontScale } from '../components/FontSizeControl';
+import ReadingProgressBar from '../components/reading/ReadingProgressBar';
+import ReadingPreferencesModal from '../components/reading/ReadingPreferencesModal';
+import TableOfContents from '../components/reading/TableOfContents';
+import { useReadingPreferences } from '../hooks/useReadingPreferences';
+import { getDocReadingStats } from '../lib/readingStats';
+import { extractTocFromHtml, extractTocFromMarkdown } from '../lib/toc';
 import { downloadDocument } from '../lib/downloadHelpers';
 import { formatDate } from '../lib/formatDate';
 
@@ -28,7 +33,11 @@ export default function SharePage() {
   const { id } = useParams();
   const [state, setState] = useState<ViewState>('loading');
   const [doc, setDoc] = useState<DocItem | null>(null);
-  const { fontPx, control } = useFontScale();
+
+  // Bộ tùy chỉnh đọc công thái học (Font, Giấy ngà, Cỡ chữ, Giãn dòng, Chiều rộng)
+  const { prefs, updatePrefs, resetPrefs, containerAttributes } = useReadingPreferences();
+  const [showPrefs, setShowPrefs] = useState(false);
+  const [showToc, setShowToc] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -56,11 +65,25 @@ export default function SharePage() {
     };
   }, [id]);
 
+  // Thống kê bài viết (tổng số từ & thời gian đọc ước tính)
+  const stats = useMemo(() => (doc ? getDocReadingStats(doc) : null), [doc]);
+
+  // Mục lục động tự trích xuất từ tiêu đề bài viết
+  const tocItems = useMemo(() => {
+    if (!doc || !doc.content) return [];
+    if (doc.type === 'markdown') return extractTocFromMarkdown(doc.content);
+    if (doc.type === 'note' || doc.type === 'html') return extractTocFromHtml(doc.content);
+    return [];
+  }, [doc]);
+
   return (
     <div
       className="container share-view"
-      style={{ '--share-font-size': `${fontPx}px` } as CSSProperties}
+      data-reading-theme={prefs.theme !== 'app' ? prefs.theme : undefined}
     >
+      {/* Vạch tiến trình đọc 0-100% gắn cố định đỉnh màn hình */}
+      <ReadingProgressBar />
+
       <header className="share-header">
         {state === 'ready' && doc ? (
           <div className="share-header-info">
@@ -69,6 +92,11 @@ export default function SharePage() {
               {doc.author && (
                 <span className="doc-date" title="Tác giả">
                   ✍ {doc.author}
+                </span>
+              )}
+              {stats && stats.words > 0 && (
+                <span className="reading-stats-badge" title="Ước tính thời gian đọc">
+                  {stats.label}
                 </span>
               )}
               <span className="doc-date" title="Thời gian cập nhật gần nhất">
@@ -80,10 +108,66 @@ export default function SharePage() {
             </p>
           </div>
         ) : (
-          <Link to="/" className="brand">📄 Docs Web</Link>
+          <Link to="/" className="brand">
+            📄 Docs Web
+          </Link>
         )}
-        <div className="share-header-actions">
-          {state === 'ready' && doc && control}
+
+        <div className="share-header-actions" style={{ position: 'relative' }}>
+          {/* Nút bật/tắt mục lục TOC nếu bài viết có heading */}
+          {tocItems.length > 0 && (
+            <button
+              type="button"
+              className={`btn-icon btn-square ${showToc ? 'is-active' : ''}`}
+              onClick={() => setShowToc((v) => !v)}
+              title="Mục lục bài viết"
+              aria-label="Mục lục bài viết"
+            >
+              <ListTree size={16} aria-hidden="true" />
+            </button>
+          )}
+
+          {/* Nút bật/tắt nhanh độ rộng: Toàn màn hình (Full width) vs Thu hẹp vừa đọc (720px) */}
+          <button
+            type="button"
+            className="btn-icon btn-square"
+            onClick={() =>
+              updatePrefs({ width: prefs.width === 'full' ? 'standard' : 'full' })
+            }
+            title={
+              prefs.width === 'full'
+                ? 'Thu hẹp vừa đọc (720px)'
+                : 'Giãn toàn màn hình (Full width 100%)'
+            }
+            aria-label="Đổi chiều rộng đọc"
+          >
+            {prefs.width === 'full' ? (
+              <FoldHorizontal size={16} aria-hidden="true" />
+            ) : (
+              <UnfoldHorizontal size={16} aria-hidden="true" />
+            )}
+          </button>
+
+          {/* Nút mở Popover Tùy chỉnh đọc (Aa) */}
+          <button
+            type="button"
+            className={`btn-icon btn-square ${showPrefs ? 'is-active' : ''}`}
+            onClick={() => setShowPrefs((v) => !v)}
+            title="Tùy chỉnh trải nghiệm đọc (Phông chữ, Giấy ngà, Cỡ chữ)"
+            aria-label="Tùy chỉnh đọc"
+          >
+            <Type size={16} aria-hidden="true" />
+          </button>
+
+          {/* Popover tùy chỉnh đọc */}
+          <ReadingPreferencesModal
+            open={showPrefs}
+            prefs={prefs}
+            onUpdate={updatePrefs}
+            onReset={resetPrefs}
+            onClose={() => setShowPrefs(false)}
+          />
+
           {state === 'ready' && doc && doc.type !== 'pdf' && doc.type !== 'embed' && (
             <button
               type="button"
@@ -94,6 +178,7 @@ export default function SharePage() {
               <Download size={16} aria-hidden="true" /> Tải về
             </button>
           )}
+
           <ThemeToggle />
           <span className="badge badge-shared">Chia sẻ công khai · chỉ đọc</span>
         </div>
@@ -110,8 +195,14 @@ export default function SharePage() {
           description="Tài liệu không tồn tại hoặc chủ sở hữu đã ngừng chia sẻ."
         />
       )}
+
       {state === 'ready' && doc && (
-        <article className="share-doc">
+        <article className="share-doc reading-doc-container" {...containerAttributes}>
+          {/* Mục lục động (hiển thị khi bấm nút mục lục hoặc mặc định trên bài dài) */}
+          {showToc && tocItems.length > 0 && (
+            <TableOfContents items={tocItems} onClose={() => setShowToc(false)} />
+          )}
+
           <FullscreenViewer label="Xem toàn màn hình">
             {doc.type === 'pdf' ? (
               <PdfViewer fileId={doc.content} />

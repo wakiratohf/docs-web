@@ -37,6 +37,7 @@ function getInitialTheme(): Theme {
 
 interface ThemeContextValue {
   theme: Theme;
+  setTheme: (theme: Theme) => void;
   toggleTheme: () => void;
 }
 
@@ -56,11 +57,17 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   }, [theme]);
 
   const toggleTheme = useCallback(() => {
+    document.documentElement.removeAttribute('data-reading-theme');
     setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
   }, []);
 
+  const setThemeExplicit = useCallback((nextTheme: Theme) => {
+    document.documentElement.removeAttribute('data-reading-theme');
+    setTheme(nextTheme);
+  }, []);
+
   return (
-    <ThemeContext.Provider value={{ theme, toggleTheme }}>
+    <ThemeContext.Provider value={{ theme, setTheme: setThemeExplicit, toggleTheme }}>
       {children}
     </ThemeContext.Provider>
   );

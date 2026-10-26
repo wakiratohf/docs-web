@@ -9,6 +9,10 @@ import {
   Loader2,
   Check,
   ArrowLeft,
+  Type,
+  ListTree,
+  FoldHorizontal,
+  UnfoldHorizontal,
 } from 'lucide-react';
 import type { DocItem, DocumentType } from '../types';
 import { useDocuments } from '../context/DocumentsContext';
@@ -17,6 +21,9 @@ import { useConfirm } from '../context/ConfirmContext';
 import { collectAuthors } from '../lib/authors';
 import { getDriveAccessToken, deleteFileFromDrive } from '../lib/googleDrive';
 import { htmlToMarkdown, isMeaningfulHtml } from '../lib/htmlToMarkdown';
+import { calculateReadingStats } from '../lib/readingStats';
+import { extractTocFromHtml, extractTocFromMarkdown } from '../lib/toc';
+import { useReadingPreferences } from '../hooks/useReadingPreferences';
 import NoteEditor from './NoteEditor';
 import AuthorInput from './AuthorInput';
 import MarkdownPreview from './MarkdownPreview';
@@ -24,6 +31,9 @@ import HtmlDocument from './HtmlDocument';
 import PdfViewer from './PdfViewer';
 import EmbedViewer from './EmbedViewer';
 import FullscreenViewer from './FullscreenViewer';
+import TableOfContents from './reading/TableOfContents';
+import ReadingPreferencesModal from './reading/ReadingPreferencesModal';
+import ReadingProgressBar from './reading/ReadingProgressBar';
 
 type DocUpdates = Partial<Pick<DocItem, 'title' | 'content' | 'type' | 'author'>>;
 
@@ -47,11 +57,27 @@ export default function DocumentEditor({ doc }: { doc: DocItem }) {
   const [content, setContent] = useState(doc.content);
   const [type, setType] = useState<DocumentType>(doc.type);
   // Mặc định mở ở Preview khi tài liệu đã có nội dung; rỗng (vừa tạo) thì mở Edit.
-  const [tab, setTab] = useState<'edit' | 'preview'>(
+  const [tab, setTab] = useState<'edit' | 'preview' | 'split'>(
     doc.content.trim() ? 'preview' : 'edit',
   );
   // Trạng thái auto-save để hiển thị "Đang lưu…" / "Đã lưu".
   const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved'>('idle');
+
+  // Bộ tùy chỉnh đọc công thái học (Font, Giấy ngà, Cỡ chữ, Giãn dòng, Chiều rộng)
+  const { prefs, updatePrefs, resetPrefs, containerAttributes } = useReadingPreferences();
+  const [showPrefs, setShowPrefs] = useState(false);
+  const [showToc, setShowToc] = useState(false);
+
+  // Thống kê bài viết (tổng số từ & thời gian đọc ước tính)
+  const stats = useMemo(() => calculateReadingStats(content), [content]);
+
+  // Mục lục động tự trích xuất từ tiêu đề bài viết
+  const tocItems = useMemo(() => {
+    if (!content) return [];
+    if (type === 'markdown') return extractTocFromMarkdown(content);
+    if (type === 'note' || type === 'html') return extractTocFromHtml(content);
+    return [];
+  }, [content, type]);
 
   const shareUrl = `${window.location.origin}/share/d/${doc.id}`;
 
@@ -395,9 +421,13 @@ export default function DocumentEditor({ doc }: { doc: DocItem }) {
       ) : type === 'note' ? (
         <NoteEditor value={content} onChange={onContent} />
       ) : (
-        // markdown & html dùng chung khung soạn thảo có tab Edit/Preview;
+        // markdown & html dùng chung khung soạn thảo có tab Edit/Preview/Split;
         // chỉ khác placeholder và cách render preview.
-        <div className="md-editor">
+        <div
+          className="md-editor"
+          data-reading-theme={tab !== 'edit' && prefs.theme !== 'app' ? prefs.theme : undefined}
+        >
+          {tab === 'preview' && <ReadingProgressBar />}
           <div className="tabs">
             <button
               type="button"
@@ -413,7 +443,74 @@ export default function DocumentEditor({ doc }: { doc: DocItem }) {
             >
               Preview
             </button>
+            {type === 'markdown' && (
+              <button
+                type="button"
+                className={`btn-split-tab ${tab === 'split' ? 'active' : ''}`}
+                onClick={() => setTab('split')}
+                title="Soạn thảo và xem trước song song (Split View)"
+              >
+                Split
+              </button>
+            )}
+
+            <div className="tabs-actions" style={{ position: 'relative' }}>
+              {stats.words > 0 && (
+                <span className="reading-stats-badge" title="Ước tính thời gian đọc">
+                  {stats.label}
+                </span>
+              )}
+              {tocItems.length > 0 && (
+                <button
+                  type="button"
+                  className={`btn-icon btn-square ${showToc ? 'is-active' : ''}`}
+                  onClick={() => setShowToc((v) => !v)}
+                  title="Mục lục bài viết"
+                  aria-label="Mục lục"
+                >
+                  <ListTree size={15} aria-hidden="true" />
+                </button>
+              )}
+              {/* Nút bật/tắt nhanh độ rộng: Giãn toàn màn hình (Full width 100%) vs Thu hẹp vừa đọc (720px) */}
+              <button
+                type="button"
+                className="btn-icon btn-square"
+                onClick={() =>
+                  updatePrefs({ width: prefs.width === 'full' ? 'standard' : 'full' })
+                }
+                title={
+                  prefs.width === 'full'
+                    ? 'Thu hẹp vừa đọc (720px)'
+                    : 'Giãn toàn màn hình (Full width 100%)'
+                }
+                aria-label="Đổi chiều rộng đọc"
+              >
+                {prefs.width === 'full' ? (
+                  <FoldHorizontal size={15} aria-hidden="true" />
+                ) : (
+                  <UnfoldHorizontal size={15} aria-hidden="true" />
+                )}
+              </button>
+              <button
+                type="button"
+                className={`btn-icon btn-square ${showPrefs ? 'is-active' : ''}`}
+                onClick={() => setShowPrefs((v) => !v)}
+                title="Tùy chỉnh đọc (Font, Giấy ngà, Cỡ chữ)"
+                aria-label="Tùy chỉnh đọc"
+              >
+                <Type size={15} aria-hidden="true" />
+              </button>
+
+              <ReadingPreferencesModal
+                open={showPrefs}
+                prefs={prefs}
+                onUpdate={updatePrefs}
+                onReset={resetPrefs}
+                onClose={() => setShowPrefs(false)}
+              />
+            </div>
           </div>
+
           {tab === 'edit' ? (
             <textarea
               className="md-textarea"
@@ -426,13 +523,47 @@ export default function DocumentEditor({ doc }: { doc: DocItem }) {
                   : '# Tiêu đề\n\nViết Markdown ở đây… (hỗ trợ Smart Paste từ web)'
               }
             />
+          ) : tab === 'split' ? (
+            <div className="md-split-container">
+              <div className="md-split-pane">
+                <textarea
+                  className="md-textarea"
+                  value={content}
+                  onChange={(e) => onContent(e.target.value)}
+                  onPaste={onMarkdownPaste}
+                  placeholder="# Tiêu đề\n\nViết Markdown ở đây…"
+                />
+              </div>
+              <div className="md-split-pane md-split-preview">
+                <div className="reading-doc-container" {...containerAttributes}>
+                  {showToc && tocItems.length > 0 && (
+                    <TableOfContents items={tocItems} onClose={() => setShowToc(false)} />
+                  )}
+                  <MarkdownPreview content={content} />
+                </div>
+              </div>
+            </div>
           ) : type === 'html' ? (
             <FullscreenViewer label="Xem nội dung toàn màn hình">
-              <HtmlDocument value={content} />
+              <div className="md-preview-viewport">
+                <div className="reading-doc-container" {...containerAttributes}>
+                  {showToc && tocItems.length > 0 && (
+                    <TableOfContents items={tocItems} onClose={() => setShowToc(false)} />
+                  )}
+                  <HtmlDocument value={content} />
+                </div>
+              </div>
             </FullscreenViewer>
           ) : (
             <FullscreenViewer label="Xem nội dung toàn màn hình">
-              <MarkdownPreview content={content} />
+              <div className="md-preview-viewport">
+                <div className="reading-doc-container" {...containerAttributes}>
+                  {showToc && tocItems.length > 0 && (
+                    <TableOfContents items={tocItems} onClose={() => setShowToc(false)} />
+                  )}
+                  <MarkdownPreview content={content} />
+                </div>
+              </div>
             </FullscreenViewer>
           )}
         </div>

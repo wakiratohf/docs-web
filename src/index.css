@@ -35,7 +35,7 @@
   --glass-blur: saturate(180%) blur(20px);
 
   /* Bo góc — thang đo nhất quán kiểu Apple (góc bo lớn, mềm) */
-  --bottom-nav-h: 46px; /* chiều cao footer cố định, dùng để chừa padding cho body */
+  --bottom-nav-h: 26px; /* chiều cao footer tối giản (26px) nhường tối đa không gian cho việc đọc */
 
   --radius-sm: 8px;
   --radius: 12px;
@@ -62,7 +62,8 @@
 }
 
 /* Giao diện tối: chỉ cần ghi đè các biến màu, mọi component dùng var() tự đổi theo */
-[data-theme='dark'] {
+[data-theme='dark'],
+[data-reading-theme='dark'] {
   --bg: #000000; /* nền đen tuyền kiểu macOS/iOS tối */
   --card: #1c1c1e; /* "elevated surface" Apple dark */
   --border: #38383a; /* separator Apple dark */
@@ -559,9 +560,10 @@ a:hover {
 .share-view {
   display: flex;
   flex-direction: column;
-  height: 100vh; /* fallback trình duyệt cũ */
-  height: 100dvh; /* trừ thanh địa chỉ động trên mobile */
-  padding: 10px 20px;
+  height: calc(100vh - var(--bottom-nav-h));
+  height: calc(100dvh - var(--bottom-nav-h));
+  padding: 10px 24px 8px;
+  box-sizing: border-box;
   gap: 4px;
 }
 /* Header trang share gom THÀNH MỘT HÀNG: tiêu đề + ngày bên trái, cụm nút bên
@@ -603,7 +605,8 @@ a:hover {
   min-height: 0;
   display: flex;
   flex-direction: column;
-  margin: 0;
+  margin: 0 auto;
+  width: 100%;
 }
 /* Vùng viewer chiếm hết chỗ còn lại; nội dung dài tự cuộn bên trong.
    PDF/embed dùng flex lấp đầy; tài liệu HTML (html-frame tự đo cao) thì cuộn. */
@@ -611,12 +614,14 @@ a:hover {
   flex: 1;
   min-height: 0;
   overflow: auto;
+  -webkit-overflow-scrolling: touch;
 }
 .share-view .share-doc .note-content.readonly,
 .share-view .share-doc .markdown-body {
   flex: 1;
   min-height: 0;
   overflow: auto;
+  padding-bottom: 24px;
 }
 
 /* Nội dung tài liệu chia sẻ scale theo cỡ chữ người xem chọn.
@@ -945,9 +950,11 @@ a.btn-square {
 }
 .fullscreen-viewer.is-fullscreen .markdown-body,
 .fullscreen-viewer.is-fullscreen .note-content.readonly {
-  max-width: 900px;
+  width: 100%;
+  max-width: var(--reading-max-width, 100%);
   margin: 0 auto;
   min-height: 100vh;
+  box-sizing: border-box;
 }
 
 .markdown-body {
@@ -2418,64 +2425,71 @@ a.btn-icon:hover {
   right: 0;
   bottom: 0;
   z-index: 50;
+  height: var(--bottom-nav-h);
   min-height: var(--bottom-nav-h);
-  /* Nền kính mờ giống các thanh khác của app (đồng bộ với --glass-*) */
+  /* Nền kính mờ mỏng nhẹ, tinh tế (đồng bộ với --glass-*) */
   background: var(--glass-bg);
   -webkit-backdrop-filter: var(--glass-blur);
   backdrop-filter: var(--glass-blur);
   border-top: 1px solid var(--glass-border);
   /* Chừa "vạch home" iPhone */
   padding-bottom: env(safe-area-inset-bottom, 0px);
+  display: flex;
+  align-items: center;
 }
 .bottom-nav-inner {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  flex-wrap: wrap;
-  padding: 8px 28px;
-  font-size: 12px;
+  width: 100%;
+  padding: 0 20px;
+  font-size: 11px;
   color: var(--muted);
+  opacity: 0.85;
+  transition: opacity 0.2s var(--ease);
+}
+.bottom-nav-inner:hover {
+  opacity: 1;
 }
 .bottom-nav-copy {
   white-space: nowrap;
+  font-size: 11px;
 }
 .bottom-nav-tech {
   display: flex;
   align-items: center;
   gap: 6px;
-  flex-wrap: wrap;
-}
-.bottom-nav-tech-label {
-  margin-right: 2px;
+  flex-wrap: nowrap;
 }
 .bottom-nav-badge {
-  padding: 2px 8px;
-  border-radius: var(--radius-pill);
-  background: var(--subtle);
-  border: 1px solid var(--border);
-  color: var(--text);
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--muted);
+  font-size: 10.5px;
   font-weight: 500;
-  line-height: 1.6;
+  line-height: 1.4;
   text-decoration: none;
-  transition: background 0.2s var(--ease), border-color 0.2s var(--ease),
-    color 0.2s var(--ease);
+  transition: background 0.15s var(--ease), border-color 0.15s var(--ease),
+    color 0.15s var(--ease);
 }
 .bottom-nav-badge:hover {
-  background: var(--primary-soft);
-  border-color: var(--primary);
+  background: var(--subtle);
+  border-color: var(--border);
   color: var(--primary);
-  text-decoration: none; /* đè rule global a:hover { underline } */
+  text-decoration: none;
 }
 
 @media (max-width: 600px) {
   .bottom-nav-inner {
-    padding: 7px 14px;
-    gap: 6px 10px;
-    font-size: 11px;
+    padding: 0 12px;
+    font-size: 10px;
+    justify-content: center;
   }
-  /* Trên màn hình hẹp, gỡ chữ "Xây dựng bằng" cho gọn */
-  .bottom-nav-tech-label {
+  /* Trên màn hình hẹp di động, ẩn tech links để nhường toàn bộ không gian cho việc đọc */
+  .bottom-nav-tech {
     display: none;
   }
 }
@@ -2895,4 +2909,791 @@ a.btn-icon:hover {
 .skill-prompt-editor-text {
   resize: vertical;
   line-height: 1.5;
+}
+
+
+/* ============================================================
+   TRẢI NGHIỆM ĐỌC NÂNG CAO (READING EXPERIENCE STYLES)
+   Bao gồm: Thanh tiến trình, Bảng tùy chỉnh đọc (Aa), Sepia Theme,
+   Mục lục động (TOC), Khối mã có nút copy, Callouts, Điều hướng bài.
+   ============================================================ */
+
+/* 1. Thanh tiến trình đọc trên đỉnh trang */
+.reading-progress-track {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: transparent;
+  z-index: 9999;
+  pointer-events: none;
+}
+.reading-progress-fill {
+  height: 100%;
+  background: var(--primary);
+  border-radius: 0 2px 2px 0;
+  transition: width 0.08s linear;
+  box-shadow: 0 0 8px var(--primary);
+}
+
+/* 2. Theme đọc Sepia (Giấy ngà ấm áp) */
+[data-reading-theme='sepia'] {
+  --bg: #f8f1e5;
+  --card: #f2e9dc;
+  --border: #dfd3c1;
+  --text: #2d2822;
+  --muted: #7d7265;
+  --primary: #9e6429;
+  --primary-hover: #b07233;
+  --primary-soft: rgba(158, 100, 41, 0.12);
+  --ring: rgba(158, 100, 41, 0.35);
+  --subtle: #ede1ce;
+  --hover-bg: #e6dab7;
+  --code-bg: #eae0cf;
+  --glass-bg: rgba(248, 241, 229, 0.85);
+  --glass-border: rgba(45, 40, 34, 0.08);
+}
+
+/* 3. Phông chữ theo thiết lập đọc */
+[data-reading-font='sans'] .markdown-body,
+[data-reading-font='sans'] .note-content {
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', Inter, sans-serif;
+}
+[data-reading-font='serif'] .markdown-body,
+[data-reading-font='serif'] .note-content {
+  font-family: Charter, 'New York', Georgia, 'Merriweather', Cambria, serif;
+}
+[data-reading-font='mono'] .markdown-body,
+[data-reading-font='mono'] .note-content {
+  font-family: 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
+}
+
+/* 4. Khung chứa bài viết với độ rộng và cỡ chữ tùy chỉnh */
+.reading-doc-container {
+  width: 100%;
+  max-width: var(--reading-max-width, 100%);
+  margin: 0 auto;
+  font-size: var(--reading-font-size, 16px);
+  line-height: var(--reading-line-height, 1.75);
+  transition: max-width 0.25s var(--ease);
+}
+.reading-doc-container .markdown-body,
+.reading-doc-container .note-content.readonly {
+  font-size: inherit;
+  line-height: inherit;
+}
+
+/* Thống kê bài viết (viên thuốc) */
+.reading-stats-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--muted);
+  background: var(--subtle);
+  padding: 3px 9px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border);
+}
+
+/* 5. Khối mã lệnh CodeBlock có nút copy và nhãn ngôn ngữ */
+.code-block-wrapper {
+  margin: 16px 0;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--code-bg);
+  overflow: hidden;
+}
+.code-block-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 12px;
+  background: var(--subtle);
+  border-bottom: 1px solid var(--border);
+  font-size: 11px;
+  font-family: 'SF Mono', Menlo, Consolas, monospace;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  color: var(--muted);
+}
+.code-block-copy-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--muted);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.code-block-copy-btn:hover {
+  color: var(--text);
+  background: var(--hover-bg);
+  border-color: var(--border);
+}
+.code-block-wrapper pre {
+  margin: 0;
+  padding: 12px 14px;
+  background: transparent;
+  border-radius: 0;
+  overflow-x: auto;
+}
+.code-block-wrapper pre code {
+  background: transparent !important;
+  padding: 0 !important;
+  border-radius: 0 !important;
+  font-family: 'SF Mono', Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+  font-size: 13px;
+  line-height: 1.6;
+  tab-size: 2;
+  white-space: pre;
+  word-spacing: normal;
+  word-break: normal;
+  word-wrap: normal;
+  color: var(--text);
+}
+
+/* ============================================================
+   TÔ SÁNG CÚ PHÁP (PRISM SYNTAX HIGHLIGHTING)
+   Hỗ trợ 3 chế độ đọc: Sáng, Tối và Sepia
+   ============================================================ */
+
+/* 1. Mặc định / Sáng (Light Theme) */
+.token.comment,
+.token.prolog,
+.token.doctype,
+.token.cdata {
+  color: #6e7781;
+  font-style: italic;
+}
+.token.punctuation {
+  color: #57606a;
+}
+.token.property,
+.token.tag,
+.token.boolean,
+.token.number,
+.token.constant,
+.token.symbol {
+  color: #0550ae;
+}
+.token.selector,
+.token.attr-name,
+.token.string,
+.token.char,
+.token.builtin {
+  color: #0a3069;
+}
+.token.operator,
+.token.entity,
+.token.url {
+  color: #cf222e;
+}
+.token.atrule,
+.token.attr-value,
+.token.keyword {
+  color: #cf222e;
+  font-weight: 500;
+}
+.token.function,
+.token.class-name {
+  color: #8250df;
+}
+.token.regex,
+.token.important,
+.token.variable {
+  color: #953800;
+}
+.token.important,
+.token.bold {
+  font-weight: bold;
+}
+.token.italic {
+  font-style: italic;
+}
+.token.entity {
+  cursor: help;
+}
+.token.inserted {
+  color: #116329;
+  background-color: #dafbe1;
+}
+.token.deleted {
+  color: #82071e;
+  background-color: #ffebe9;
+}
+
+/* 2. Giao diện Tối (Dark Theme) */
+[data-theme='dark'] .token.comment,
+[data-theme='dark'] .token.prolog,
+[data-theme='dark'] .token.doctype,
+[data-theme='dark'] .token.cdata,
+[data-reading-theme='dark'] .token.comment,
+[data-reading-theme='dark'] .token.prolog,
+[data-reading-theme='dark'] .token.doctype,
+[data-reading-theme='dark'] .token.cdata {
+  color: #8b949e;
+  font-style: italic;
+}
+[data-theme='dark'] .token.punctuation,
+[data-reading-theme='dark'] .token.punctuation {
+  color: #8b949e;
+}
+[data-theme='dark'] .token.property,
+[data-theme='dark'] .token.tag,
+[data-theme='dark'] .token.boolean,
+[data-theme='dark'] .token.number,
+[data-theme='dark'] .token.constant,
+[data-theme='dark'] .token.symbol,
+[data-reading-theme='dark'] .token.property,
+[data-reading-theme='dark'] .token.tag,
+[data-reading-theme='dark'] .token.boolean,
+[data-reading-theme='dark'] .token.number,
+[data-reading-theme='dark'] .token.constant,
+[data-reading-theme='dark'] .token.symbol {
+  color: #79c0ff;
+}
+[data-theme='dark'] .token.selector,
+[data-theme='dark'] .token.attr-name,
+[data-theme='dark'] .token.string,
+[data-theme='dark'] .token.char,
+[data-theme='dark'] .token.builtin,
+[data-reading-theme='dark'] .token.selector,
+[data-reading-theme='dark'] .token.attr-name,
+[data-reading-theme='dark'] .token.string,
+[data-reading-theme='dark'] .token.char,
+[data-reading-theme='dark'] .token.builtin {
+  color: #a5d6ff;
+}
+[data-theme='dark'] .token.operator,
+[data-theme='dark'] .token.entity,
+[data-theme='dark'] .token.url,
+[data-reading-theme='dark'] .token.operator,
+[data-reading-theme='dark'] .token.entity,
+[data-reading-theme='dark'] .token.url {
+  color: #ff7b72;
+}
+[data-theme='dark'] .token.atrule,
+[data-theme='dark'] .token.attr-value,
+[data-theme='dark'] .token.keyword,
+[data-reading-theme='dark'] .token.atrule,
+[data-reading-theme='dark'] .token.attr-value,
+[data-reading-theme='dark'] .token.keyword {
+  color: #ff7b72;
+  font-weight: 500;
+}
+[data-theme='dark'] .token.function,
+[data-theme='dark'] .token.class-name,
+[data-reading-theme='dark'] .token.function,
+[data-reading-theme='dark'] .token.class-name {
+  color: #d2a8ff;
+}
+[data-theme='dark'] .token.regex,
+[data-theme='dark'] .token.important,
+[data-theme='dark'] .token.variable,
+[data-reading-theme='dark'] .token.regex,
+[data-reading-theme='dark'] .token.important,
+[data-reading-theme='dark'] .token.variable {
+  color: #ffa657;
+}
+[data-theme='dark'] .token.inserted,
+[data-reading-theme='dark'] .token.inserted {
+  color: #aff5b4;
+  background-color: rgba(46, 160, 67, 0.15);
+}
+[data-theme='dark'] .token.deleted,
+[data-reading-theme='dark'] .token.deleted {
+  color: #ffdcd7;
+  background-color: rgba(248, 81, 73, 0.15);
+}
+
+/* 3. Giao diện Sepia (Sepia Theme) */
+[data-reading-theme='sepia'] .token.comment,
+[data-reading-theme='sepia'] .token.prolog,
+[data-reading-theme='sepia'] .token.doctype,
+[data-reading-theme='sepia'] .token.cdata {
+  color: #8a7b68;
+  font-style: italic;
+}
+[data-reading-theme='sepia'] .token.punctuation {
+  color: #6e5f4c;
+}
+[data-reading-theme='sepia'] .token.property,
+[data-reading-theme='sepia'] .token.tag,
+[data-reading-theme='sepia'] .token.boolean,
+[data-reading-theme='sepia'] .token.number,
+[data-reading-theme='sepia'] .token.constant,
+[data-reading-theme='sepia'] .token.symbol {
+  color: #1d578b;
+}
+[data-reading-theme='sepia'] .token.selector,
+[data-reading-theme='sepia'] .token.attr-name,
+[data-reading-theme='sepia'] .token.string,
+[data-reading-theme='sepia'] .token.char,
+[data-reading-theme='sepia'] .token.builtin {
+  color: #236349;
+}
+[data-reading-theme='sepia'] .token.operator,
+[data-reading-theme='sepia'] .token.entity,
+[data-reading-theme='sepia'] .token.url {
+  color: #b2432a;
+}
+[data-reading-theme='sepia'] .token.atrule,
+[data-reading-theme='sepia'] .token.attr-value,
+[data-reading-theme='sepia'] .token.keyword {
+  color: #b2432a;
+  font-weight: 500;
+}
+[data-reading-theme='sepia'] .token.function,
+[data-reading-theme='sepia'] .token.class-name {
+  color: #753f88;
+}
+[data-reading-theme='sepia'] .token.regex,
+[data-reading-theme='sepia'] .token.important,
+[data-reading-theme='sepia'] .token.variable {
+  color: #8a4f15;
+}
+[data-reading-theme='sepia'] .token.inserted {
+  color: #236349;
+  background-color: rgba(35, 99, 73, 0.15);
+}
+[data-reading-theme='sepia'] .token.deleted {
+  color: #b2432a;
+  background-color: rgba(178, 67, 42, 0.15);
+}
+
+/* 6. Hộp Callout / Alert phong cách GitHub */
+.callout-box {
+  margin: 16px 0;
+  padding: 12px 16px;
+  border-radius: var(--radius);
+  border-left: 4px solid var(--primary);
+  background: var(--subtle);
+}
+.callout-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  font-size: 13px;
+  margin-bottom: 6px;
+}
+.callout-note {
+  border-left-color: #0071e3;
+  background: rgba(0, 113, 227, 0.06);
+}
+.callout-note .callout-header {
+  color: #0071e3;
+}
+.callout-tip {
+  border-left-color: #34c759;
+  background: rgba(52, 199, 89, 0.08);
+}
+.callout-tip .callout-header {
+  color: #248a3d;
+}
+.callout-important {
+  border-left-color: #af52de;
+  background: rgba(175, 82, 222, 0.08);
+}
+.callout-important .callout-header {
+  color: #893cb2;
+}
+.callout-warning {
+  border-left-color: #ff9500;
+  background: rgba(255, 149, 0, 0.08);
+}
+.callout-warning .callout-header {
+  color: #b36b00;
+}
+.callout-caution {
+  border-left-color: #ff3b30;
+  background: rgba(255, 59, 48, 0.08);
+}
+.callout-caution .callout-header {
+  color: #d70015;
+}
+.callout-content {
+  font-size: 0.95em;
+  line-height: 1.6;
+}
+.callout-content p {
+  margin: 0;
+}
+
+/* 7. Mục lục động (Table of Contents - TOC) */
+.toc-container {
+  margin: 20px 0;
+  padding: 14px 16px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+.toc-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+.toc-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+.toc-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 260px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.toc-item {
+  font-size: 13px;
+  line-height: 1.4;
+}
+.toc-level-1 {
+  font-weight: 600;
+}
+.toc-level-2 {
+  padding-left: 12px;
+}
+.toc-level-3 {
+  padding-left: 24px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.toc-link {
+  background: none;
+  border: none;
+  color: var(--muted);
+  text-align: left;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 6px;
+  width: 100%;
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+}
+.toc-link:hover {
+  color: var(--primary);
+  background: var(--hover-bg);
+}
+.toc-item.is-active .toc-link {
+  color: var(--primary);
+  background: var(--primary-soft);
+  font-weight: 600;
+}
+
+/* 8. Popover Tùy chỉnh Đọc (Reading Preferences Hub) */
+.reading-popover {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 8px;
+  width: 310px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-lg);
+  z-index: 1000;
+  padding: 16px;
+  backdrop-filter: var(--glass-blur);
+  animation: readingPopIn 0.18s var(--ease);
+}
+@keyframes readingPopIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+.reading-popover-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+.reading-popover-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+.reading-popover-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.reading-pref-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.reading-pref-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--muted);
+}
+.reading-pref-label-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.reading-pref-val {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+}
+.reading-btn-row {
+  display: flex;
+  gap: 4px;
+  background: var(--subtle);
+  padding: 3px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+}
+.reading-pref-btn {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 5px 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--muted);
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+.reading-pref-btn:hover {
+  color: var(--text);
+}
+.reading-pref-btn.is-active {
+  color: var(--text);
+  background: var(--card);
+  box-shadow: var(--shadow-sm);
+  font-weight: 600;
+}
+.font-preview-sans {
+  font-family: -apple-system, sans-serif;
+}
+.font-preview-serif {
+  font-family: Georgia, serif;
+}
+.font-preview-mono {
+  font-family: monospace;
+}
+.reading-stepper-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.reading-step-btn {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--subtle);
+  color: var(--text);
+  font-weight: 600;
+  cursor: pointer;
+}
+.reading-step-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.reading-range-slider {
+  flex: 1;
+  accent-color: var(--primary);
+  cursor: pointer;
+}
+.reading-popover-footer {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+.reading-reset-btn {
+  font-size: 11px;
+  gap: 4px;
+  color: var(--muted);
+}
+.reading-reset-btn:hover {
+  color: var(--danger);
+}
+
+/* 9. Điều hướng Bài trước / Bài tiếp theo (Prev/Next Nav) */
+.prev-next-nav {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin: 36px 0 20px;
+  padding-top: 24px;
+  border-top: 1px solid var(--border);
+}
+.prev-next-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 16px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  text-decoration: none;
+  transition: all 0.2s var(--ease);
+}
+.prev-next-card:hover {
+  border-color: var(--primary);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+.next-card {
+  text-align: right;
+  align-items: flex-end;
+}
+.prev-next-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--muted);
+}
+.prev-next-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+@media (max-width: 600px) {
+  .prev-next-nav {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  .next-card {
+    text-align: left;
+    align-items: flex-start;
+  }
+}
+
+/* 10. Bảng biểu cuộn ngang đáp ứng */
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  margin: 16px 0;
+  border-radius: var(--radius-sm);
+  -webkit-overflow-scrolling: touch;
+}
+
+
+/* 11. Chế độ Split View (soạn & xem song song cho Markdown) */
+.tabs-actions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.md-split-container {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+.md-split-pane {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.md-split-pane.md-split-preview {
+  border-left: 1px solid var(--border);
+  background: var(--bg);
+  overflow-y: auto;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  -webkit-overflow-scrolling: touch;
+}
+.md-split-pane.md-split-preview .reading-doc-container {
+  width: 100%;
+  max-width: var(--reading-max-width, 100%);
+  margin: 0 auto;
+  padding: 16px 20px 24px;
+  box-sizing: border-box;
+}
+.doc-page .md-editor .md-split-pane.md-split-preview .markdown-body {
+  flex: none;
+  min-height: auto;
+  overflow: visible;
+}
+
+/* Khung cuộn mượt cho chế độ Preview trong Editor */
+.md-preview-viewport {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  -webkit-overflow-scrolling: touch;
+}
+.md-preview-viewport .reading-doc-container {
+  width: 100%;
+  max-width: var(--reading-max-width, 100%);
+  margin: 0 auto;
+  padding: 16px 24px 24px;
+  box-sizing: border-box;
+}
+.doc-page .md-editor .md-preview-viewport .markdown-body {
+  flex: none;
+  min-height: auto;
+  overflow: visible;
+}
+
+@media (max-width: 768px) {
+  .btn-split-tab {
+    display: none;
+  }
 }

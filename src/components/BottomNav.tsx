@@ -23,10 +23,9 @@ export default function BottomNav() {
     <footer className="bottom-nav">
       <div className="bottom-nav-inner">
         <span className="bottom-nav-copy">
-          © {copyrightYear} Docs Web. Bảo lưu mọi quyền.
+          © {copyrightYear} Docs Web
         </span>
         <span className="bottom-nav-tech">
-          <span className="bottom-nav-tech-label">Xây dựng bằng</span>
           {TECHS.map((t) => (
             <a
               key={t.label}
