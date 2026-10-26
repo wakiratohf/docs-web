@@ -100,9 +100,21 @@ export default function DocumentEditor({ doc }: { doc: DocItem }) {
     }, 600);
   };
 
-  // Lưu nốt thay đổi còn treo khi rời tài liệu (chỉ ghi, không setState).
+  // Phím tắt Ctrl+S / Cmd+S để lưu ngay lập tức và lưu nốt thay đổi còn treo khi rời tài liệu.
   useEffect(() => {
+    const onSaveKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+        e.preventDefault();
+        window.clearTimeout(timer.current);
+        flush();
+        setSaveState('saved');
+        window.clearTimeout(savedTimer.current);
+        savedTimer.current = window.setTimeout(() => setSaveState('idle'), 2000);
+      }
+    };
+    window.addEventListener('keydown', onSaveKey);
     return () => {
+      window.removeEventListener('keydown', onSaveKey);
       window.clearTimeout(timer.current);
       window.clearTimeout(savedTimer.current);
       flush();
@@ -127,12 +139,13 @@ export default function DocumentEditor({ doc }: { doc: DocItem }) {
   const onChangeType = async (v: DocumentType) => {
     if (v === type) return;
 
-    // Chuyển đổi thông minh: từ HTML sang Markdown nếu người dùng đồng ý
-    if (type === 'html' && v === 'markdown' && content.trim()) {
+    // Chuyển đổi thông minh: từ HTML hoặc Note (rich-text) sang Markdown nếu người dùng đồng ý
+    if ((type === 'html' || type === 'note') && v === 'markdown' && content.trim()) {
+      const sourceName = type === 'html' ? 'HTML' : 'Note (rich-text)';
       const convert = await confirm({
         title: 'Chuyển đổi sang Markdown',
         message:
-          'Bạn đang đổi từ tài liệu HTML sang Markdown. Bạn có muốn tự động chuyển đổi mã HTML này thành cú pháp Markdown chuẩn không?',
+          `Bạn đang đổi từ tài liệu ${sourceName} sang Markdown. Bạn có muốn tự động chuyển đổi mã nội dung này thành cú pháp Markdown chuẩn không?`,
         confirmText: 'Chuyển đổi sang Markdown',
         cancelText: 'Giữ nguyên mã thô',
       });

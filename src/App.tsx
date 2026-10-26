@@ -8,11 +8,11 @@ import { ConfirmProvider } from './context/ConfirmContext';
 import Spinner from './components/Spinner';
 import BottomNav from './components/BottomNav';
 import DriveSyncBanner from './components/DriveSyncBanner';
-import DocsAllPage from './pages/DocsAllPage';
 import LoginPage from './pages/LoginPage';
 
 // Code-split các trang không cần ngay lúc mở app (trình soạn thảo kéo theo
-// mermaid/react-markdown khá nặng) — chỉ tải khi điều hướng tới.
+// mermaid/react-markdown khá nặng, import web kéo readability/turndown) — chỉ tải khi điều hướng tới.
+const DocsAllPage = lazy(() => import('./pages/DocsAllPage'));
 const FolderPage = lazy(() => import('./pages/FolderPage'));
 const BatchUploadPage = lazy(() => import('./pages/BatchUploadPage'));
 const DocViewerPage = lazy(() => import('./pages/DocViewerPage'));

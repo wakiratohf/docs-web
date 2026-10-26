@@ -82,11 +82,25 @@ export default function NoteEditor({ value, onChange }: Props) {
       confirmText: 'Chèn',
     });
     if (url && savedRange) {
+      const raw = url.trim();
+      // Chặn các scheme nguy hiểm (javascript:, vbscript:, data:)
+      if (/^(javascript|vbscript|data):/i.test(raw)) return;
+      // Tự động thêm https:// nếu người dùng chỉ nhập tên miền (không có scheme)
+      const cleanUrl = /^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(raw) ? raw : `https://${raw}`;
+
       elRef.current?.focus();
       const sel2 = window.getSelection();
       sel2?.removeAllRanges();
       sel2?.addRange(savedRange);
-      exec('createLink', url);
+      exec('createLink', cleanUrl);
+    }
+  };
+
+  const onKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    // Phím tắt Ctrl+K / Cmd+K để chèn link
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+      e.preventDefault();
+      void onLink();
     }
   };
 
@@ -98,13 +112,13 @@ export default function NoteEditor({ value, onChange }: Props) {
   return (
     <div className="note-editor">
       <div className="toolbar" onMouseDown={keepFocus}>
-        <button type="button" title="Đậm" aria-label="Đậm" onClick={() => exec('bold')}>
+        <button type="button" title="Đậm (Ctrl+B)" aria-label="Đậm" onClick={() => exec('bold')}>
           <Bold size={ICON} aria-hidden="true" />
         </button>
-        <button type="button" title="Nghiêng" aria-label="Nghiêng" onClick={() => exec('italic')}>
+        <button type="button" title="Nghiêng (Ctrl+I)" aria-label="Nghiêng" onClick={() => exec('italic')}>
           <Italic size={ICON} aria-hidden="true" />
         </button>
-        <button type="button" title="Gạch chân" aria-label="Gạch chân" onClick={() => exec('underline')}>
+        <button type="button" title="Gạch chân (Ctrl+U)" aria-label="Gạch chân" onClick={() => exec('underline')}>
           <Underline size={ICON} aria-hidden="true" />
         </button>
         <button type="button" title="Gạch ngang" aria-label="Gạch ngang" onClick={() => exec('strikeThrough')}>
@@ -131,7 +145,7 @@ export default function NoteEditor({ value, onChange }: Props) {
           <Code size={ICON} aria-hidden="true" />
         </button>
         <span className="sep" />
-        <button type="button" title="Chèn link" aria-label="Chèn link" onClick={onLink}>
+        <button type="button" title="Chèn link (Ctrl+K)" aria-label="Chèn link" onClick={onLink}>
           <Link2 size={ICON} aria-hidden="true" />
         </button>
         <button type="button" title="Xóa định dạng" aria-label="Xóa định dạng" onClick={() => exec('removeFormat')}>
@@ -145,6 +159,7 @@ export default function NoteEditor({ value, onChange }: Props) {
         suppressContentEditableWarning
         onInput={emit}
         onPaste={onPaste}
+        onKeyDown={onKeyDown}
         data-placeholder="Bắt đầu viết…"
       />
     </div>

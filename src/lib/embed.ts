@@ -13,9 +13,14 @@ export interface EmbedInfo {
 }
 
 // Parse URL an toàn (trả null nếu không hợp lệ hoặc không phải http/https).
+// Hỗ trợ trích xuất tự động nếu người dùng dán cả đoạn mã <iframe>.
 function parseUrl(raw: string): URL | null {
-  const s = raw.trim();
+  let s = raw.trim();
   if (!s) return null;
+  const iframeMatch = s.match(/<iframe[^>]+src=["'](https?:\/\/[^"']+)["']/i);
+  if (iframeMatch) {
+    s = iframeMatch[1];
+  }
   try {
     const u = new URL(s);
     if (u.protocol !== 'http:' && u.protocol !== 'https:') return null;
@@ -23,6 +28,21 @@ function parseUrl(raw: string): URL | null {
   } catch {
     return null;
   }
+}
+
+// Chuyển đổi tham số thời gian YouTube (vd '120', '120s', '1m30s') sang số giây
+function parseYoutubeTime(t: string | null): string | null {
+  if (!t) return null;
+  if (/^\d+s?$/.test(t)) return t.replace('s', '');
+  const m = t.match(/^(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?$/);
+  if (m) {
+    const hours = parseInt(m[1] || '0', 10);
+    const mins = parseInt(m[2] || '0', 10);
+    const secs = parseInt(m[3] || '0', 10);
+    const total = hours * 3600 + mins * 60 + secs;
+    if (total > 0) return String(total);
+  }
+  return null;
 }
 
 // Lấy fileId Google từ đường dẫn dạng /d/{id}/... (Docs, Sheets, Slides, Drive).
@@ -40,11 +60,23 @@ export function toEmbedUrl(raw: string): EmbedInfo {
   // --- YouTube: watch?v=, youtu.be/, shorts/, embed/ ---
   if (host === 'youtube.com' || host === 'm.youtube.com') {
     const id = u.searchParams.get('v') || u.pathname.match(/\/(?:shorts|embed)\/([^/]+)/)?.[1];
-    if (id) return { url: `https://www.youtube.com/embed/${id}`, provider: 'YouTube' };
+    if (id) {
+      const start = parseYoutubeTime(u.searchParams.get('t') || u.searchParams.get('start'));
+      const embedUrl = start
+        ? `https://www.youtube.com/embed/${id}?start=${start}`
+        : `https://www.youtube.com/embed/${id}`;
+      return { url: embedUrl, provider: 'YouTube' };
+    }
   }
   if (host === 'youtu.be') {
     const id = u.pathname.slice(1).split('/')[0];
-    if (id) return { url: `https://www.youtube.com/embed/${id}`, provider: 'YouTube' };
+    if (id) {
+      const start = parseYoutubeTime(u.searchParams.get('t') || u.searchParams.get('start'));
+      const embedUrl = start
+        ? `https://www.youtube.com/embed/${id}?start=${start}`
+        : `https://www.youtube.com/embed/${id}`;
+      return { url: embedUrl, provider: 'YouTube' };
+    }
   }
 
   // --- Vimeo: vimeo.com/{id} → player.vimeo.com/video/{id} ---

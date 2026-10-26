@@ -44,9 +44,10 @@ export async function filesToItems(
   return files.map((f, i) => {
     const type = detectType(f.name);
     let content = contents[i];
+    const isMdExt = /\.(md|markdown)$/i.test(f.name);
     if (type === 'note') {
       content = extractHtmlBody(content);
-    } else if (type === 'markdown' && (f.name.endsWith('.html') || f.name.endsWith('.htm') || isMeaningfulHtml(content))) {
+    } else if (!isMdExt && type === 'markdown' && isMeaningfulHtml(content)) {
       content = htmlToMarkdown(content);
     }
     return {

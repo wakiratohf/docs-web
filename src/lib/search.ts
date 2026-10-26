@@ -6,9 +6,12 @@ import type { DocItem } from '../types';
  */
 export function stripHtml(html: string): string {
   if (!html) return '';
-  const div = document.createElement('div');
-  div.innerHTML = html;
-  return div.textContent ?? '';
+  try {
+    const parsed = new DOMParser().parseFromString(html, 'text/html');
+    return parsed.body?.textContent ?? '';
+  } catch {
+    return '';
+  }
 }
 
 /** Lấy phần chữ thuần để dò theo nội dung, tùy loại tài liệu. */
