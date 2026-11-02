@@ -82,10 +82,11 @@ export default function BatchUploadPage() {
         let content = contents[i];
         const isHtmlFile =
           it.file.name.toLowerCase().endsWith('.html') ||
-          it.file.name.toLowerCase().endsWith('.htm');
+          it.file.name.toLowerCase().endsWith('.htm') ||
+          it.file.name.toLowerCase().endsWith('.xhtml');
 
         // Nếu người dùng chọn lưu loại markdown nhưng file gốc là HTML: tự động convert sang Markdown
-        if (it.type === 'markdown' && (isHtmlFile || isMeaningfulHtml(content))) {
+        if (it.type === 'markdown' && isHtmlFile && isMeaningfulHtml(content)) {
           content = htmlToMarkdown(content);
         } else if (it.type === 'note') {
           content = extractHtmlBody(content);

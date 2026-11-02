@@ -1,7 +1,13 @@
 import { useCallback } from 'react';
 import { useDocuments } from '../context/DocumentsContext';
 import { useConfirm } from '../context/ConfirmContext';
-import { filesToItems, type UploadItem } from '../lib/uploadHelpers';
+import { useToast } from '../context/ToastContext';
+import {
+  filesToItems,
+  isBinaryFileName,
+  MAX_FILE_SIZE_BYTES,
+  type UploadItem,
+} from '../lib/uploadHelpers';
 
 // Tên folder mặc định dùng khi tải lên mà không chọn folder đích.
 export const DEFAULT_UPLOAD_FOLDER_NAME = 'Uncategorized';
@@ -27,6 +33,7 @@ export function useUploadDocuments() {
   const { documents, folders, addDocuments, addFolder, updateDocument } =
     useDocuments();
   const confirm = useConfirm();
+  const { toastInfo, toastError } = useToast();
 
   // Ghi danh sách item đã đọc sẵn nội dung vào folder đích.
   const commitItems = useCallback(
@@ -109,10 +116,41 @@ export function useUploadDocuments() {
     ): Promise<UploadResult> => {
       const arr = Array.from(files);
       if (arr.length === 0) return { created: 0, replaced: 0, skipped: 0 };
-      const items = await filesToItems(arr);
+
+      // Lọc các file nhị phân (PDF, zip, exe, ảnh...) để tránh lưu rác vào Realtime Database
+      const binaryFiles = arr.filter((f) => isBinaryFileName(f.name));
+      const validTextFiles = arr.filter(
+        (f) => !isBinaryFileName(f.name) && f.size <= MAX_FILE_SIZE_BYTES,
+      );
+
+      if (binaryFiles.length > 0) {
+        const hasPdf = binaryFiles.some((f) => f.name.toLowerCase().endsWith('.pdf'));
+        if (hasPdf) {
+          toastInfo(
+            'File PDF cần tải qua nút "Thêm PDF" để lưu lên Google Drive và hiển thị xem trước.',
+          );
+        } else {
+          toastInfo(
+            `Đã bỏ qua ${binaryFiles.length} file nhị phân không phải dạng văn bản/HTML.`,
+          );
+        }
+      }
+
+      const oversized = arr.filter((f) => f.size > MAX_FILE_SIZE_BYTES);
+      if (oversized.length > 0) {
+        toastError(
+          `Đã bỏ qua ${oversized.length} file vượt quá kích thước cho phép (tối đa 8MB).`,
+        );
+      }
+
+      if (validTextFiles.length === 0) {
+        return { created: 0, replaced: 0, skipped: 0 };
+      }
+
+      const items = await filesToItems(validTextFiles);
       return await commitItems(items, folderId);
     },
-    [commitItems],
+    [commitItems, toastInfo, toastError],
   );
 
   return { uploadFiles, commitItems };

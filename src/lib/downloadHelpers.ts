@@ -39,8 +39,25 @@ ${body}
 }
 
 // Tải tài liệu về máy người xem: note → file .html, markdown → file .md.
+// Với PDF hoặc Embed, mở link tải trực tiếp hoặc trang gốc.
 // Dùng Blob + thẻ <a download> tạm rồi tự dọn dẹp (cách tải file thuần client).
 export function downloadDocument(doc: DocItem): void {
+  if (doc.type === 'pdf') {
+    const id = doc.content.trim();
+    if (id) {
+      window.open(`https://drive.google.com/uc?export=download&id=${id}`, '_blank');
+      return;
+    }
+  }
+
+  if (doc.type === 'embed') {
+    const url = doc.content.trim();
+    if (url) {
+      window.open(url, '_blank');
+      return;
+    }
+  }
+
   // note (rich-text) & html (mã thô) đều xuất .html; markdown ⇒ .md.
   const isHtmlFile = doc.type === 'note' || doc.type === 'html';
   const ext = isHtmlFile ? 'html' : 'md';

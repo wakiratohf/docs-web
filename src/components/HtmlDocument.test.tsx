@@ -23,14 +23,18 @@ describe('HtmlDocument', () => {
     expect(sandbox).not.toContain('allow-same-origin');
   });
 
-  it('injects resize reporting script into srcDoc', () => {
-    const rawHtml = '<!DOCTYPE html><html><body><p>Test</p></body></html>';
+  it('injects head preparation script (storage polyfill + safe links) and resize reporting script into srcDoc', () => {
+    const rawHtml = '<!DOCTYPE html><html><head><title>Test</title></head><body><p>Test</p></body></html>';
     render(<HtmlDocument value={rawHtml} />);
 
     const iframe = screen.getByTitle('Nội dung HTML') as HTMLIFrameElement;
     const srcDoc = iframe.getAttribute('srcDoc') || '';
 
     expect(srcDoc).toContain('<p>Test</p>');
+    // Head script
+    expect(srcDoc).toContain('localStorage');
+    expect(srcDoc).toContain('noopener noreferrer');
+    // Body script
     expect(srcDoc).toContain('docs-html-frame-resize');
     expect(srcDoc).toContain('window.parent.postMessage');
   });

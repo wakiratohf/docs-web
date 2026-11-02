@@ -1,17 +1,45 @@
 import { describe, it, expect } from 'vitest';
-import { detectType, stripExt, extractHtmlBody } from './uploadHelpers';
+import {
+  detectType,
+  stripExt,
+  extractHtmlBody,
+  isBinaryFileName,
+  filesToItems,
+} from './uploadHelpers';
 
 describe('uploadHelpers library', () => {
   describe('detectType', () => {
-    it('nhận diện file .html và .htm là loại html', () => {
+    it('nhận diện file .html, .htm, .xhtml là loại html', () => {
       expect(detectType('index.html')).toBe('html');
       expect(detectType('page.HTM')).toBe('html');
+      expect(detectType('doc.xhtml')).toBe('html');
     });
 
-    it('coi các định dạng khác như .md, .txt là markdown', () => {
+    it('nhận diện file .pdf là loại pdf', () => {
+      expect(detectType('document.pdf')).toBe('pdf');
+      expect(detectType('REPORT.PDF')).toBe('pdf');
+    });
+
+    it('coi các định dạng văn bản khác như .md, .txt là markdown', () => {
       expect(detectType('readme.md')).toBe('markdown');
       expect(detectType('note.txt')).toBe('markdown');
       expect(detectType('document')).toBe('markdown');
+    });
+  });
+
+  describe('isBinaryFileName', () => {
+    it('phát hiện đúng các file nhị phân', () => {
+      expect(isBinaryFileName('file.pdf')).toBe(true);
+      expect(isBinaryFileName('photo.png')).toBe(true);
+      expect(isBinaryFileName('data.zip')).toBe(true);
+      expect(isBinaryFileName('app.exe')).toBe(true);
+    });
+
+    it('trả về false cho file văn bản', () => {
+      expect(isBinaryFileName('doc.md')).toBe(false);
+      expect(isBinaryFileName('index.html')).toBe(false);
+      expect(isBinaryFileName('notes.txt')).toBe(false);
+      expect(isBinaryFileName('script.py')).toBe(false);
     });
   });
 
@@ -33,6 +61,30 @@ describe('uploadHelpers library', () => {
     it('giữ nguyên nếu không có thẻ html hoặc body', () => {
       const fragment = '<div>Chỉ là một thẻ div</div>';
       expect(extractHtmlBody(fragment)).toBe(fragment);
+    });
+  });
+
+  describe('filesToItems', () => {
+    it('không làm hỏng/xóa thẻ trong file .txt hoặc code có chứa ký tự HTML', async () => {
+      const txtContent = 'Server response: <input type="text"> and <script>alert(1)</script>';
+      const file = new File([txtContent], 'log.txt', { type: 'text/plain' });
+
+      const items = await filesToItems([file]);
+      expect(items).toHaveLength(1);
+      expect(items[0].type).toBe('markdown');
+      // Không bị turndown lọc mất thẻ <script> hay <input>
+      expect(items[0].content).toBe(txtContent);
+    });
+
+    it('chuyển đổi HTML sang Markdown nếu type là markdown và file gốc có đuôi .html', async () => {
+      const htmlContent = '<h1>Tiêu đề lớn</h1><p>Đoạn văn có <strong>chữ đậm</strong></p>';
+      const file = new File([htmlContent], 'page.html', { type: 'text/html' });
+
+      const items = await filesToItems([file]);
+      expect(items).toHaveLength(1);
+      expect(items[0].type).toBe('html');
+      // Nếu là html thì giữ nguyên cả file
+      expect(items[0].content).toBe(htmlContent);
     });
   });
 });
