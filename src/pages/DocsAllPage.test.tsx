@@ -224,4 +224,65 @@ describe('DocsAllPage view modes dropdown', () => {
     expect(viewTrigger.getAttribute('aria-expanded')).toBe('false');
     expect(document.activeElement).toBe(viewTrigger);
   });
+
+  it('hiển thị số thư mục con và badge thư mục con cho folder cha ở trang chủ', () => {
+    mockDocsState = {
+      folders: [
+        {
+          id: 'f-parent',
+          name: 'Dự án Lớn',
+          order: 0,
+          createdAt: '2026-01-01T00:00:00.000Z',
+        },
+        {
+          id: 'f-sub1',
+          name: 'v1.52',
+          parentId: 'f-parent',
+          order: 0,
+          createdAt: '2026-01-02T00:00:00.000Z',
+        },
+        {
+          id: 'f-sub2',
+          name: 'v1.53',
+          parentId: 'f-parent',
+          order: 1,
+          createdAt: '2026-01-03T00:00:00.000Z',
+        },
+      ],
+      documents: [
+        {
+          id: 'd1',
+          type: 'html',
+          title: 'Config v1.53',
+          content: '<p>abc</p>',
+          folderId: 'f-sub2',
+          order: 0,
+          createdAt: '2026-01-04T00:00:00.000Z',
+          updatedAt: '2026-01-04T00:00:00.000Z',
+        },
+      ],
+      skills: [],
+      loading: false,
+    };
+
+    const { container } = renderHome();
+
+    // Folder cha phải hiển thị ở trang chủ, còn các subfolder không hiện ở root grid
+    expect(screen.getByText('Dự án Lớn')).toBeTruthy();
+    expect(screen.queryByText('v1.52')).toBeNull();
+    expect(screen.queryByText('v1.53')).toBeNull();
+
+    // Hiển thị badge số thư mục con dưới tên
+    expect(screen.getByText('📁 2 thư mục con')).toBeTruthy();
+
+    // Hiển thị badge nhỏ trên icon box
+    const subBadge = container.querySelector('.folder-sub-badge');
+    expect(subBadge).toBeTruthy();
+    expect(subBadge?.textContent).toContain('2');
+
+    // Hiển thị tổng số tài liệu trong cây (1 tài liệu từ subfolder)
+    const countBadge = container.querySelector('.folder-count');
+    expect(countBadge).toBeTruthy();
+    expect(countBadge?.textContent).toBe('1');
+  });
 });

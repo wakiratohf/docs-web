@@ -36,7 +36,11 @@ import {
   type HomeViewMode,
 } from '../lib/homeView';
 import { STICKY_COLORS, DEFAULT_STICKY_COLOR } from '../lib/stickyColors';
-import { getRootFolders, getSubfolders } from '../lib/folderTree';
+import {
+  getRootFolders,
+  getFolderDescendantIds,
+  countAllDocsInTree,
+} from '../lib/folderTree';
 import type { DocItem, DocumentType, Folder, FolderViewType, SkillItem } from '../types';
 
 // Tra nhanh mã màu swatch theo key để tô ô mini của folder sticky.
@@ -505,10 +509,36 @@ export default function DocsAllPage() {
         <div className="home-grid">
           {/* Ô folder — bấm để mở trang chi tiết */}
           {sortedFolders.map((f) => {
-            // Số tệp hiển thị trong badge: đúng loại nội dung đang đổ vào lưới mini bên dưới.
-            const count =
-              f.viewType === 'skill' ? skillsOf(f.id).length : docsOf(f.id).length;
-            const subCount = getSubfolders(f.id, folders).length;
+            const descendantIds = getFolderDescendantIds(f.id, folders);
+            const subCount = descendantIds.length;
+            const isSkill = f.viewType === 'skill';
+
+            // Tính tổng số tệp (tài liệu hoặc skill) trong cả cây thư mục
+            const allTreeIds = [f.id, ...descendantIds];
+            const totalDocs = countAllDocsInTree(f.id, folders, docsByFolder);
+            const totalSkills = isSkill
+              ? allTreeIds.reduce(
+                  (sum, fid) => sum + (skillsByFolder.get(fid)?.length ?? 0),
+                  0,
+                )
+              : 0;
+            const count = isSkill ? totalSkills : totalDocs;
+
+            // Dữ liệu mẫu đổ vào lưới mini 3x3 (ưu tiên trực tiếp, nếu rỗng thì gom từ subfolder)
+            const miniSkills = isSkill
+              ? (skillsOf(f.id).length > 0
+                  ? skillsOf(f.id)
+                  : allTreeIds.flatMap((fid) => skillsOf(fid))
+                ).slice(0, 9)
+              : [];
+
+            const miniDocs = !isSkill
+              ? (docsOf(f.id).length > 0
+                  ? docsOf(f.id)
+                  : allTreeIds.flatMap((fid) => docsOf(fid))
+                ).slice(0, 9)
+              : [];
+
             return (
               <div
                 key={f.id}
@@ -525,7 +555,7 @@ export default function DocsAllPage() {
                 onDragOver={(e) => allowDrop(e, f.id)}
                 onDragLeave={() => setDragOver((k) => (k === f.id ? null : k))}
                 onDrop={(e) => onDropToFolder(e, f.id)}
-                title={f.name}
+                title={`${f.name}${subCount > 0 ? ` (${subCount} thư mục con, ${count} tệp)` : ` (${count} tệp)`}`}
               >
                 <span className="folder-icon-box">
                   {/* Nút ghim: bấm để ghim/bỏ ghim, chặn nổi bọt để không mở folder */}
@@ -543,47 +573,56 @@ export default function DocsAllPage() {
                     <Pin size={14} aria-hidden="true" />
                   </button>
                   {count > 0 && (
-                    <span className="folder-count" title={`${count} tệp`}>
+                    <span className="folder-count" title={`${count} ${isSkill ? 'skill' : 'tệp'}`}>
                       {count}
                     </span>
                   )}
+                  {subCount > 0 && (
+                    <span
+                      className="folder-sub-badge"
+                      title={`${subCount} thư mục con bên trong`}
+                    >
+                      📁 {subCount}
+                    </span>
+                  )}
                   <span className="folder-mini">
-                    {f.viewType === 'skill'
-                      ? // Folder skill: ô mini hiện emoji của từng skill.
-                        skillsOf(f.id)
-                          .slice(0, 9)
-                          .map((s) => (
-                            <span key={s.id} className="mini-skill" aria-hidden="true">
-                              {s.icon || '🧩'}
-                            </span>
-                          ))
-                      : docsOf(f.id)
-                          .slice(0, 9)
-                          .map((d) =>
-                            // Folder sticky: ô mini tô theo màu giấy nhớ của tài liệu.
-                            f.viewType === 'sticky' ? (
-                              <span
-                                key={d.id}
-                                className="mini-doc"
-                                style={{
-                                  background: SWATCH_BY_KEY.get(
-                                    d.color ?? DEFAULT_STICKY_COLOR,
-                                  ),
-                                }}
-                              />
-                            ) : (
-                              <span key={d.id} className={`mini-doc mini-${d.type}`} />
-                            ),
-                          )}
+                    {isSkill
+                      ? miniSkills.map((s) => (
+                          <span key={s.id} className="mini-skill" aria-hidden="true">
+                            {s.icon || '🧩'}
+                          </span>
+                        ))
+                      : miniDocs.map((d) =>
+                          f.viewType === 'sticky' ? (
+                            <span
+                              key={d.id}
+                              className="mini-doc"
+                              style={{
+                                background: SWATCH_BY_KEY.get(
+                                  d.color ?? DEFAULT_STICKY_COLOR,
+                                ),
+                              }}
+                            />
+                          ) : (
+                            <span key={d.id} className={`mini-doc mini-${d.type}`} />
+                          ),
+                        )}
                   </span>
                 </span>
                 <span className="tile-label">
                   <span className="tile-name">{f.name}</span>
-                  {subCount > 0 && (
-                    <span className="tile-subfolder-count muted" title={`${subCount} thư mục con`}>
-                      {subCount} thư mục con
+                  {subCount > 0 ? (
+                    <span
+                      className="tile-subfolder-count"
+                      title={`${subCount} thư mục con bên trong`}
+                    >
+                      📁 {subCount} thư mục con
                     </span>
-                  )}
+                  ) : count > 0 ? (
+                    <span className="tile-doc-count muted">
+                      {count} {isSkill ? 'skill' : 'tài liệu'}
+                    </span>
+                  ) : null}
                 </span>
               </div>
             );

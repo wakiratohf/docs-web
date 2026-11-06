@@ -43,7 +43,12 @@ import MoveFolderModal from '../components/MoveFolderModal';
 import BreadcrumbNav from '../components/BreadcrumbNav';
 import { searchDocs, plainTextOf } from '../lib/search';
 import { collectAuthors } from '../lib/authors';
-import { getSubfolders, getFolderDepth, MAX_FOLDER_DEPTH } from '../lib/folderTree';
+import {
+  getSubfolders,
+  getFolderDescendantIds,
+  getFolderDepth,
+  MAX_FOLDER_DEPTH,
+} from '../lib/folderTree';
 import { useDebouncedValue } from '../hooks/useDebouncedValue';
 import { STICKY_COLORS, DEFAULT_STICKY_COLOR } from '../lib/stickyColors';
 import type { DocItem, DocumentType, FolderViewType, StickyColor } from '../types';
@@ -693,7 +698,11 @@ export default function FolderPage() {
               </div>
               <div className="subfolders-grid">
                 {subfolders.map((sub) => {
-                  const subDocCount = documents.filter((d) => d.folderId === sub.id).length;
+                  const childSubs = getFolderDescendantIds(sub.id, folders).length;
+                  const allSubTreeDocCount = [sub.id, ...getFolderDescendantIds(sub.id, folders)].reduce(
+                    (sum, fid) => sum + documents.filter((d) => d.folderId === fid).length,
+                    0,
+                  );
                   const isDropTarget = subfolderDragOver === sub.id;
                   return (
                     <div
@@ -712,12 +721,15 @@ export default function FolderPage() {
                         setSubfolderDragOver((id) => (id === sub.id ? null : id))
                       }
                       onDrop={(e) => onDropToSubfolder(e, sub.id)}
-                      title={`Mở thư mục con "${sub.name}" (có thể thả tài liệu hoặc file vào đây)`}
+                      title={`Mở thư mục con "${sub.name}" (${childSubs > 0 ? `${childSubs} thư mục con, ` : ''}${allSubTreeDocCount} tài liệu)`}
                     >
                       <span className="subfolder-icon">📁</span>
                       <div className="subfolder-info">
                         <span className="subfolder-name">{sub.name}</span>
-                        <span className="subfolder-count muted">{subDocCount} tài liệu</span>
+                        <span className="subfolder-count muted">
+                          {childSubs > 0 ? `${childSubs} thư mục con · ` : ''}
+                          {allSubTreeDocCount} tài liệu
+                        </span>
                       </div>
                     </div>
                   );
