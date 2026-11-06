@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useRef, useCallback } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { get, ref } from 'firebase/database';
-import { Download, FileX, Type, ListTree, FoldHorizontal, UnfoldHorizontal } from 'lucide-react';
-import { db } from '../lib/firebase';
+import { get, ref, update } from 'firebase/database';
+import { Download, FileX, Type, ListTree, FoldHorizontal, UnfoldHorizontal, RotateCcw } from 'lucide-react';
+import { auth, db } from '../lib/firebase';
 import type { DocItem } from '../types';
 import HtmlContent from '../components/HtmlContent';
 import HtmlDocument from '../components/HtmlDocument';
@@ -22,6 +22,11 @@ import { extractTocFromHtml, extractTocFromMarkdown } from '../lib/toc';
 import { getTasksSummary } from '../lib/taskLists';
 import { downloadDocument } from '../lib/downloadHelpers';
 import { formatDate } from '../lib/formatDate';
+import {
+  getStoredSharedContent,
+  saveStoredSharedContent,
+  clearStoredSharedContent,
+} from '../lib/sharedContentStorage';
 
 interface SharedPayload {
   document: DocItem;
@@ -34,6 +39,20 @@ export default function SharePage() {
   const { id } = useParams();
   const [state, setState] = useState<ViewState>('loading');
   const [doc, setDoc] = useState<DocItem | null>(null);
+  const [ownerId, setOwnerId] = useState<string | null>(null);
+  const [currentUid, setCurrentUid] = useState<string | null>(auth?.currentUser?.uid ?? null);
+  const [hasLocalHighlights, setHasLocalHighlights] = useState(false);
+  const originalContentRef = useRef<string>('');
+
+  // Lắng nghe trạng thái đăng nhập để xác định chính xác người xem có phải chủ sở hữu không
+  useEffect(() => {
+    if (!auth) return;
+    return auth.onAuthStateChanged((user) => {
+      setCurrentUid(user?.uid ?? null);
+    });
+  }, []);
+
+  const isOwner = Boolean(currentUid && ownerId && currentUid === ownerId);
 
   // Bộ tùy chỉnh đọc công thái học (Font, Giấy ngà, Cỡ chữ, Giãn dòng, Chiều rộng)
   const { prefs, updatePrefs, resetPrefs, containerAttributes } = useReadingPreferences();
@@ -55,7 +74,29 @@ export default function SharePage() {
           setState('notfound');
           return;
         }
-        setDoc(val.document);
+        setOwnerId(val.ownerId);
+        originalContentRef.current = val.document.content;
+
+        const isUserOwner = Boolean(
+          auth?.currentUser?.uid && auth.currentUser.uid === val.ownerId,
+        );
+
+        if (isUserOwner) {
+          // Chủ sở hữu xem link share: xóa cache local để ưu tiên 100% bản server
+          clearStoredSharedContent(id);
+          setHasLocalHighlights(false);
+          setDoc(val.document);
+        } else {
+          // Người xem thông thường: khôi phục highlight cá nhân từ localStorage (nếu có)
+          const cached = getStoredSharedContent(id);
+          if (cached && cached !== val.document.content) {
+            setHasLocalHighlights(true);
+            setDoc({ ...val.document, content: cached });
+          } else {
+            setHasLocalHighlights(false);
+            setDoc(val.document);
+          }
+        }
         setState('ready');
       } catch {
         if (active) setState('error');
@@ -65,6 +106,59 @@ export default function SharePage() {
       active = false;
     };
   }, [id]);
+
+  // Xử lý cập nhật nội dung khi highlight (Kết hợp Firebase nếu là Chủ sở hữu & LocalStorage nếu là Người đọc)
+  const handleContentChange = useCallback(
+    (newContent: string) => {
+      if (!doc || !id) return;
+
+      // Cập nhật state UI ngay lập tức
+      setDoc((prev) => (prev ? { ...prev, content: newContent } : null));
+
+      // 1. Nếu là CHỦ SỞ HỮU: Lưu trực tiếp lên Firebase Database (multi-path update đồng bộ)
+      if (isOwner && db && currentUid) {
+        const now = new Date().toISOString();
+        const updatedDoc: DocItem = {
+          ...doc,
+          content: newContent,
+          updatedAt: now,
+        };
+        const writes: Record<string, unknown> = {
+          [`users/${currentUid}/documents/${id}/content`]: newContent,
+          [`users/${currentUid}/documents/${id}/updatedAt`]: now,
+          [`shared/d/${id}`]: {
+            document: updatedDoc,
+            ownerId: currentUid,
+          },
+        };
+        if (doc.folderId) {
+          writes[`shared/f/${doc.folderId}/documents/${id}/content`] = newContent;
+          writes[`shared/f/${doc.folderId}/documents/${id}/updatedAt`] = now;
+        }
+        clearStoredSharedContent(id);
+        setHasLocalHighlights(false);
+        void update(ref(db), writes);
+      } else {
+        // 2. Nếu là NGƯỜI ĐỌC THƯỜNG: Lưu vào localStorage của trình duyệt người xem
+        if (newContent === originalContentRef.current) {
+          clearStoredSharedContent(id);
+          setHasLocalHighlights(false);
+        } else {
+          saveStoredSharedContent(id, newContent);
+          setHasLocalHighlights(true);
+        }
+      }
+    },
+    [doc, id, isOwner, currentUid],
+  );
+
+  // Đặt lại về bản gốc của tác giả (chỉ áp dụng cho người đọc có highlight cá nhân)
+  const handleResetToOriginal = () => {
+    if (!id || !doc) return;
+    clearStoredSharedContent(id);
+    setHasLocalHighlights(false);
+    setDoc({ ...doc, content: originalContentRef.current });
+  };
 
   // Thống kê bài viết (tổng số từ & thời gian đọc ước tính)
   const stats = useMemo(() => (doc ? getDocReadingStats(doc) : null), [doc]);
@@ -185,6 +279,21 @@ export default function SharePage() {
             onClose={() => setShowPrefs(false)}
           />
 
+          {/* Nút đặt lại bản gốc nếu người đọc thông thường có tô sáng cá nhân */}
+          {!isOwner && hasLocalHighlights && (
+            <button
+              type="button"
+              className="btn-icon"
+              onClick={handleResetToOriginal}
+              title="Xóa các điểm tô sáng cá nhân và quay về bản gốc của tác giả"
+              aria-label="Đặt lại bản gốc"
+              style={{ fontSize: 13, gap: 4 }}
+            >
+              <RotateCcw size={14} aria-hidden="true" />
+              <span>Bản gốc</span>
+            </button>
+          )}
+
           {state === 'ready' && doc && doc.type !== 'pdf' && doc.type !== 'embed' && (
             <button
               type="button"
@@ -197,7 +306,21 @@ export default function SharePage() {
           )}
 
           <ThemeToggle />
-          <span className="badge badge-shared">Chia sẻ công khai · chỉ đọc</span>
+          {isOwner ? (
+            <span
+              className="badge"
+              style={{
+                backgroundColor: 'rgba(34, 197, 94, 0.15)',
+                color: '#16a34a',
+                border: '1px solid rgba(34, 197, 94, 0.3)',
+              }}
+              title="Bạn là chủ sở hữu, mọi tô sáng sẽ được tự động lưu và đồng bộ lên server"
+            >
+              Chủ sở hữu · Đồng bộ tự động
+            </span>
+          ) : (
+            <span className="badge badge-shared">Chia sẻ công khai · chỉ đọc</span>
+          )}
         </div>
       </header>
 
@@ -228,18 +351,14 @@ export default function SharePage() {
             ) : doc.type === 'note' ? (
               <HtmlContent
                 value={doc.content}
-                onContentChange={(newContent) =>
-                  setDoc((prev) => (prev ? { ...prev, content: newContent } : null))
-                }
+                onContentChange={handleContentChange}
               />
             ) : doc.type === 'html' ? (
               <HtmlDocument value={doc.content} />
             ) : (
               <MarkdownPreview
                 content={doc.content}
-                onContentChange={(newContent) =>
-                  setDoc((prev) => (prev ? { ...prev, content: newContent } : null))
-                }
+                onContentChange={handleContentChange}
               />
             )}
           </FullscreenViewer>
