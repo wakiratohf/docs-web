@@ -536,6 +536,26 @@ describe('addDocument / addSkill — tạo trong folder đang chia sẻ', () => 
     expect(writes[`shared/f/f1/documents/${created!.id}`]).toEqual(created);
   });
 
+  it('addDocument rồi gọi ngay updateDocument trong cùng một tick vẫn đồng bộ shared/f', () => {
+    const { result } = setup();
+    seed({ folders: [folder({ id: 'f1', isShared: true })] });
+
+    let created: DocItem | null = null;
+    act(() => {
+      created = result.current.addDocument('pdf', 'Báo cáo PDF', 'f1');
+      result.current.updateDocument(created!.id, {
+        content: 'drive-file-id-999',
+        driveOwned: true,
+      });
+    });
+
+    const writes = lastWrites();
+    const sharedDoc = writes[`shared/f/f1/documents/${created!.id}`] as DocItem;
+    expect(sharedDoc).toBeDefined();
+    expect(sharedDoc.content).toBe('drive-file-id-999');
+    expect(sharedDoc.driveOwned).toBe(true);
+  });
+
   it('addDocument ngoài folder (General) ⇒ không đụng shared/*', () => {
     const { result } = setup();
     seed({});

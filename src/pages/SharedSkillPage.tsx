@@ -1,6 +1,6 @@
 import { useEffect, useState, type CSSProperties } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { get, ref } from 'firebase/database';
+import { onValue, ref } from 'firebase/database';
 import { Download, FileX } from 'lucide-react';
 import { db } from '../lib/firebase';
 import type { SkillItem } from '../types';
@@ -27,29 +27,33 @@ export default function SharedSkillPage() {
   const [skill, setSkill] = useState<SkillItem | null>(null);
   const { fontPx, control } = useFontScale();
 
+  // Lắng nghe realtime (onValue) trên shared/skill/{id} để tự động cập nhật ngầm
+  // khi chủ sở hữu sửa nội dung, thay file nén hoặc tắt chia sẻ.
   useEffect(() => {
-    let active = true;
-    (async () => {
-      if (!db || !id) {
-        setState('error');
-        return;
-      }
-      try {
-        const snap = await get(ref(db, `shared/skill/${id}`));
-        if (!active) return;
+    if (!db || !id) {
+      setState('error');
+      return;
+    }
+    setState('loading');
+    const sharedRef = ref(db, `shared/skill/${id}`);
+    const unsub = onValue(
+      sharedRef,
+      (snap) => {
         const val = snap.val() as SharedSkillPayload | null;
         if (!val || !val.skill) {
+          setSkill(null);
           setState('notfound');
           return;
         }
         setSkill(val.skill);
         setState('ready');
-      } catch {
-        if (active) setState('error');
-      }
-    })();
+      },
+      () => {
+        setState('error');
+      },
+    );
     return () => {
-      active = false;
+      unsub();
     };
   }, [id]);
 

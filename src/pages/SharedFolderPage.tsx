@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { get, ref, update } from 'firebase/database';
+import { onValue, ref, update } from 'firebase/database';
 import { Download, FolderX, Inbox, Boxes, Type, ListTree, FoldHorizontal, UnfoldHorizontal, RotateCcw } from 'lucide-react';
 import { auth, db } from '../lib/firebase';
 import type { DocItem, Folder, SkillItem } from '../types';
@@ -28,9 +28,9 @@ import { formatDate } from '../lib/formatDate';
 import { plainTextOf } from '../lib/search';
 import { DEFAULT_STICKY_COLOR } from '../lib/stickyColors';
 import {
-  getStoredSharedContent,
   saveStoredSharedContent,
   clearStoredSharedContent,
+  resolveSharedContent,
 } from '../lib/sharedContentStorage';
 
 // Bản công khai của một folder: metadata folder + tài liệu (hoặc skill) bên trong.
@@ -59,13 +59,65 @@ export default function SharedFolderPage() {
   const [payload, setPayload] = useState<SharedFolderPayload | null>(null);
   const [currentUid, setCurrentUid] = useState<string | null>(auth?.currentUser?.uid ?? null);
   const originalDocsRef = useRef<Record<string, string>>({});
+  const currentUidRef = useRef<string | null>(currentUid);
+  currentUidRef.current = currentUid;
+  const latestPayloadRef = useRef<SharedFolderPayload | null | undefined>(undefined);
+
+  const applyServerPayload = useCallback(
+    (val: SharedFolderPayload | null, uid: string | null) => {
+      if (!val || !val.folder) {
+        originalDocsRef.current = {};
+        setPayload(null);
+        setState('notfound');
+        return;
+      }
+
+      const isUserOwner = Boolean(uid && uid === val.ownerId);
+
+      // Lưu bản gốc từ server của từng tài liệu trong folder
+      const orig: Record<string, string> = {};
+      if (val.documents) {
+        for (const [k, d] of Object.entries(val.documents)) {
+          orig[k] = d.content;
+        }
+      }
+      originalDocsRef.current = orig;
+
+      if (isUserOwner) {
+        // Chủ sở hữu xem folder share: xóa cache local và ưu tiên 100% dữ liệu server
+        for (const k of Object.keys(orig)) {
+          clearStoredSharedContent(k);
+        }
+        setPayload(val);
+      } else if (val.documents) {
+        // Người đọc thông thường: khôi phục highlight cá nhân nếu bản gốc chưa đổi;
+        // nếu file vừa bị ghi đè/sửa trên server thì tự động lấy nội dung mới nhất.
+        const mergedDocs: Record<string, DocItem> = { ...val.documents };
+        for (const [k, d] of Object.entries(val.documents)) {
+          const resolved = resolveSharedContent(k, d.content);
+          mergedDocs[k] = { ...d, content: resolved.content };
+        }
+        setPayload({ ...val, documents: mergedDocs });
+      } else {
+        setPayload(val);
+      }
+
+      setState('ready');
+    },
+    [],
+  );
 
   useEffect(() => {
     if (!auth) return;
     return auth.onAuthStateChanged((user) => {
-      setCurrentUid(user?.uid ?? null);
+      const nextUid = user?.uid ?? null;
+      currentUidRef.current = nextUid;
+      setCurrentUid(nextUid);
+      if (latestPayloadRef.current !== undefined) {
+        applyServerPayload(latestPayloadRef.current, nextUid);
+      }
     });
-  }, []);
+  }, [applyServerPayload]);
 
   const isOwner = Boolean(currentUid && payload?.ownerId && currentUid === payload.ownerId);
 
@@ -74,61 +126,31 @@ export default function SharedFolderPage() {
   const [showPrefs, setShowPrefs] = useState(false);
   const [showToc, setShowToc] = useState(false);
 
+  // Lắng nghe realtime (onValue) trên shared/f/{id}: mỗi khi chủ sở hữu ghi đè file,
+  // thêm/xóa/sửa tài liệu hoặc skill trong folder, trang người xem tự cập nhật ngầm.
   useEffect(() => {
-    let active = true;
-    (async () => {
-      if (!db || !id) {
-        setState('error');
-        return;
-      }
-      try {
-        const snap = await get(ref(db, `shared/f/${id}`));
-        if (!active) return;
+    latestPayloadRef.current = undefined;
+    if (!db || !id) {
+      setState('error');
+      return;
+    }
+    setState('loading');
+    const sharedRef = ref(db, `shared/f/${id}`);
+    const unsub = onValue(
+      sharedRef,
+      (snap) => {
         const val = snap.val() as SharedFolderPayload | null;
-        if (!val || !val.folder) {
-          setState('notfound');
-          return;
-        }
-
-        const isUserOwner = Boolean(
-          auth?.currentUser?.uid && auth.currentUser.uid === val.ownerId,
-        );
-
-        // Lưu bản gốc của documents
-        if (val.documents) {
-          const orig: Record<string, string> = {};
-          for (const [k, d] of Object.entries(val.documents)) {
-            orig[k] = d.content;
-          }
-          originalDocsRef.current = orig;
-        }
-
-        if (isUserOwner) {
-          // Chủ sở hữu xem folder share: ưu tiên dữ liệu từ server
-          setPayload(val);
-        } else if (val.documents) {
-          // Người đọc thông thường: khôi phục highlight cá nhân từ localStorage (nếu có)
-          const mergedDocs: Record<string, DocItem> = { ...val.documents };
-          for (const [k, d] of Object.entries(val.documents)) {
-            const cached = getStoredSharedContent(k);
-            if (cached) {
-              mergedDocs[k] = { ...d, content: cached };
-            }
-          }
-          setPayload({ ...val, documents: mergedDocs });
-        } else {
-          setPayload(val);
-        }
-
-        setState('ready');
-      } catch {
-        if (active) setState('error');
-      }
-    })();
+        latestPayloadRef.current = val;
+        applyServerPayload(val, currentUidRef.current);
+      },
+      () => {
+        setState('error');
+      },
+    );
     return () => {
-      active = false;
+      unsub();
     };
-  }, [id]);
+  }, [id, applyServerPayload]);
 
   // Xử lý cập nhật nội dung khi highlight (Kết hợp Firebase nếu là Chủ sở hữu & LocalStorage nếu là Người đọc)
   const handleDocContentChange = useCallback(
@@ -153,6 +175,7 @@ export default function SharedFolderPage() {
       // 1. Nếu là CHỦ SỞ HỮU: Lưu trực tiếp lên Firebase Database
       if (isOwner && db && currentUid) {
         const now = new Date().toISOString();
+        originalDocsRef.current[currentDoc.id] = newContent;
         const writes: Record<string, unknown> = {
           [`users/${currentUid}/documents/${currentDoc.id}/content`]: newContent,
           [`users/${currentUid}/documents/${currentDoc.id}/updatedAt`]: now,
@@ -166,12 +189,12 @@ export default function SharedFolderPage() {
         clearStoredSharedContent(currentDoc.id);
         void update(ref(db), writes);
       } else {
-        // 2. Nếu là NGƯỜI ĐỌC THƯỜNG: Lưu vào localStorage
-        const original = originalDocsRef.current[currentDoc.id];
+        // 2. Nếu là NGƯỜI ĐỌC THƯỜNG: Lưu vào localStorage kèm bản gốc để nhận biết khi file bị ghi đè
+        const original = originalDocsRef.current[currentDoc.id] ?? currentDoc.content;
         if (newContent === original) {
           clearStoredSharedContent(currentDoc.id);
         } else {
-          saveStoredSharedContent(currentDoc.id, newContent);
+          saveStoredSharedContent(currentDoc.id, newContent, original);
         }
       }
     },
@@ -310,19 +333,21 @@ export default function SharedFolderPage() {
           />
 
           {/* Nút đặt lại bản gốc nếu người đọc có tô sáng cá nhân */}
-          {!isOwner && current && getStoredSharedContent(current.id) && (
-            <button
-              type="button"
-              className="btn-icon"
-              onClick={() => handleResetCurrentDoc(current)}
-              title="Xóa các điểm tô sáng cá nhân và quay về bản gốc của tác giả"
-              aria-label="Đặt lại bản gốc"
-              style={{ fontSize: 13, gap: 4 }}
-            >
-              <RotateCcw size={14} aria-hidden="true" />
-              <span>Bản gốc</span>
-            </button>
-          )}
+          {!isOwner &&
+            current &&
+            current.content !== (originalDocsRef.current[current.id] ?? current.content) && (
+              <button
+                type="button"
+                className="btn-icon"
+                onClick={() => handleResetCurrentDoc(current)}
+                title="Xóa các điểm tô sáng cá nhân và quay về bản gốc của tác giả"
+                aria-label="Đặt lại bản gốc"
+                style={{ fontSize: 13, gap: 4 }}
+              >
+                <RotateCcw size={14} aria-hidden="true" />
+                <span>Bản gốc</span>
+              </button>
+            )}
 
           {state === 'ready' &&
             current &&

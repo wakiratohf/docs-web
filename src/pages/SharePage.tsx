@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, useRef, useCallback } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { get, ref, update } from 'firebase/database';
+import { get, onValue, ref, update } from 'firebase/database';
 import { Download, FileX, Type, ListTree, FoldHorizontal, UnfoldHorizontal, RotateCcw } from 'lucide-react';
 import { auth, db } from '../lib/firebase';
 import type { DocItem } from '../types';
@@ -22,9 +22,9 @@ import { getTasksSummary } from '../lib/taskLists';
 import { downloadDocument } from '../lib/downloadHelpers';
 import { formatDate } from '../lib/formatDate';
 import {
-  getStoredSharedContent,
   saveStoredSharedContent,
   clearStoredSharedContent,
+  resolveSharedContent,
 } from '../lib/sharedContentStorage';
 
 interface SharedPayload {
@@ -42,14 +42,55 @@ export default function SharePage() {
   const [currentUid, setCurrentUid] = useState<string | null>(auth?.currentUser?.uid ?? null);
   const [hasLocalHighlights, setHasLocalHighlights] = useState(false);
   const originalContentRef = useRef<string>('');
+  const currentUidRef = useRef<string | null>(currentUid);
+  currentUidRef.current = currentUid;
+  // Lưu snapshot gần nhất từ Firebase để đồng bộ lại nếu trạng thái đăng nhập đổi sau đó
+  const latestPayloadRef = useRef<SharedPayload | null | undefined>(undefined);
+
+  const applyServerPayload = useCallback(
+    (val: SharedPayload | null, uid: string | null) => {
+      if (!id) return;
+      if (!val || !val.document) {
+        setDoc(null);
+        setOwnerId(null);
+        setHasLocalHighlights(false);
+        setState('notfound');
+        return;
+      }
+      setOwnerId(val.ownerId);
+      originalContentRef.current = val.document.content;
+
+      const isUserOwner = Boolean(uid && uid === val.ownerId);
+
+      if (isUserOwner) {
+        // Chủ sở hữu xem link share: xóa cache local để ưu tiên 100% bản server
+        clearStoredSharedContent(id);
+        setHasLocalHighlights(false);
+        setDoc(val.document);
+      } else {
+        // Người xem thông thường: khôi phục highlight cá nhân nếu bản gốc server chưa đổi;
+        // nếu file vừa bị ghi đè/sửa trên server thì tự động lấy nội dung mới nhất.
+        const resolved = resolveSharedContent(id, val.document.content);
+        setHasLocalHighlights(resolved.hasLocalHighlights);
+        setDoc({ ...val.document, content: resolved.content });
+      }
+      setState('ready');
+    },
+    [id],
+  );
 
   // Lắng nghe trạng thái đăng nhập để xác định chính xác người xem có phải chủ sở hữu không
   useEffect(() => {
     if (!auth) return;
     return auth.onAuthStateChanged((user) => {
-      setCurrentUid(user?.uid ?? null);
+      const nextUid = user?.uid ?? null;
+      currentUidRef.current = nextUid;
+      setCurrentUid(nextUid);
+      if (latestPayloadRef.current !== undefined) {
+        applyServerPayload(latestPayloadRef.current, nextUid);
+      }
     });
-  }, []);
+  }, [applyServerPayload]);
 
   const isOwner = Boolean(currentUid && ownerId && currentUid === ownerId);
 
@@ -58,53 +99,31 @@ export default function SharePage() {
   const [showPrefs, setShowPrefs] = useState(false);
   const [showToc, setShowToc] = useState(false);
 
+  // Lắng nghe realtime (onValue) trên shared/d/{id}: mỗi khi chủ sở hữu ghi đè file
+  // hoặc chỉnh sửa nội dung, trang người xem tự động cập nhật ngầm mà không reload trang.
   useEffect(() => {
-    let active = true;
-    (async () => {
-      if (!db || !id) {
-        setState('error');
-        return;
-      }
-      try {
-        const snap = await get(ref(db, `shared/d/${id}`));
-        if (!active) return;
+    latestPayloadRef.current = undefined;
+    if (!db || !id) {
+      setState('error');
+      return;
+    }
+    setState('loading');
+    const sharedRef = ref(db, `shared/d/${id}`);
+    const unsub = onValue(
+      sharedRef,
+      (snap) => {
         const val = snap.val() as SharedPayload | null;
-        if (!val || !val.document) {
-          setState('notfound');
-          return;
-        }
-        setOwnerId(val.ownerId);
-        originalContentRef.current = val.document.content;
-
-        const isUserOwner = Boolean(
-          auth?.currentUser?.uid && auth.currentUser.uid === val.ownerId,
-        );
-
-        if (isUserOwner) {
-          // Chủ sở hữu xem link share: xóa cache local để ưu tiên 100% bản server
-          clearStoredSharedContent(id);
-          setHasLocalHighlights(false);
-          setDoc(val.document);
-        } else {
-          // Người xem thông thường: khôi phục highlight cá nhân từ localStorage (nếu có)
-          const cached = getStoredSharedContent(id);
-          if (cached && cached !== val.document.content) {
-            setHasLocalHighlights(true);
-            setDoc({ ...val.document, content: cached });
-          } else {
-            setHasLocalHighlights(false);
-            setDoc(val.document);
-          }
-        }
-        setState('ready');
-      } catch {
-        if (active) setState('error');
-      }
-    })();
+        latestPayloadRef.current = val;
+        applyServerPayload(val, currentUidRef.current);
+      },
+      () => {
+        setState('error');
+      },
+    );
     return () => {
-      active = false;
+      unsub();
     };
-  }, [id]);
+  }, [id, applyServerPayload]);
 
   // Xử lý cập nhật nội dung khi highlight (Kết hợp Firebase nếu là Chủ sở hữu & LocalStorage nếu là Người đọc)
   const handleContentChange = useCallback(
@@ -116,34 +135,47 @@ export default function SharePage() {
 
       // 1. Nếu là CHỦ SỞ HỮU: Lưu trực tiếp lên Firebase Database (multi-path update đồng bộ)
       if (isOwner && db && currentUid) {
+        const database = db;
         const now = new Date().toISOString();
         const updatedDoc: DocItem = {
           ...doc,
           content: newContent,
           updatedAt: now,
         };
-        const writes: Record<string, unknown> = {
-          [`users/${currentUid}/documents/${id}/content`]: newContent,
-          [`users/${currentUid}/documents/${id}/updatedAt`]: now,
-          [`shared/d/${id}`]: {
-            document: updatedDoc,
-            ownerId: currentUid,
-          },
-        };
-        if (doc.folderId) {
-          writes[`shared/f/${doc.folderId}/documents/${id}/content`] = newContent;
-          writes[`shared/f/${doc.folderId}/documents/${id}/updatedAt`] = now;
-        }
+        originalContentRef.current = newContent;
         clearStoredSharedContent(id);
         setHasLocalHighlights(false);
-        void update(ref(db), writes);
+        void (async () => {
+          const writes: Record<string, unknown> = {
+            [`users/${currentUid}/documents/${id}/content`]: newContent,
+            [`users/${currentUid}/documents/${id}/updatedAt`]: now,
+            [`shared/d/${id}`]: {
+              document: updatedDoc,
+              ownerId: currentUid,
+            },
+          };
+          if (doc.folderId) {
+            try {
+              const folderOwnerSnap = await get(
+                ref(database, `shared/f/${doc.folderId}/ownerId`),
+              );
+              if (folderOwnerSnap.val() === currentUid) {
+                writes[`shared/f/${doc.folderId}/documents/${id}/content`] = newContent;
+                writes[`shared/f/${doc.folderId}/documents/${id}/updatedAt`] = now;
+              }
+            } catch {
+              // Bỏ qua nếu không kiểm tra được folder chia sẻ
+            }
+          }
+          await update(ref(database), writes);
+        })();
       } else {
         // 2. Nếu là NGƯỜI ĐỌC THƯỜNG: Lưu vào localStorage của trình duyệt người xem
         if (newContent === originalContentRef.current) {
           clearStoredSharedContent(id);
           setHasLocalHighlights(false);
         } else {
-          saveStoredSharedContent(id, newContent);
+          saveStoredSharedContent(id, newContent, originalContentRef.current);
           setHasLocalHighlights(true);
         }
       }

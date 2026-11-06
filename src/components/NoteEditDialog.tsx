@@ -29,6 +29,8 @@ export default function NoteEditDialog({ doc, onClose }: Props) {
 
   const [title, setTitle] = useState(doc.title);
   const [author, setAuthor] = useState(doc.author ?? '');
+  const [content, setContent] = useState(doc.content);
+  const [remoteContentRev, setRemoteContentRev] = useState(0);
   const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved'>('idle');
   const trapRef = useFocusTrap<HTMLDivElement>(true);
 
@@ -37,13 +39,77 @@ export default function NoteEditDialog({ doc, onClose }: Props) {
   const savedTimer = useRef<number | undefined>(undefined);
   const pending = useRef<DocUpdates | null>(null);
 
+  const lastSyncedRef = useRef({
+    title: doc.title,
+    author: doc.author ?? '',
+    content: doc.content,
+  });
+  const inFlightRef = useRef({
+    titles: new Set<string>(),
+    authors: new Set<string>(),
+    contents: new Set<string>(),
+  });
+
   // Ghi nốt thay đổi còn treo (không đụng UI, dùng cả lúc unmount/phóng to).
   const flush = () => {
     if (pending.current) {
-      updateDocument(doc.id, pending.current);
+      const updates = pending.current;
       pending.current = null;
+      if (updates.title !== undefined) {
+        lastSyncedRef.current.title = updates.title;
+        inFlightRef.current.titles.add(updates.title);
+      }
+      if (updates.author !== undefined) {
+        lastSyncedRef.current.author = updates.author;
+        inFlightRef.current.authors.add(updates.author);
+      }
+      if (updates.content !== undefined) {
+        lastSyncedRef.current.content = updates.content;
+        inFlightRef.current.contents.add(updates.content);
+      }
+      updateDocument(doc.id, updates);
     }
   };
+  const flushRef = useRef(flush);
+  flushRef.current = flush;
+
+  // Đồng bộ ngầm khi ghi chú bị sửa/ghi đè từ tab khác mà không làm nhảy con trỏ khi đang gõ.
+  useEffect(() => {
+    const incomingAuthor = doc.author ?? '';
+
+    if (doc.title === lastSyncedRef.current.title) {
+      inFlightRef.current.titles.clear();
+    } else if (inFlightRef.current.titles.has(doc.title)) {
+      inFlightRef.current.titles.delete(doc.title);
+    } else {
+      inFlightRef.current.titles.clear();
+      lastSyncedRef.current.title = doc.title;
+      if (pending.current?.title === undefined) setTitle(doc.title);
+    }
+
+    if (incomingAuthor === lastSyncedRef.current.author) {
+      inFlightRef.current.authors.clear();
+    } else if (inFlightRef.current.authors.has(incomingAuthor)) {
+      inFlightRef.current.authors.delete(incomingAuthor);
+    } else {
+      inFlightRef.current.authors.clear();
+      lastSyncedRef.current.author = incomingAuthor;
+      if (pending.current?.author === undefined) setAuthor(incomingAuthor);
+    }
+
+    if (doc.content === lastSyncedRef.current.content) {
+      inFlightRef.current.contents.clear();
+    } else if (inFlightRef.current.contents.has(doc.content)) {
+      inFlightRef.current.contents.delete(doc.content);
+    } else {
+      inFlightRef.current.contents.clear();
+      lastSyncedRef.current.content = doc.content;
+      if (pending.current?.content === undefined) {
+        setContent(doc.content);
+        setRemoteContentRev((r) => r + 1);
+      }
+    }
+  }, [doc.title, doc.author, doc.content]);
 
   const debounceSave = (updates: DocUpdates) => {
     pending.current = { ...(pending.current ?? {}), ...updates };
@@ -63,7 +129,7 @@ export default function NoteEditDialog({ doc, onClose }: Props) {
     return () => {
       window.clearTimeout(timer.current);
       window.clearTimeout(savedTimer.current);
-      flush();
+      flushRef.current();
     };
   }, []);
 
@@ -73,6 +139,7 @@ export default function NoteEditDialog({ doc, onClose }: Props) {
   };
 
   const onContent = (v: string) => {
+    setContent(v);
     debounceSave({ content: v });
   };
 
@@ -161,7 +228,7 @@ export default function NoteEditDialog({ doc, onClose }: Props) {
         </div>
 
         <div className="note-dialog-editor">
-          <NoteEditor value={doc.content} onChange={onContent} />
+          <NoteEditor key={remoteContentRev} value={content} onChange={onContent} />
         </div>
       </div>
     </div>,

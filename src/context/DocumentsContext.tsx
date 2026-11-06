@@ -295,6 +295,7 @@ export function DocumentsProvider({ children }: { children: ReactNode }) {
       if (findSharedFolder(stateRef.current.folders, folderId)) {
         writes[`shared/f/${folderId}/documents/${created.id}`] = created;
       }
+      stateRef.current.documents = [...cur, created];
       commit(writes);
       return created;
     },
@@ -343,6 +344,7 @@ export function DocumentsProvider({ children }: { children: ReactNode }) {
           writes[`shared/f/${folderId}/documents/${doc.id}`] = doc;
         }
       });
+      stateRef.current.documents = [...cur, ...created];
       commit(writes);
       return created;
     },
@@ -361,15 +363,19 @@ export function DocumentsProvider({ children }: { children: ReactNode }) {
       for (const [k, v] of Object.entries(updates)) {
         writes[`users/${uid}/documents/${id}/${k}`] = v;
       }
-      // Nếu tài liệu đang chia sẻ công khai, cập nhật luôn bản sao shared/d/{id}.
-      if (cur?.isShared) {
+      if (cur) {
         const merged: DocItem = { ...cur, ...updates, updatedAt: now };
-        writes[`shared/d/${id}`] = { document: merged, ownerId: uid };
-      }
-      // Nếu tài liệu nằm trong folder đang chia sẻ, cập nhật bản trong folder công khai.
-      if (cur && findSharedFolder(stateRef.current.folders, cur.folderId)) {
-        const merged: DocItem = { ...cur, ...updates, updatedAt: now };
-        writes[`shared/f/${cur.folderId}/documents/${id}`] = merged;
+        // Nếu tài liệu đang chia sẻ công khai, cập nhật luôn bản sao shared/d/{id}.
+        if (cur.isShared) {
+          writes[`shared/d/${id}`] = { document: merged, ownerId: uid };
+        }
+        // Nếu tài liệu nằm trong folder đang chia sẻ, cập nhật bản trong folder công khai.
+        if (findSharedFolder(stateRef.current.folders, cur.folderId)) {
+          writes[`shared/f/${cur.folderId}/documents/${id}`] = merged;
+        }
+        stateRef.current.documents = stateRef.current.documents.map((d) =>
+          d.id === id ? merged : d,
+        );
       }
       commit(writes);
     },
@@ -447,6 +453,7 @@ export function DocumentsProvider({ children }: { children: ReactNode }) {
         createdAt: now,
         viewType: viewType ?? 'list',
       };
+      stateRef.current.folders = [...cur, created];
       commitSet(`users/${uid}/folders/${created.id}`, created);
       return created;
     },
@@ -704,6 +711,7 @@ export function DocumentsProvider({ children }: { children: ReactNode }) {
       if (findSharedFolder(stateRef.current.folders, fields.folderId)) {
         writes[`shared/f/${fields.folderId}/skills/${created.id}`] = created;
       }
+      stateRef.current.skills = [...cur, created];
       commit(writes);
       return created;
     },
@@ -721,15 +729,19 @@ export function DocumentsProvider({ children }: { children: ReactNode }) {
       for (const [k, v] of Object.entries(updates)) {
         writes[`users/${uid}/skills/${id}/${k}`] = v;
       }
-      // Skill đang chia sẻ lẻ ⇒ cập nhật bản shared/skill/{id}.
-      if (cur?.isShared) {
+      if (cur) {
         const merged: SkillItem = { ...cur, ...updates, updatedAt: now };
-        writes[`shared/skill/${id}`] = { skill: merged, ownerId: uid };
-      }
-      // Skill nằm trong folder đang chia sẻ ⇒ cập nhật bản trong folder công khai.
-      if (cur && findSharedFolder(stateRef.current.folders, cur.folderId)) {
-        const merged: SkillItem = { ...cur, ...updates, updatedAt: now };
-        writes[`shared/f/${cur.folderId}/skills/${id}`] = merged;
+        // Skill đang chia sẻ lẻ ⇒ cập nhật bản shared/skill/{id}.
+        if (cur.isShared) {
+          writes[`shared/skill/${id}`] = { skill: merged, ownerId: uid };
+        }
+        // Skill nằm trong folder đang chia sẻ ⇒ cập nhật bản trong folder công khai.
+        if (findSharedFolder(stateRef.current.folders, cur.folderId)) {
+          writes[`shared/f/${cur.folderId}/skills/${id}`] = merged;
+        }
+        stateRef.current.skills = stateRef.current.skills.map((s) =>
+          s.id === id ? merged : s,
+        );
       }
       commit(writes);
     },

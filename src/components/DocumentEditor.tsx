@@ -102,6 +102,9 @@ export default function DocumentEditor({ doc }: { doc: DocItem }) {
   const [author, setAuthor] = useState(doc.author ?? '');
   const [content, setContent] = useState(doc.content);
   const [type, setType] = useState<DocumentType>(doc.type);
+  // Bộ đếm tăng mỗi khi nhận nội dung mới TỪ BÊN NGOÀI (tab khác / ghi đè file),
+  // dùng làm key cho NoteEditor để nạp lại innerHTML mà không nhảy con trỏ khi đang tự gõ.
+  const [remoteContentRev, setRemoteContentRev] = useState(0);
   // Mặc định mở ở Preview khi tài liệu đã có nội dung; rỗng (vừa tạo) thì mở Edit.
   const [tab, setTab] = useState<'edit' | 'preview' | 'split'>(
     doc.content.trim() ? 'preview' : 'edit',
@@ -142,28 +145,141 @@ export default function DocumentEditor({ doc }: { doc: DocItem }) {
     }
   };
 
-  // Đồng bộ state cục bộ từ props CHỈ khi đổi tài liệu (doc.id), không đồng bộ
-  // khi content dội về từ Firebase (tránh nhảy con trỏ khi đang gõ).
-  useEffect(() => {
-    setTitle(doc.title);
-    setAuthor(doc.author ?? '');
-    setContent(doc.content);
-    setType(doc.type);
-    setTab(doc.content.trim() ? 'preview' : 'edit');
-  }, [doc.id]);
-
   // Auto-save có debounce ~600ms.
   const timer = useRef<number | undefined>(undefined);
   const savedTimer = useRef<number | undefined>(undefined);
   const pending = useRef<DocUpdates | null>(null);
 
+  // Theo dõi giá trị đã đồng bộ & các bản ghi do chính editor này vừa đẩy lên Firebase,
+  // giúp phân biệt chính xác:
+  //  - Echo từ chính mình đang gõ ⇒ BỎ QUA (không nhảy con trỏ).
+  //  - Thay đổi / ghi đè file từ bên ngoài (tab khác, tải lên đè…) ⇒ CẬP NHẬT NGẦM.
+  const lastSyncedRef = useRef({
+    id: doc.id,
+    title: doc.title,
+    author: doc.author ?? '',
+    content: doc.content,
+    type: doc.type,
+  });
+  const inFlightRef = useRef({
+    titles: new Set<string>(),
+    authors: new Set<string>(),
+    contents: new Set<string>(),
+    types: new Set<DocumentType>(),
+  });
+
+  const commitLocalUpdates = (updates: DocUpdates) => {
+    if (updates.title !== undefined) {
+      lastSyncedRef.current.title = updates.title;
+      inFlightRef.current.titles.add(updates.title);
+    }
+    if (updates.author !== undefined) {
+      lastSyncedRef.current.author = updates.author;
+      inFlightRef.current.authors.add(updates.author);
+    }
+    if (updates.content !== undefined) {
+      lastSyncedRef.current.content = updates.content;
+      inFlightRef.current.contents.add(updates.content);
+    }
+    if (updates.type !== undefined) {
+      lastSyncedRef.current.type = updates.type;
+      inFlightRef.current.types.add(updates.type);
+    }
+    updateDocument(doc.id, updates);
+  };
+
   // Ghi nốt thay đổi còn treo (không đụng tới UI, dùng cả lúc unmount).
   const flush = () => {
     if (pending.current) {
-      updateDocument(doc.id, pending.current);
+      const updates = pending.current;
       pending.current = null;
+      commitLocalUpdates(updates);
     }
   };
+  const flushRef = useRef(flush);
+  flushRef.current = flush;
+
+  // Đồng bộ state cục bộ khi đổi tài liệu (doc.id) HOẶC khi file bị ghi đè / sửa từ bên ngoài,
+  // nhưng bỏ qua echo do chính trình soạn thảo này gửi đi để không làm nhảy con trỏ.
+  useEffect(() => {
+    const incomingAuthor = doc.author ?? '';
+    if (doc.id !== lastSyncedRef.current.id) {
+      lastSyncedRef.current = {
+        id: doc.id,
+        title: doc.title,
+        author: incomingAuthor,
+        content: doc.content,
+        type: doc.type,
+      };
+      inFlightRef.current.titles.clear();
+      inFlightRef.current.authors.clear();
+      inFlightRef.current.contents.clear();
+      inFlightRef.current.types.clear();
+      setTitle(doc.title);
+      setAuthor(incomingAuthor);
+      setContent(doc.content);
+      setType(doc.type);
+      setTab(doc.content.trim() ? 'preview' : 'edit');
+      setRemoteContentRev((r) => r + 1);
+      return;
+    }
+
+    // 1. Title
+    if (doc.title === lastSyncedRef.current.title) {
+      inFlightRef.current.titles.clear();
+    } else if (inFlightRef.current.titles.has(doc.title)) {
+      inFlightRef.current.titles.delete(doc.title);
+    } else {
+      inFlightRef.current.titles.clear();
+      lastSyncedRef.current.title = doc.title;
+      if (pending.current?.title === undefined) {
+        setTitle(doc.title);
+      }
+    }
+
+    // 2. Author
+    if (incomingAuthor === lastSyncedRef.current.author) {
+      inFlightRef.current.authors.clear();
+    } else if (inFlightRef.current.authors.has(incomingAuthor)) {
+      inFlightRef.current.authors.delete(incomingAuthor);
+    } else {
+      inFlightRef.current.authors.clear();
+      lastSyncedRef.current.author = incomingAuthor;
+      if (pending.current?.author === undefined) {
+        setAuthor(incomingAuthor);
+      }
+    }
+
+    // 3. Type
+    if (doc.type === lastSyncedRef.current.type) {
+      inFlightRef.current.types.clear();
+    } else if (inFlightRef.current.types.has(doc.type)) {
+      inFlightRef.current.types.delete(doc.type);
+    } else {
+      inFlightRef.current.types.clear();
+      lastSyncedRef.current.type = doc.type;
+      if (pending.current?.type === undefined) {
+        setType(doc.type);
+        if (doc.type !== 'markdown') {
+          setTab((prev) => (prev === 'split' ? 'preview' : prev));
+        }
+      }
+    }
+
+    // 4. Content
+    if (doc.content === lastSyncedRef.current.content) {
+      inFlightRef.current.contents.clear();
+    } else if (inFlightRef.current.contents.has(doc.content)) {
+      inFlightRef.current.contents.delete(doc.content);
+    } else {
+      inFlightRef.current.contents.clear();
+      lastSyncedRef.current.content = doc.content;
+      if (pending.current?.content === undefined) {
+        setContent(doc.content);
+        setRemoteContentRev((r) => r + 1);
+      }
+    }
+  }, [doc.id, doc.title, doc.author, doc.content, doc.type]);
 
   const debounceSave = (updates: DocUpdates) => {
     pending.current = { ...(pending.current ?? {}), ...updates };
@@ -184,7 +300,7 @@ export default function DocumentEditor({ doc }: { doc: DocItem }) {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
         e.preventDefault();
         window.clearTimeout(timer.current);
-        flush();
+        flushRef.current();
         setSaveState('saved');
         window.clearTimeout(savedTimer.current);
         savedTimer.current = window.setTimeout(() => setSaveState('idle'), 2000);
@@ -195,7 +311,7 @@ export default function DocumentEditor({ doc }: { doc: DocItem }) {
       window.removeEventListener('keydown', onSaveKey);
       window.clearTimeout(timer.current);
       window.clearTimeout(savedTimer.current);
-      flush();
+      flushRef.current();
     };
   }, []);
 
@@ -227,6 +343,8 @@ export default function DocumentEditor({ doc }: { doc: DocItem }) {
         confirmText: 'Chuyển đổi sang Markdown',
         cancelText: 'Giữ nguyên mã thô',
       });
+      window.clearTimeout(timer.current);
+      flush();
       let nextContent = content;
       if (convert) {
         nextContent = htmlToMarkdown(content);
@@ -234,7 +352,7 @@ export default function DocumentEditor({ doc }: { doc: DocItem }) {
         toastSuccess('Đã chuyển đổi nội dung sang Markdown.');
       }
       setType(v);
-      updateDocument(doc.id, { type: v, content: nextContent });
+      commitLocalUpdates({ type: v, content: nextContent });
       return;
     }
 
@@ -248,8 +366,10 @@ export default function DocumentEditor({ doc }: { doc: DocItem }) {
       });
       if (!ok) return; // select controlled tự về giá trị cũ
     }
+    window.clearTimeout(timer.current);
+    flush();
     setType(v);
-    updateDocument(doc.id, { type: v });
+    commitLocalUpdates({ type: v });
   };
 
   // Smart Paste: khi dán nội dung từ web (có cấu trúc HTML) vào editor Markdown,
@@ -395,7 +515,11 @@ export default function DocumentEditor({ doc }: { doc: DocItem }) {
           size="sm"
           className="folder-dropdown"
           value={doc.folderId ?? ''}
-          onChange={(val) => moveDocument(doc.id, val || undefined)}
+          onChange={(val) => {
+            window.clearTimeout(timer.current);
+            flush();
+            moveDocument(doc.id, val || undefined);
+          }}
           options={folderOptions}
           ariaLabel="Chọn folder cho tài liệu"
           minMenuWidth={220}
@@ -405,7 +529,11 @@ export default function DocumentEditor({ doc }: { doc: DocItem }) {
         <button
           type="button"
           className={`btn-icon btn-square ${doc.isShared ? 'primary' : ''}`}
-          onClick={() => toggleShareDocument(doc.id)}
+          onClick={() => {
+            window.clearTimeout(timer.current);
+            flush();
+            toggleShareDocument(doc.id);
+          }}
           title={doc.isShared ? 'Đang chia sẻ — bấm để tắt' : 'Chia sẻ công khai'}
           aria-label={doc.isShared ? 'Đang chia sẻ' : 'Chia sẻ'}
         >
@@ -614,7 +742,7 @@ export default function DocumentEditor({ doc }: { doc: DocItem }) {
 
           {tab === 'edit' ? (
             type === 'note' ? (
-              <NoteEditor value={content} onChange={onContent} />
+              <NoteEditor key={remoteContentRev} value={content} onChange={onContent} />
             ) : (
               <textarea
                 ref={textareaRef}

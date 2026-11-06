@@ -82,6 +82,7 @@ const HEAD_PREPARATION_SCRIPT = `<script>
 })();
 </script>
 <style>
+html { height: auto; display: flow-root; }
 img, video, canvas, svg { max-width: 100%; height: auto; }
 </style>`;
 
@@ -95,15 +96,30 @@ img, video, canvas, svg { max-width: 100%; height: auto; }
  */
 const RESIZE_OBSERVER_SCRIPT = `<script>
 (function() {
+  var lastH = 0;
+  var floorH = 0;
   function sendHeight() {
     try {
       var docEl = document.documentElement;
       var body = document.body;
-      var h = Math.max(
-        docEl ? docEl.scrollHeight : 0,
-        body ? body.scrollHeight : 0
+      var winH = window.innerHeight || 0;
+      var docScroll = docEl ? docEl.scrollHeight : 0;
+      var bodyScroll = body ? body.scrollHeight : 0;
+      var naturalH = Math.max(
+        docEl ? docEl.offsetHeight : 0,
+        body ? body.offsetHeight : 0
       );
-      if (h > 0) {
+      if (docScroll > winH) {
+        floorH = docScroll;
+      }
+      var h = Math.ceil(Math.max(
+        docScroll > winH ? docScroll : 0,
+        bodyScroll > winH ? bodyScroll : 0,
+        naturalH,
+        floorH
+      ));
+      if (h > 0 && h !== lastH) {
+        lastH = h;
         window.parent.postMessage({ type: 'docs-html-frame-resize', height: h }, '*');
       }
     } catch (e) {}
