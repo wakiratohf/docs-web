@@ -526,6 +526,7 @@ a:hover {
 .share-doc-dates {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 16px;
   margin: -8px 0 18px;
 }
@@ -696,6 +697,7 @@ a:hover {
 .share-view .share-header-info .share-doc-dates {
   margin: 1px 0 0;
   gap: 12px;
+  align-items: center;
   font-size: 12px;
   opacity: 0.7;
 }
@@ -4456,3 +4458,220 @@ mark.hl-orange {
   border-color: #ef4444 !important;
 }
 
+
+/* ============================================================
+   SUB-FOLDERS & BREADCRUMB NAVIGATION
+   ============================================================ */
+
+/* Breadcrumb bar */
+.breadcrumb-nav {
+  margin-bottom: 12px;
+  font-size: 0.85rem;
+}
+
+.breadcrumb-list {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.breadcrumb-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+}
+
+.breadcrumb-link {
+  display: inline-flex;
+  align-items: center;
+  color: var(--muted);
+  text-decoration: none;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  transition: background var(--ease) 0.15s, color var(--ease) 0.15s;
+}
+
+.breadcrumb-link:hover {
+  background: var(--hover-bg);
+  color: var(--text);
+}
+
+.breadcrumb-home {
+  padding: 4px;
+}
+
+.breadcrumb-separator {
+  color: var(--muted);
+  opacity: 0.6;
+  flex-shrink: 0;
+}
+
+.breadcrumb-current {
+  font-weight: 600;
+  color: var(--text);
+  padding: 2px 6px;
+  max-width: 240px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.folder-breadcrumb-bar {
+  margin-top: 4px;
+  margin-bottom: 4px;
+}
+
+.doc-breadcrumb-bar {
+  margin-bottom: 8px;
+  padding: 0 4px;
+}
+
+/* Thư mục con trong trang FolderPage */
+.subfolders-section {
+  margin-bottom: 24px;
+  background: var(--subtle);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+}
+
+.subfolders-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.subfolders-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.subfolders-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+.subfolder-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: transform 0.15s var(--ease), border-color 0.15s var(--ease), box-shadow 0.15s var(--ease);
+  user-select: none;
+}
+
+.subfolder-card:hover {
+  border-color: var(--primary);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+}
+
+.subfolder-card.drop-over {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+  transform: scale(1.02);
+}
+
+.subfolder-icon {
+  font-size: 1.3rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.subfolder-info {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.subfolder-name {
+  font-size: 0.88rem;
+  font-weight: 500;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.subfolder-count {
+  font-size: 0.75rem;
+}
+
+.subfolders-empty-direct {
+  padding: 24px 16px;
+  margin: 16px 0;
+  text-align: center;
+  background: var(--subtle);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+}
+
+/* Badge số thư mục con trên Home tile */
+.tile-subfolder-count {
+  display: block;
+  font-size: 0.72rem;
+  line-height: 1.2;
+  margin-top: 2px;
+}
+
+/* Modal Di chuyển Folder */
+.move-folder-modal {
+  max-width: 440px;
+}
+
+.move-folder-select-wrap {
+  margin: 12px 0 20px;
+}
+
+.folder-tree-select {
+  font-family: inherit;
+  font-size: 0.9rem;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--text);
+  width: 100%;
+}
+
+/* Nhóm Subfolder trên trang chia sẻ công khai */
+.shared-subfolder-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  margin-top: 16px;
+}
+
+.shared-group-block {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+}
+
+.shared-group-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text);
+  margin: 0 0 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.empty-sub-text {
+  font-size: 0.85rem;
+  padding: 8px 0;
+}

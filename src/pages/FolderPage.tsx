@@ -20,6 +20,8 @@ import {
   ArrowLeft,
   Boxes,
   ArrowUpDown,
+  FolderPlus,
+  FolderInput,
 } from 'lucide-react';
 import { useDocuments } from '../context/DocumentsContext';
 import { useAuth } from '../auth/useAuth';
@@ -36,11 +38,15 @@ import DropdownSelect, { type DropdownOption } from '../components/DropdownSelec
 import NoteEditDialog from '../components/NoteEditDialog';
 import SkillCard from '../components/SkillCard';
 import SkillEditModal from '../components/SkillEditModal';
+import CreateFolderModal from '../components/CreateFolderModal';
+import MoveFolderModal from '../components/MoveFolderModal';
+import BreadcrumbNav from '../components/BreadcrumbNav';
 import { searchDocs, plainTextOf } from '../lib/search';
 import { collectAuthors } from '../lib/authors';
+import { getSubfolders, getFolderDepth, MAX_FOLDER_DEPTH } from '../lib/folderTree';
 import { useDebouncedValue } from '../hooks/useDebouncedValue';
 import { STICKY_COLORS, DEFAULT_STICKY_COLOR } from '../lib/stickyColors';
-import type { DocItem, DocumentType, StickyColor } from '../types';
+import type { DocItem, DocumentType, FolderViewType, StickyColor } from '../types';
 
 function formatDate(iso: string): string {
   const d = new Date(iso);
@@ -81,7 +87,9 @@ export default function FolderPage() {
     loading,
     addDocument,
     addDocuments,
+    addFolder,
     renameFolder,
+    moveFolder,
     deleteFolder,
     toggleShareFolder,
     setFolderViewType,
@@ -147,6 +155,22 @@ export default function FolderPage() {
   const editingNote = editingNoteId
     ? docs.find((d) => d.id === editingNoteId)
     : undefined;
+
+  // Thư mục con bên trong folder này
+  const subfolders = useMemo(
+    () => (folder ? getSubfolders(folder.id, folders) : []),
+    [folder, folders],
+  );
+  const currentDepth = useMemo(
+    () => (folder ? getFolderDepth(folder.id, folders) : 1),
+    [folder, folders],
+  );
+  const canAddSubfolder = currentDepth < MAX_FOLDER_DEPTH;
+
+  // Hộp thoại tạo thư mục con & di chuyển folder
+  const [creatingSubfolder, setCreatingSubfolder] = useState(false);
+  const [movingFolder, setMovingFolder] = useState(false);
+  const [subfolderDragOver, setSubfolderDragOver] = useState<string | null>(null);
 
   // Tìm kiếm trong phạm vi folder này. Trễ 200ms trước khi lọc thật sự chạy,
   // tránh tính search (DOMParser cho note/html) trên mỗi keystroke khi gõ nhanh.
@@ -229,6 +253,42 @@ export default function FolderPage() {
     );
     const doc = created[0];
     if (doc && color !== DEFAULT_STICKY_COLOR) setDocumentColor(doc.id, color);
+  };
+
+  const onCreateSubfolder = (name: string, viewType: FolderViewType) => {
+    setCreatingSubfolder(false);
+    if (!folder) return;
+    const created = addFolder(name, viewType, folder.id);
+    if (created) {
+      toastSuccess(`Đã tạo thư mục con "${created.name}"`);
+    }
+  };
+
+  const onMoveCurrentFolder = (fId: string, targetParentId: string | undefined) => {
+    setMovingFolder(false);
+    moveFolder(fId, targetParentId);
+    toastSuccess('Đã di chuyển thư mục');
+  };
+
+  const allowDropToSubfolder = (e: DragEvent, subId: string) => {
+    e.preventDefault();
+    const isFile = Array.from(e.dataTransfer.types).includes('Files');
+    e.dataTransfer.dropEffect = isFile ? 'copy' : 'move';
+    if (subfolderDragOver !== subId) setSubfolderDragOver(subId);
+  };
+
+  const onDropToSubfolder = (e: DragEvent, subId: string) => {
+    e.preventDefault();
+    setSubfolderDragOver(null);
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      void uploadFiles(e.dataTransfer.files, subId);
+      return;
+    }
+    const docId = e.dataTransfer.getData('text/plain');
+    if (docId) {
+      moveDocument(docId, subId);
+      toastSuccess('Đã chuyển tài liệu vào thư mục con');
+    }
   };
 
   const startRename = () => {
@@ -401,6 +461,11 @@ export default function FolderPage() {
         </div>
       )}
 
+      {/* Đường dẫn Breadcrumb phân cấp */}
+      <div className="folder-breadcrumb-bar">
+        <BreadcrumbNav folderId={folder.id} folders={folders} />
+      </div>
+
       <header className="app-header">
         <h1 className="folder-title">
           {backLink}
@@ -448,6 +513,14 @@ export default function FolderPage() {
               minMenuWidth={236}
             />
           )}
+          <button
+            type="button"
+            className="btn-icon"
+            onClick={() => setMovingFolder(true)}
+            title="Di chuyển thư mục này sang vị trí khác"
+          >
+            <FolderInput size={16} aria-hidden="true" /> Di chuyển
+          </button>
           <button
             type="button"
             className={`btn-icon ${folder.isPinned ? 'primary' : ''}`}
@@ -529,6 +602,16 @@ export default function FolderPage() {
             <Upload size={16} aria-hidden="true" /> Tải lên hàng loạt
           </button>
         )}
+        {canAddSubfolder && !isSkill && (
+          <button
+            type="button"
+            className="btn-icon"
+            onClick={() => setCreatingSubfolder(true)}
+            title="Tạo thư mục con bên trong folder này"
+          >
+            <FolderPlus size={16} aria-hidden="true" /> Thư mục con
+          </button>
+        )}
       </div>
 
       {/* ----- Folder kiểu Skill AI: marketplace card + lọc tag ----- */}
@@ -600,6 +683,49 @@ export default function FolderPage() {
         )
       ) : (
         <>
+          {/* ----- Danh sách thư mục con (Sub-folders) nếu có ----- */}
+          {subfolders.length > 0 && !searching && (
+            <div className="subfolders-section">
+              <div className="subfolders-header">
+                <span className="subfolders-title">
+                  📁 Thư mục con ({subfolders.length})
+                </span>
+              </div>
+              <div className="subfolders-grid">
+                {subfolders.map((sub) => {
+                  const subDocCount = documents.filter((d) => d.folderId === sub.id).length;
+                  const isDropTarget = subfolderDragOver === sub.id;
+                  return (
+                    <div
+                      key={sub.id}
+                      className={`subfolder-card${isDropTarget ? ' drop-over' : ''}`}
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => navigate(`/docs/folder/${sub.id}`)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          navigate(`/docs/folder/${sub.id}`);
+                        }
+                      }}
+                      onDragOver={(e) => allowDropToSubfolder(e, sub.id)}
+                      onDragLeave={() =>
+                        setSubfolderDragOver((id) => (id === sub.id ? null : id))
+                      }
+                      onDrop={(e) => onDropToSubfolder(e, sub.id)}
+                      title={`Mở thư mục con "${sub.name}" (có thể thả tài liệu hoặc file vào đây)`}
+                    >
+                      <span className="subfolder-icon">📁</span>
+                      <div className="subfolder-info">
+                        <span className="subfolder-name">{sub.name}</span>
+                        <span className="subfolder-count muted">{subDocCount} tài liệu</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {docs.length > 0 && (
             <div className="search-bar-wrap">
               <Search className="search-icon" size={16} aria-hidden="true" />
@@ -627,11 +753,19 @@ export default function FolderPage() {
           {searching ? (
             <SearchResults results={results} query={query} />
           ) : docs.length === 0 ? (
-            <EmptyState
-              icon={<Inbox size={40} aria-hidden="true" />}
-              title="Folder trống"
-              description="Bấm nút phía trên để tạo tài liệu, hoặc kéo tài liệu vào folder này từ trang chủ."
-            />
+            subfolders.length > 0 ? (
+              <div className="empty-state subfolders-empty-direct">
+                <p className="muted">
+                  Thư mục này hiện chưa có tài liệu trực tiếp (đang chứa {subfolders.length} thư mục con ở trên).
+                </p>
+              </div>
+            ) : (
+              <EmptyState
+                icon={<Inbox size={40} aria-hidden="true" />}
+                title="Folder trống"
+                description="Bấm nút phía trên để tạo tài liệu hoặc thư mục con."
+              />
+            )
           ) : isSticky ? (
         <>
           {openColorFor && (
@@ -703,6 +837,25 @@ export default function FolderPage() {
           key={editingNote.id}
           doc={editingNote}
           onClose={() => setEditingNoteId(null)}
+        />
+      )}
+
+      {creatingSubfolder && (
+        <CreateFolderModal
+          open={creatingSubfolder}
+          parentFolderName={folder.name}
+          onCancel={() => setCreatingSubfolder(false)}
+          onCreate={onCreateSubfolder}
+        />
+      )}
+
+      {movingFolder && (
+        <MoveFolderModal
+          open={movingFolder}
+          folder={folder}
+          folders={folders}
+          onCancel={() => setMovingFolder(false)}
+          onMove={onMoveCurrentFolder}
         />
       )}
     </div>

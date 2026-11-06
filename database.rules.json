@@ -59,6 +59,11 @@
               "content": { ".validate": "newData.isString() && newData.val().length <= 2000000" },
               "author": { ".validate": "newData.isString() && newData.val().length <= 200" }
             }
+          },
+          "subfolders": {
+            "$subId": {
+              "name": { ".validate": "newData.isString() && newData.val().length <= 300" }
+            }
           }
         }
       }

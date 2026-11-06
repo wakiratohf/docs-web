@@ -590,6 +590,125 @@ describe('addDocument / addSkill — tạo trong folder đang chia sẻ', () => 
   });
 });
 
+describe('Sub-folder operations: addFolder, moveFolder, deleteFolder đệ quy, toggleShareFolder', () => {
+  it('addFolder có parentId trong folder cha đang chia sẻ ⇒ đồng bộ vào shared/f/{parentId}/subfolders/{newId}', () => {
+    const { result } = setup();
+    seed({ folders: [folder({ id: 'f-root', isShared: true })] });
+
+    let sub: Folder | null = null;
+    act(() => {
+      sub = result.current.addFolder('Sub folder', 'list', 'f-root');
+    });
+
+    expect(sub).not.toBeNull();
+    expect(sub!.parentId).toBe('f-root');
+    const writes = lastWrites();
+    expect(writes[`users/${UID}/folders/${sub!.id}`]).toEqual(sub);
+    expect(writes[`shared/f/f-root/subfolders/${sub!.id}`]).toEqual(sub);
+  });
+
+  it('moveFolder di chuyển thư mục con hợp lệ ⇒ cập nhật parentId và order', () => {
+    const { result } = setup();
+    seed({
+      folders: [
+        folder({ id: 'f-root1', name: 'Root 1' }),
+        folder({ id: 'f-root2', name: 'Root 2' }),
+        folder({ id: 'f-sub', name: 'Sub', parentId: 'f-root1' }),
+      ],
+    });
+
+    act(() => {
+      result.current.moveFolder('f-sub', 'f-root2');
+    });
+
+    const writes = lastWrites();
+    expect(writes[`users/${UID}/folders/f-sub/parentId`]).toBe('f-root2');
+    expect(writes[`users/${UID}/folders/f-sub/order`]).toBe(0);
+  });
+
+  it('moveFolder không di chuyển nếu chọn chính nó hoặc con cháu của nó (chống vòng lặp)', () => {
+    const { result } = setup();
+    seed({
+      folders: [
+        folder({ id: 'f-root', name: 'Root' }),
+        folder({ id: 'f-sub', name: 'Sub', parentId: 'f-root' }),
+      ],
+    });
+
+    const initialCalls = vi.mocked(update).mock.calls.length;
+    act(() => {
+      result.current.moveFolder('f-root', 'f-sub'); // Thử chuyển cha vào con
+    });
+    // Không thực hiện update
+    expect(vi.mocked(update).mock.calls.length).toBe(initialCalls);
+  });
+
+  it('deleteFolder xóa đệ quy cả cây: xóa folder cha kéo theo xóa tất cả subfolders và documents bên trong', () => {
+    const { result } = setup();
+    seed({
+      folders: [
+        folder({ id: 'f-root', name: 'Root', isShared: true }),
+        folder({ id: 'f-sub', name: 'Sub', parentId: 'f-root' }),
+        folder({ id: 'f-unrelated', name: 'Khác' }),
+      ],
+      documents: [
+        doc({ id: 'd-root', folderId: 'f-root' }),
+        doc({ id: 'd-sub', folderId: 'f-sub', isShared: true }),
+        doc({ id: 'd-unrelated', folderId: 'f-unrelated' }),
+      ],
+    });
+
+    act(() => {
+      result.current.deleteFolder('f-root');
+    });
+
+    const writes = lastWrites();
+    expect(keysOf(writes)).toEqual(
+      [
+        `users/${UID}/folders/f-root`,
+        `users/${UID}/folders/f-sub`,
+        'shared/f/f-root',
+        `users/${UID}/documents/d-root`,
+        `users/${UID}/documents/d-sub`,
+        'shared/d/d-sub',
+      ].sort(),
+    );
+    expect(writes[`users/${UID}/folders/f-unrelated`]).toBeUndefined();
+    expect(writes[`users/${UID}/documents/d-unrelated`]).toBeUndefined();
+  });
+
+  it('toggleShareFolder gom cả subfolders và documents trong subfolders vào shared/f/{id}', () => {
+    const { result } = setup();
+    seed({
+      folders: [
+        folder({ id: 'f-root', isShared: false }),
+        folder({ id: 'f-sub1', parentId: 'f-root' }),
+        folder({ id: 'f-sub2', parentId: 'f-sub1' }),
+      ],
+      documents: [
+        doc({ id: 'd1', folderId: 'f-root' }),
+        doc({ id: 'd2', folderId: 'f-sub1' }),
+        doc({ id: 'd3', folderId: 'f-sub2' }),
+      ],
+    });
+
+    act(() => {
+      result.current.toggleShareFolder('f-root');
+    });
+
+    const writes = lastWrites();
+    expect(writes[`users/${UID}/folders/f-root/isShared`]).toBe(true);
+    const shared = writes['shared/f/f-root'] as {
+      folder: Folder;
+      ownerId: string;
+      documents: Record<string, DocItem>;
+      subfolders: Record<string, Folder>;
+    };
+    expect(Object.keys(shared.subfolders).sort()).toEqual(['f-sub1', 'f-sub2']);
+    expect(Object.keys(shared.documents).sort()).toEqual(['d1', 'd2', 'd3']);
+  });
+});
+
 describe('không có user đăng nhập ⇒ mọi mutator no-op', () => {
   it('updateDocument không gọi update() khi uid rỗng', async () => {
     vi.doMock('../auth/useAuth', () => ({ useAuth: () => ({ user: null }) }));

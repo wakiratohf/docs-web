@@ -19,9 +19,7 @@ import ReadingPreferencesModal from '../components/reading/ReadingPreferencesMod
 import TableOfContents from '../components/reading/TableOfContents';
 import PrevNextDocNav from '../components/reading/PrevNextDocNav';
 import { useReadingPreferences } from '../hooks/useReadingPreferences';
-import { getDocReadingStats } from '../lib/readingStats';
 import { extractTocFromHtml, extractTocFromMarkdown } from '../lib/toc';
-import { getTasksSummary } from '../lib/taskLists';
 import { downloadDocument } from '../lib/downloadHelpers';
 import { driveDownloadUrl } from '../lib/googleDrive';
 import { formatDate } from '../lib/formatDate';
@@ -40,6 +38,8 @@ interface SharedFolderPayload {
   documents?: Record<string, DocItem>;
   /** Chỉ có khi folder kiểu skill: các SkillItem bên trong. */
   skills?: Record<string, SkillItem>;
+  /** Các thư mục con bên trong folder này (khi chia sẻ cả cây dự án) */
+  subfolders?: Record<string, Folder>;
 }
 
 const GLYPH: Record<DocItem['type'], string> = {
@@ -231,6 +231,16 @@ export default function SharedFolderPage() {
   );
   const current = docId ? payload?.documents?.[docId] : undefined;
 
+  const subfolders = useMemo(
+    () =>
+      payload?.subfolders
+        ? Object.values(payload.subfolders).sort(
+            (a, b) => a.order - b.order || a.createdAt.localeCompare(b.createdAt),
+          )
+        : [],
+    [payload?.subfolders],
+  );
+
   const isSkillFolder = payload?.folder.viewType === 'skill';
   const skillList = useMemo(
     () =>
@@ -244,9 +254,6 @@ export default function SharedFolderPage() {
   // Trong folder skill, tham số :docId chính là skillId.
   const currentSkill = docId ? payload?.skills?.[docId] : undefined;
 
-  // Thống kê tài liệu đang đọc
-  const stats = useMemo(() => (current ? getDocReadingStats(current) : null), [current]);
-
   // Trích xuất mục lục TOC cho bài đọc hiện tại
   const tocItems = useMemo(() => {
     if (!current || !current.content) return [];
@@ -254,14 +261,6 @@ export default function SharedFolderPage() {
     if (current.type === 'note' || current.type === 'html')
       return extractTocFromHtml(current.content);
     return [];
-  }, [current]);
-
-  // Thống kê tiến độ checklist
-  const tasksSummary = useMemo(() => {
-    if (!current?.content || (current.type !== 'markdown' && current.type !== 'html')) {
-      return { total: 0, completed: 0, percent: 0 };
-    }
-    return getTasksSummary(current.content);
   }, [current]);
 
   return (
@@ -490,19 +489,6 @@ export default function SharedFolderPage() {
                       ✍ {current.author}
                     </span>
                   )}
-                  {stats && stats.words > 0 && (
-                    <span className="reading-stats-badge" title="Ước tính thời gian đọc">
-                      {stats.label}
-                    </span>
-                  )}
-                  {tasksSummary.total > 0 && (
-                    <span
-                      className="reading-stats-badge"
-                      title="Tiến độ công việc hoàn thành"
-                    >
-                      ✓ {tasksSummary.completed}/{tasksSummary.total} ({tasksSummary.percent}%)
-                    </span>
-                  )}
                   <span className="doc-date" title="Thời gian cập nhật gần nhất">
                     Sửa: {formatDate(current.updatedAt)}
                   </span>
@@ -581,8 +567,74 @@ export default function SharedFolderPage() {
                 );
               })}
             </ul>
+          ) : subfolders.length > 0 ? (
+            // Có thư mục con: gom nhóm hiển thị theo từng thư mục con
+            <div className="shared-subfolder-groups">
+              {(() => {
+                const directDocs = docs.filter(
+                  (d) => !d.folderId || d.folderId === payload.folder.id,
+                );
+                return (
+                  <>
+                    {directDocs.length > 0 && (
+                      <div className="shared-group-block">
+                        <h2 className="shared-group-title">📄 Tài liệu chung</h2>
+                        <ul className="share-doc-list">
+                          {directDocs.map((d) => (
+                            <li key={d.id} className="share-doc-row">
+                              <span className="doc-icon" aria-hidden="true">
+                                {GLYPH[d.type]}
+                              </span>
+                              <Link to={`/share/f/${id}/${d.id}`} className="doc-link">
+                                <span className="doc-title">{d.title || '(không tiêu đề)'}</span>
+                                <span className="doc-meta muted">
+                                  {d.author && <span className="doc-author">✍ {d.author}</span>}
+                                  <span>{formatDate(d.updatedAt)}</span>
+                                </span>
+                              </Link>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {subfolders.map((sub) => {
+                      const subDocs = docs.filter((d) => d.folderId === sub.id);
+                      return (
+                        <div key={sub.id} className="shared-group-block">
+                          <h2 className="shared-group-title">
+                            📁 {sub.name}{' '}
+                            <span className="muted font-normal">({subDocs.length})</span>
+                          </h2>
+                          {subDocs.length === 0 ? (
+                            <p className="muted empty-sub-text">Chưa có tài liệu trong thư mục này.</p>
+                          ) : (
+                            <ul className="share-doc-list">
+                              {subDocs.map((d) => (
+                                <li key={d.id} className="share-doc-row">
+                                  <span className="doc-icon" aria-hidden="true">
+                                    {GLYPH[d.type]}
+                                  </span>
+                                  <Link to={`/share/f/${id}/${d.id}`} className="doc-link">
+                                    <span className="doc-title">{d.title || '(không tiêu đề)'}</span>
+                                    <span className="doc-meta muted">
+                                      {d.author && <span className="doc-author">✍ {d.author}</span>}
+                                      <span>{formatDate(d.updatedAt)}</span>
+                                    </span>
+                                  </Link>
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </>
+                );
+              })()}
+            </div>
           ) : (
-            // Folder danh sách chuẩn: bảng/lưới tài liệu
+            // Folder phẳng chuẩn (không có thư mục con): bảng/lưới tài liệu
             <ul className="share-doc-list">
               {docs.map((d) => (
                 <li key={d.id} className="share-doc-row">

@@ -36,6 +36,7 @@ import {
   type HomeViewMode,
 } from '../lib/homeView';
 import { STICKY_COLORS, DEFAULT_STICKY_COLOR } from '../lib/stickyColors';
+import { getRootFolders, getSubfolders } from '../lib/folderTree';
 import type { DocItem, DocumentType, Folder, FolderViewType, SkillItem } from '../types';
 
 // Tra nhanh mã màu swatch theo key để tô ô mini của folder sticky.
@@ -159,9 +160,10 @@ export default function DocsAllPage() {
     () => documents.filter((d) => !d.folderId),
     [documents],
   );
+  const rootFolders = useMemo(() => getRootFolders(folders), [folders]);
   const sortedFolders = useMemo(
-    () => sortFoldersForHome(folders, docsByFolder, skillsByFolder, sortBy),
-    [folders, docsByFolder, skillsByFolder, sortBy],
+    () => sortFoldersForHome(rootFolders, docsByFolder, skillsByFolder, sortBy, folders),
+    [rootFolders, docsByFolder, skillsByFolder, sortBy, folders],
   );
   const sortedLooseDocs = useMemo(
     () => sortLooseDocsForHome(looseDocs, sortBy),
@@ -506,6 +508,7 @@ export default function DocsAllPage() {
             // Số tệp hiển thị trong badge: đúng loại nội dung đang đổ vào lưới mini bên dưới.
             const count =
               f.viewType === 'skill' ? skillsOf(f.id).length : docsOf(f.id).length;
+            const subCount = getSubfolders(f.id, folders).length;
             return (
               <div
                 key={f.id}
@@ -574,7 +577,14 @@ export default function DocsAllPage() {
                           )}
                   </span>
                 </span>
-                <span className="tile-label">{f.name}</span>
+                <span className="tile-label">
+                  <span className="tile-name">{f.name}</span>
+                  {subCount > 0 && (
+                    <span className="tile-subfolder-count muted" title={`${subCount} thư mục con`}>
+                      {subCount} thư mục con
+                    </span>
+                  )}
+                </span>
               </div>
             );
           })}

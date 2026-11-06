@@ -28,6 +28,8 @@ import { collectAuthors } from '../lib/authors';
 import { getDriveAccessToken, deleteFileFromDrive } from '../lib/googleDrive';
 import { htmlToMarkdown, isMeaningfulHtml } from '../lib/htmlToMarkdown';
 import { calculateReadingStats } from '../lib/readingStats';
+import { buildFolderTreeOptions } from '../lib/folderTree';
+import BreadcrumbNav from './BreadcrumbNav';
 import { extractTocFromHtml, extractTocFromMarkdown } from '../lib/toc';
 import { getTasksSummary } from '../lib/taskLists';
 import {
@@ -90,7 +92,10 @@ export default function DocumentEditor({ doc }: { doc: DocItem }) {
   const folderOptions = useMemo<DropdownOption<string>[]>(
     () => [
       { value: '', label: 'Không có folder' },
-      ...folders.map((f) => ({ value: f.id, label: f.name })),
+      ...buildFolderTreeOptions(folders).map((f) => ({
+        value: f.value,
+        label: f.label,
+      })),
     ],
     [folders],
   );
@@ -469,6 +474,11 @@ export default function DocumentEditor({ doc }: { doc: DocItem }) {
 
   return (
     <div className="doc-editor">
+      {doc.folderId && (
+        <div className="doc-breadcrumb-bar">
+          <BreadcrumbNav folderId={doc.folderId} folders={folders} docTitle={title} />
+        </div>
+      )}
       <div className="doc-editor-bar">
         {/* Nút quay lại gộp vào cùng hàng cho gọn (trước đây chiếm 1 dòng riêng).
             Quay về đúng folder chứa tài liệu (nếu có), không phải luôn về trang chủ. */}

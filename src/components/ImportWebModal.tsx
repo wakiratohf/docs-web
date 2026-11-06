@@ -15,6 +15,7 @@ import { useConfirm } from '../context/ConfirmContext';
 import { useFocusTrap } from '../hooks/useFocusTrap';
 import { fetchAndExtractArticle, extractArticleFromHtml } from '../lib/webExtractor';
 import { htmlToMarkdown } from '../lib/htmlToMarkdown';
+import { buildFolderTreeOptions } from '../lib/folderTree';
 import MarkdownPreview from './MarkdownPreview';
 import DropdownSelect, { type DropdownOption } from './DropdownSelect';
 
@@ -45,7 +46,10 @@ export default function ImportWebModal({
   const folderOptions = useMemo<DropdownOption<string>[]>(
     () => [
       { value: '', label: 'Không có folder' },
-      ...folders.map((f) => ({ value: f.id, label: f.name })),
+      ...buildFolderTreeOptions(folders).map((f) => ({
+        value: f.value,
+        label: f.label,
+      })),
     ],
     [folders],
   );

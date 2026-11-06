@@ -16,9 +16,7 @@ import EmptyState from '../components/EmptyState';
 import ReadingPreferencesModal from '../components/reading/ReadingPreferencesModal';
 import TableOfContents from '../components/reading/TableOfContents';
 import { useReadingPreferences } from '../hooks/useReadingPreferences';
-import { getDocReadingStats } from '../lib/readingStats';
 import { extractTocFromHtml, extractTocFromMarkdown } from '../lib/toc';
-import { getTasksSummary } from '../lib/taskLists';
 import { downloadDocument } from '../lib/downloadHelpers';
 import { formatDate } from '../lib/formatDate';
 import {
@@ -191,23 +189,12 @@ export default function SharePage() {
     setDoc({ ...doc, content: originalContentRef.current });
   };
 
-  // Thống kê bài viết (tổng số từ & thời gian đọc ước tính)
-  const stats = useMemo(() => (doc ? getDocReadingStats(doc) : null), [doc]);
-
   // Mục lục động tự trích xuất từ tiêu đề bài viết
   const tocItems = useMemo(() => {
     if (!doc || !doc.content) return [];
     if (doc.type === 'markdown') return extractTocFromMarkdown(doc.content);
     if (doc.type === 'note' || doc.type === 'html') return extractTocFromHtml(doc.content);
     return [];
-  }, [doc]);
-
-  // Thống kê tiến độ checklist
-  const tasksSummary = useMemo(() => {
-    if (!doc?.content || (doc.type !== 'markdown' && doc.type !== 'html')) {
-      return { total: 0, completed: 0, percent: 0 };
-    }
-    return getTasksSummary(doc.content);
   }, [doc]);
 
   return (
@@ -223,19 +210,6 @@ export default function SharePage() {
               {doc.author && (
                 <span className="doc-date" title="Tác giả">
                   ✍ {doc.author}
-                </span>
-              )}
-              {stats && stats.words > 0 && (
-                <span className="reading-stats-badge" title="Ước tính thời gian đọc">
-                  {stats.label}
-                </span>
-              )}
-              {tasksSummary.total > 0 && (
-                <span
-                  className="reading-stats-badge"
-                  title="Tiến độ công việc hoàn thành"
-                >
-                  ✓ {tasksSummary.completed}/{tasksSummary.total} ({tasksSummary.percent}%)
                 </span>
               )}
               <span className="doc-date" title="Thời gian cập nhật gần nhất">

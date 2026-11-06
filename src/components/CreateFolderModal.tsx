@@ -8,6 +8,8 @@ export interface CreateFolderModalProps {
   open: boolean;
   onCancel: () => void;
   onCreate: (name: string, viewType: FolderViewType) => void;
+  /** Tên folder cha nếu đang tạo thư mục con bên trong một folder */
+  parentFolderName?: string;
 }
 
 // Hộp thoại tạo folder: nhập tên + chọn kiểu hiển thị (danh sách / sticky note).
@@ -16,6 +18,7 @@ export default function CreateFolderModal({
   open,
   onCancel,
   onCreate,
+  parentFolderName,
 }: CreateFolderModalProps) {
   const [name, setName] = useState('Folder mới');
   const [viewType, setViewType] = useState<FolderViewType>('list');
@@ -61,7 +64,7 @@ export default function CreateFolderModal({
         onKeyDown={onKeyDown}
       >
         <h2 id="create-folder-title" className="modal-title">
-          Tạo folder mới
+          {parentFolderName ? `Tạo thư mục con trong "${parentFolderName}"` : 'Tạo folder mới'}
         </h2>
 
         <label className="modal-field-label" htmlFor="create-folder-name">

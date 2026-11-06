@@ -1,4 +1,5 @@
 import type { DocItem, Folder, SkillItem } from '../types';
+import { getFolderDescendantIds } from './folderTree';
 
 /**
  * Chế độ xem trên màn hình Home (`DocsAllPage`):
@@ -23,28 +24,35 @@ export type HomeFeedItem =
 
 /**
  * Tính mốc thời gian hoạt động mới nhất của một folder dựa trên `updatedAt`
- * lớn nhất của các tài liệu/skill bên trong. Nếu folder trống, dùng `folder.createdAt`.
+ * lớn nhất của các tài liệu/skill bên trong (bao gồm cả các sub-folder con cháu nếu có).
+ * Nếu folder trống, dùng `folder.createdAt`.
  */
 export function getFolderLatestUpdatedAt(
   folder: Folder,
   docsByFolder: ReadonlyMap<string, DocItem[]>,
   skillsByFolder: ReadonlyMap<string, SkillItem[]>,
+  allFolders?: readonly Folder[],
 ): string {
   let latest = '';
+  const folderIds = allFolders
+    ? [folder.id, ...getFolderDescendantIds(folder.id, allFolders)]
+    : [folder.id];
 
-  const docs = docsByFolder.get(folder.id);
-  if (docs) {
-    for (const d of docs) {
-      const ts = d.updatedAt || d.createdAt;
-      if (ts > latest) latest = ts;
+  for (const fId of folderIds) {
+    const docs = docsByFolder.get(fId);
+    if (docs) {
+      for (const d of docs) {
+        const ts = d.updatedAt || d.createdAt;
+        if (ts > latest) latest = ts;
+      }
     }
-  }
 
-  const skills = skillsByFolder.get(folder.id);
-  if (skills) {
-    for (const s of skills) {
-      const ts = s.updatedAt || s.createdAt;
-      if (ts > latest) latest = ts;
+    const skills = skillsByFolder.get(fId);
+    if (skills) {
+      for (const s of skills) {
+        const ts = s.updatedAt || s.createdAt;
+        if (ts > latest) latest = ts;
+      }
     }
   }
 
@@ -60,13 +68,14 @@ export function sortFoldersForHome(
   docsByFolder: ReadonlyMap<string, DocItem[]>,
   skillsByFolder: ReadonlyMap<string, SkillItem[]>,
   sortBy: HomeSortBy,
+  allFolders?: readonly Folder[],
 ): Folder[] {
   const latestMap =
     sortBy === 'updated'
       ? new Map(
           folders.map((f) => [
             f.id,
-            getFolderLatestUpdatedAt(f, docsByFolder, skillsByFolder),
+            getFolderLatestUpdatedAt(f, docsByFolder, skillsByFolder, allFolders),
           ]),
         )
       : null;

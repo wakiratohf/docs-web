@@ -5,6 +5,7 @@ import { X, ArrowLeft, FolderOpen, FileText, Hash, Code2 } from 'lucide-react';
 import { useDocuments } from '../context/DocumentsContext';
 import { useUploadDocuments } from '../hooks/useUploadDocuments';
 import { useToast } from '../context/ToastContext';
+import { buildFolderTreeOptions } from '../lib/folderTree';
 import { detectType, extractHtmlBody, stripExt } from '../lib/uploadHelpers';
 import { htmlToMarkdown, isMeaningfulHtml } from '../lib/htmlToMarkdown';
 import ThemeToggle from '../components/ThemeToggle';
@@ -56,7 +57,10 @@ export default function BatchUploadPage() {
   const folderOptions = useMemo<DropdownOption<string>[]>(
     () => [
       { value: '', label: 'Không thuộc folder nào' },
-      ...folders.map((f) => ({ value: f.id, label: f.name })),
+      ...buildFolderTreeOptions(folders).map((f) => ({
+        value: f.value,
+        label: f.label,
+      })),
     ],
     [folders],
   );
