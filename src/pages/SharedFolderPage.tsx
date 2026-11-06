@@ -15,7 +15,6 @@ import ThemeToggle from '../components/ThemeToggle';
 import Spinner from '../components/Spinner';
 import EmptyState from '../components/EmptyState';
 import SkillCard from '../components/SkillCard';
-import ReadingProgressBar from '../components/reading/ReadingProgressBar';
 import ReadingPreferencesModal from '../components/reading/ReadingPreferencesModal';
 import TableOfContents from '../components/reading/TableOfContents';
 import PrevNextDocNav from '../components/reading/PrevNextDocNav';
@@ -247,9 +246,6 @@ export default function SharedFolderPage() {
       className="container share-view"
       data-reading-theme={current && prefs.theme !== 'app' ? prefs.theme : undefined}
     >
-      {/* Vạch tiến trình đọc khi đang xem 1 tài liệu cụ thể */}
-      {current && <ReadingProgressBar />}
-
       <header className="share-header">
         <Link to="/" className="brand">
           📄 Docs Web

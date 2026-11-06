@@ -2975,30 +2975,11 @@ a.btn-icon:hover {
 
 /* ============================================================
    TRẢI NGHIỆM ĐỌC NÂNG CAO (READING EXPERIENCE STYLES)
-   Bao gồm: Thanh tiến trình, Bảng tùy chỉnh đọc (Aa), Sepia Theme,
+   Bao gồm: Bảng tùy chỉnh đọc (Aa), Sepia Theme,
    Mục lục động (TOC), Khối mã có nút copy, Callouts, Điều hướng bài.
    ============================================================ */
 
-/* 1. Thanh tiến trình đọc trên đỉnh trang */
-.reading-progress-track {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 3px;
-  background: transparent;
-  z-index: 9999;
-  pointer-events: none;
-}
-.reading-progress-fill {
-  height: 100%;
-  background: var(--primary);
-  border-radius: 0 2px 2px 0;
-  transition: width 0.08s linear;
-  box-shadow: 0 0 8px var(--primary);
-}
-
-/* 2. Theme đọc Sepia (Giấy ngà ấm áp) */
+/* Theme đọc Sepia (Giấy ngà ấm áp) */
 [data-reading-theme='sepia'] {
   --bg: #f8f1e5;
   --card: #f2e9dc;

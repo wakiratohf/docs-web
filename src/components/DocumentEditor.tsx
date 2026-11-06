@@ -40,7 +40,6 @@ import EmbedViewer from './EmbedViewer';
 import FullscreenViewer from './FullscreenViewer';
 import TableOfContents from './reading/TableOfContents';
 import ReadingPreferencesModal from './reading/ReadingPreferencesModal';
-import ReadingProgressBar from './reading/ReadingProgressBar';
 
 type DocUpdates = Partial<Pick<DocItem, 'title' | 'content' | 'type' | 'author'>>;
 
@@ -466,7 +465,6 @@ export default function DocumentEditor({ doc }: { doc: DocItem }) {
           className="md-editor"
           data-reading-theme={tab !== 'edit' && prefs.theme !== 'app' ? prefs.theme : undefined}
         >
-          {tab === 'preview' && <ReadingProgressBar />}
           <div className="tabs">
             <button
               type="button"

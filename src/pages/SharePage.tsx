@@ -13,7 +13,6 @@ import FullscreenViewer from '../components/FullscreenViewer';
 import ThemeToggle from '../components/ThemeToggle';
 import Spinner from '../components/Spinner';
 import EmptyState from '../components/EmptyState';
-import ReadingProgressBar from '../components/reading/ReadingProgressBar';
 import ReadingPreferencesModal from '../components/reading/ReadingPreferencesModal';
 import TableOfContents from '../components/reading/TableOfContents';
 import { useReadingPreferences } from '../hooks/useReadingPreferences';
@@ -184,9 +183,6 @@ export default function SharePage() {
       className="container share-view"
       data-reading-theme={prefs.theme !== 'app' ? prefs.theme : undefined}
     >
-      {/* Vạch tiến trình đọc 0-100% gắn cố định đỉnh màn hình */}
-      <ReadingProgressBar />
-
       <header className="share-header">
         {state === 'ready' && doc ? (
           <div className="share-header-info">
