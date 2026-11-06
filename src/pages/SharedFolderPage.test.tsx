@@ -179,4 +179,46 @@ describe('SharedFolderPage — tự động cập nhật ngầm khi file trong f
     const searchInput = screen.getByPlaceholderText(/Tìm tài liệu trong “Dự án v1.53”…/);
     expect(searchInput).toBeTruthy();
   });
+
+  it('tối ưu giao diện đọc tài liệu trong folder: ẩn hero thư mục và đưa breadcrumb lên header', () => {
+    const { container } = render(
+      <ThemeProvider>
+        <MemoryRouter initialEntries={['/share/f/f1/d1']}>
+          <Routes>
+            <Route path="/share/f/:id/:docId" element={<SharedFolderPage />} />
+          </Routes>
+        </MemoryRouter>
+      </ThemeProvider>,
+    );
+
+    emitSharedFolder({
+      folder: makeFolder({ name: 'v1.53' }),
+      ownerId: 'owner-1',
+      documents: {
+        d1: makeDoc({
+          id: 'd1',
+          title: 'firebase_remote_config_changes.md',
+          type: 'markdown',
+          content: 'Nội dung bài viết đặc tả kỹ thuật',
+        }),
+      },
+    });
+
+    // Khi đang xem tài liệu: khối hero thư mục không được hiển thị
+    const hero = container.querySelector('.shared-folder-hero');
+    expect(hero).toBeNull();
+
+    // Trên header: có breadcrumb quay lại folder
+    const backBtn = container.querySelector('.share-breadcrumb-back');
+    expect(backBtn).toBeTruthy();
+    expect(backBtn?.textContent).toContain('v1.53');
+    expect(backBtn?.getAttribute('href')).toBe('/share/f/f1');
+
+    // Tiêu đề tài liệu nằm trên header
+    const headerTitle = container.querySelector('.share-title');
+    expect(headerTitle?.textContent).toBe('firebase_remote_config_changes.md');
+
+    // Nội dung bài viết được hiển thị
+    expect(screen.getByText('Nội dung bài viết đặc tả kỹ thuật')).toBeTruthy();
+  });
 });

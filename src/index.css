@@ -618,6 +618,42 @@ a:hover {
   margin: 0;
 }
 
+/* Breadcrumb trên Header trang chia sẻ khi đọc tài liệu trong folder */
+.share-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex-wrap: nowrap;
+}
+
+.share-breadcrumb-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--primary);
+  text-decoration: none;
+  font-weight: 500;
+  font-size: 13px;
+  flex-shrink: 0;
+  padding: 3px 8px;
+  border-radius: var(--radius-sm);
+  background: var(--subtle);
+  border: 1px solid var(--border);
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.share-breadcrumb-back:hover {
+  background: var(--hover-bg);
+  border-color: var(--primary);
+}
+
+.share-breadcrumb-sep {
+  color: var(--muted);
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
 /* Cụm nút chỉnh cỡ chữ + badge nằm cùng bên phải header */
 .share-header-actions {
   display: flex;

@@ -14,6 +14,7 @@ import {
   Search,
   X,
   FolderOpen,
+  Pencil,
 } from 'lucide-react';
 import { auth, db } from '../lib/firebase';
 import type { DocItem, Folder, SkillItem } from '../types';
@@ -287,9 +288,62 @@ export default function SharedFolderPage() {
       data-reading-theme={current && prefs.theme !== 'app' ? prefs.theme : undefined}
     >
       <header className="share-header">
-        <Link to="/" className="brand">
-          📄 Docs Web
-        </Link>
+        {state === 'ready' && current && payload ? (
+          <div className="share-header-info">
+            <div className="share-breadcrumb">
+              <Link
+                to={`/share/f/${id}`}
+                className="share-breadcrumb-back"
+                title={`Quay lại thư mục ${payload.folder.name}`}
+              >
+                ← 📁 {payload.folder.name}
+              </Link>
+              <span className="share-breadcrumb-sep">/</span>
+              <h1 className="share-title">{current.title || '(không tiêu đề)'}</h1>
+            </div>
+            <p className="share-doc-dates muted">
+              {current.author && (
+                <span className="doc-date" title="Tác giả">
+                  ✍ {current.author}
+                </span>
+              )}
+              <span className="doc-date" title="Thời gian cập nhật gần nhất">
+                Sửa: {formatDate(current.updatedAt)}
+              </span>
+              <span className="doc-date" title="Thời gian tạo">
+                Tạo: {formatDate(current.createdAt)}
+              </span>
+            </p>
+          </div>
+        ) : state === 'ready' && isSkillFolder && currentSkill && payload ? (
+          <div className="share-header-info">
+            <div className="share-breadcrumb">
+              <Link
+                to={`/share/f/${id}`}
+                className="share-breadcrumb-back"
+                title={`Quay lại thư mục ${payload.folder.name}`}
+              >
+                ← 📁 {payload.folder.name}
+              </Link>
+              <span className="share-breadcrumb-sep">/</span>
+              <h1 className="share-title">{currentSkill.title || '(không tiêu đề)'}</h1>
+            </div>
+            <p className="share-doc-dates muted">
+              {currentSkill.author && (
+                <span className="doc-date" title="Tác giả">
+                  ✍ {currentSkill.author}
+                </span>
+              )}
+              <span className="doc-date" title="Thời gian cập nhật gần nhất">
+                Sửa: {formatDate(currentSkill.updatedAt)}
+              </span>
+            </p>
+          </div>
+        ) : (
+          <Link to="/" className="brand">
+            📄 Docs Web
+          </Link>
+        )}
         <div className="share-header-actions" style={{ position: 'relative' }}>
           {/* Nút mục lục TOC khi bài có heading */}
           {current && tocItems.length > 0 && (
@@ -382,6 +436,16 @@ export default function SharedFolderPage() {
           <ThemeToggle />
           {isOwner ? (
             <>
+              {current && (
+                <Link
+                  to={`/docs/view/document/${current.id}`}
+                  className="btn-icon"
+                  title="Mở tài liệu này trong Dashboard để chỉnh sửa"
+                >
+                  <Pencil size={15} aria-hidden="true" />
+                  <span>Sửa tài liệu</span>
+                </Link>
+              )}
               <Link
                 to={`/docs/folder/${id}`}
                 className="btn-icon"
@@ -422,28 +486,31 @@ export default function SharedFolderPage() {
 
       {state === 'ready' && payload && (
         <>
-          <div className="shared-folder-hero">
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
-              <div>
-                <h1 className="shared-folder-name">📁 {payload.folder.name}</h1>
-                <p className="muted shared-folder-count">
-                  {isSkillFolder
-                    ? `${skillList.length} skill AI`
-                    : `${docs.length} tài liệu`}
-                </p>
+          {/* Header hero chỉ hiện ở chế độ xem danh sách thư mục (khi không mở tài liệu lẻ) */}
+          {!docId && (
+            <div className="shared-folder-hero">
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+                <div>
+                  <h1 className="shared-folder-name">📁 {payload.folder.name}</h1>
+                  <p className="muted shared-folder-count">
+                    {isSkillFolder
+                      ? `${skillList.length} skill AI`
+                      : `${docs.length} tài liệu`}
+                  </p>
+                </div>
+                {isOwner && (
+                  <Link
+                    to={`/docs/folder/${id}`}
+                    className="btn-icon primary"
+                    title="Mở thư mục này trong trang quản lý cá nhân"
+                  >
+                    <FolderOpen size={16} aria-hidden="true" />
+                    <span>Mở trong Quản lý</span>
+                  </Link>
+                )}
               </div>
-              {isOwner && (
-                <Link
-                  to={`/docs/folder/${id}`}
-                  className="btn-icon primary"
-                  title="Mở thư mục này trong trang quản lý cá nhân"
-                >
-                  <FolderOpen size={16} aria-hidden="true" />
-                  <span>Mở trong Quản lý</span>
-                </Link>
-              )}
             </div>
-          </div>
+          )}
 
           {/* Thanh tìm kiếm tài liệu trong folder chia sẻ */}
           {docs.length > 0 && !docId && (
@@ -475,9 +542,6 @@ export default function SharedFolderPage() {
             docId ? (
               currentSkill ? (
                 <article className="skill-detail">
-                  <Link to={`/share/f/${id}`} className="muted share-back">
-                    ← Quay lại danh sách skill
-                  </Link>
                   <div className="skill-detail-header">
                     <span className="skill-detail-icon" aria-hidden="true">
                       {currentSkill.icon || '🧩'}
@@ -546,24 +610,6 @@ export default function SharedFolderPage() {
           ) : /* Đang xem một tài liệu cụ thể trong folder */ docId ? (
             current ? (
               <article className="share-doc reading-doc-container" {...containerAttributes}>
-                <Link to={`/share/f/${id}`} className="muted share-back">
-                  ← Quay lại folder
-                </Link>
-                <h2>{current.title || '(không tiêu đề)'}</h2>
-                <p className="share-doc-dates muted">
-                  {current.author && (
-                    <span className="doc-date" title="Tác giả">
-                      ✍ {current.author}
-                    </span>
-                  )}
-                  <span className="doc-date" title="Thời gian cập nhật gần nhất">
-                    Sửa: {formatDate(current.updatedAt)}
-                  </span>
-                  <span className="doc-date" title="Thời gian tạo">
-                    Tạo: {formatDate(current.createdAt)}
-                  </span>
-                </p>
-
                 {/* Mục lục động cho bài đang xem */}
                 {showToc && tocItems.length > 0 && (
                   <TableOfContents
