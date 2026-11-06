@@ -14,6 +14,11 @@ import {
   FoldHorizontal,
   UnfoldHorizontal,
   Highlighter,
+  FileText,
+  Hash,
+  Code2,
+  Globe,
+  FolderOpen,
 } from 'lucide-react';
 import type { DocItem, DocumentType } from '../types';
 import { useDocuments } from '../context/DocumentsContext';
@@ -32,6 +37,7 @@ import {
 import { useReadingPreferences } from '../hooks/useReadingPreferences';
 import NoteEditor from './NoteEditor';
 import AuthorInput from './AuthorInput';
+import DropdownSelect, { type DropdownOption } from './DropdownSelect';
 import MarkdownPreview from './MarkdownPreview';
 import HtmlContent from './HtmlContent';
 import HtmlDocument from './HtmlDocument';
@@ -42,6 +48,33 @@ import TableOfContents from './reading/TableOfContents';
 import ReadingPreferencesModal from './reading/ReadingPreferencesModal';
 
 type DocUpdates = Partial<Pick<DocItem, 'title' | 'content' | 'type' | 'author'>>;
+
+const EDITOR_TYPE_OPTIONS: readonly DropdownOption<DocumentType>[] = [
+  {
+    value: 'note',
+    label: 'Note (rich-text)',
+    triggerLabel: 'Note',
+    icon: <FileText size={14} />,
+  },
+  {
+    value: 'markdown',
+    label: 'Markdown',
+    triggerLabel: 'Markdown',
+    icon: <Hash size={14} />,
+  },
+  {
+    value: 'html',
+    label: 'HTML (mã thô)',
+    triggerLabel: 'HTML',
+    icon: <Code2 size={14} />,
+  },
+  {
+    value: 'embed',
+    label: 'Embed (nhúng link)',
+    triggerLabel: 'Embed',
+    icon: <Globe size={14} />,
+  },
+];
 
 export default function DocumentEditor({ doc }: { doc: DocItem }) {
   const {
@@ -54,6 +87,13 @@ export default function DocumentEditor({ doc }: { doc: DocItem }) {
   } = useDocuments();
   // Danh sách tác giả đã từng dùng (mọi tài liệu) để nạp sẵn vào dropdown gợi ý.
   const authors = useMemo(() => collectAuthors(documents), [documents]);
+  const folderOptions = useMemo<DropdownOption<string>[]>(
+    () => [
+      { value: '', label: 'Không có folder' },
+      ...folders.map((f) => ({ value: f.id, label: f.name })),
+    ],
+    [folders],
+  );
   const { toastSuccess, toastError } = useToast();
   const confirm = useConfirm();
   const navigate = useNavigate();
@@ -342,31 +382,25 @@ export default function DocumentEditor({ doc }: { doc: DocItem }) {
         {type === 'pdf' ? (
           <span className="badge badge-pdf">PDF</span>
         ) : (
-          <select
-            className="type-select"
+          <DropdownSelect<DocumentType>
+            size="sm"
             value={type}
-            onChange={(e) => onChangeType(e.target.value as DocumentType)}
-            title="Loại tài liệu"
-          >
-            <option value="note">Note (rich-text)</option>
-            <option value="markdown">Markdown</option>
-            <option value="html">HTML (mã thô)</option>
-            <option value="embed">Embed (nhúng link)</option>
-          </select>
+            onChange={onChangeType}
+            options={EDITOR_TYPE_OPTIONS}
+            ariaLabel="Loại tài liệu"
+            minMenuWidth={210}
+          />
         )}
-        <select
-          className="folder-select"
+        <DropdownSelect<string>
+          size="sm"
+          className="folder-dropdown"
           value={doc.folderId ?? ''}
-          onChange={(e) => moveDocument(doc.id, e.target.value || undefined)}
-          title="Chọn folder cho tài liệu"
-        >
-          <option value="">📁 Không có folder</option>
-          {folders.map((f) => (
-            <option key={f.id} value={f.id}>
-              📁 {f.name}
-            </option>
-          ))}
-        </select>
+          onChange={(val) => moveDocument(doc.id, val || undefined)}
+          options={folderOptions}
+          ariaLabel="Chọn folder cho tài liệu"
+          minMenuWidth={220}
+          triggerIcon={<FolderOpen size={14} />}
+        />
         {/* Nút chia sẻ/xóa gọn lại còn icon (chữ chỉ hiện qua tooltip) */}
         <button
           type="button"

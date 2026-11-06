@@ -1,6 +1,14 @@
-import { useState, type KeyboardEvent } from 'react';
+import { useMemo, useState, type KeyboardEvent } from 'react';
 import { createPortal } from 'react-dom';
-import { Globe, Code2, Loader2, AlertCircle, ArrowRight, Check } from 'lucide-react';
+import {
+  Globe,
+  Code2,
+  Loader2,
+  AlertCircle,
+  ArrowRight,
+  Check,
+  FolderOpen,
+} from 'lucide-react';
 import { useDocuments } from '../context/DocumentsContext';
 import { useToast } from '../context/ToastContext';
 import { useConfirm } from '../context/ConfirmContext';
@@ -8,6 +16,7 @@ import { useFocusTrap } from '../hooks/useFocusTrap';
 import { fetchAndExtractArticle, extractArticleFromHtml } from '../lib/webExtractor';
 import { htmlToMarkdown } from '../lib/htmlToMarkdown';
 import MarkdownPreview from './MarkdownPreview';
+import DropdownSelect, { type DropdownOption } from './DropdownSelect';
 
 export interface ImportWebModalProps {
   open: boolean;
@@ -33,6 +42,13 @@ export default function ImportWebModal({
   const [url, setUrl] = useState('');
   const [rawHtml, setRawHtml] = useState('');
   const [targetFolderId, setTargetFolderId] = useState(folderId ?? '');
+  const folderOptions = useMemo<DropdownOption<string>[]>(
+    () => [
+      { value: '', label: 'Không có folder' },
+      ...folders.map((f) => ({ value: f.id, label: f.name })),
+    ],
+    [folders],
+  );
 
   // Trạng thái trích xuất bài viết
   const [busy, setBusy] = useState(false);
@@ -355,19 +371,18 @@ export default function ImportWebModal({
                 <label className="modal-field-label" htmlFor="result-folder">
                   Thư mục đích
                 </label>
-                <select
+                <DropdownSelect<string>
                   id="result-folder"
-                  className="modal-input"
+                  className="modal-dropdown"
+                  fullWidth
+                  align="end"
                   value={targetFolderId}
-                  onChange={(e) => setTargetFolderId(e.target.value)}
-                >
-                  <option value="">📁 Không có folder</option>
-                  {folders.map((f) => (
-                    <option key={f.id} value={f.id}>
-                      📁 {f.name}
-                    </option>
-                  ))}
-                </select>
+                  onChange={setTargetFolderId}
+                  options={folderOptions}
+                  ariaLabel="Thư mục đích"
+                  minMenuWidth={210}
+                  triggerIcon={<FolderOpen size={15} />}
+                />
               </div>
             </div>
 

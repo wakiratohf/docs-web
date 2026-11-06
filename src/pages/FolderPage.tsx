@@ -19,6 +19,7 @@ import {
   Droplet,
   ArrowLeft,
   Boxes,
+  ArrowUpDown,
 } from 'lucide-react';
 import { useDocuments } from '../context/DocumentsContext';
 import { useAuth } from '../auth/useAuth';
@@ -31,6 +32,7 @@ import Spinner from '../components/Spinner';
 import EmptyState from '../components/EmptyState';
 import QuickNoteModal from '../components/QuickNoteModal';
 import NewDocMenu from '../components/NewDocMenu';
+import DropdownSelect, { type DropdownOption } from '../components/DropdownSelect';
 import NoteEditDialog from '../components/NoteEditDialog';
 import SkillCard from '../components/SkillCard';
 import SkillEditModal from '../components/SkillEditModal';
@@ -44,6 +46,31 @@ function formatDate(iso: string): string {
   const d = new Date(iso);
   return d.toLocaleString('vi-VN', { dateStyle: 'short', timeStyle: 'short' });
 }
+
+type FolderSortBy = 'manual' | 'name' | 'date';
+
+const FOLDER_SORT_OPTIONS: readonly DropdownOption<FolderSortBy>[] = [
+  { value: 'manual', label: 'Thứ tự kéo-thả' },
+  { value: 'name', label: 'Tên (A–Z)' },
+  { value: 'date', label: 'Ngày tạo (mới nhất)' },
+];
+
+const FOLDER_VIEW_OPTIONS: readonly DropdownOption<'list' | 'sticky'>[] = [
+  {
+    value: 'list',
+    label: 'Danh sách',
+    triggerLabel: 'List',
+    description: 'Hiển thị từng dòng chi tiết',
+    icon: <List size={15} />,
+  },
+  {
+    value: 'sticky',
+    label: 'Sticky note',
+    triggerLabel: 'Sticky',
+    description: 'Lưới giấy nhớ nhiều màu',
+    icon: <LayoutGrid size={15} />,
+  },
+];
 
 export default function FolderPage() {
   const { folderId } = useParams();
@@ -401,39 +428,25 @@ export default function FolderPage() {
           {/* Chuyển kiểu hiển thị tài liệu trong folder: danh sách ↔ sticky note.
               Folder skill có layout marketplace riêng nên ẩn bộ chuyển này. */}
           {!isSkill && (
-            <select
-              className="sort-select"
+            <DropdownSelect<FolderSortBy>
               value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
-              title="Sắp xếp tài liệu"
-              aria-label="Sắp xếp tài liệu"
-            >
-              <option value="manual">Thứ tự kéo-thả</option>
-              <option value="name">Tên (A–Z)</option>
-              <option value="date">Ngày tạo (mới nhất)</option>
-            </select>
+              onChange={setSortBy}
+              options={FOLDER_SORT_OPTIONS}
+              ariaLabel="Sắp xếp tài liệu"
+              align="end"
+              minMenuWidth={200}
+              triggerIcon={<ArrowUpDown size={15} />}
+            />
           )}
           {!isSkill && (
-            <div className="view-toggle" role="group" aria-label="Kiểu hiển thị">
-              <button
-                type="button"
-                className={`btn-icon ${!isSticky ? 'primary' : ''}`}
-                onClick={() => setFolderViewType(folder.id, 'list')}
-                title="Hiển thị dạng danh sách"
-                aria-pressed={!isSticky}
-              >
-                <List size={16} aria-hidden="true" /> List
-              </button>
-              <button
-                type="button"
-                className={`btn-icon ${isSticky ? 'primary' : ''}`}
-                onClick={() => setFolderViewType(folder.id, 'sticky')}
-                title="Hiển thị dạng sticky note"
-                aria-pressed={isSticky}
-              >
-                <LayoutGrid size={16} aria-hidden="true" /> Sticky
-              </button>
-            </div>
+            <DropdownSelect<'list' | 'sticky'>
+              value={isSticky ? 'sticky' : 'list'}
+              onChange={(v) => setFolderViewType(folder.id, v)}
+              options={FOLDER_VIEW_OPTIONS}
+              ariaLabel="Kiểu hiển thị"
+              align="end"
+              minMenuWidth={236}
+            />
           )}
           <button
             type="button"

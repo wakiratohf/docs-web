@@ -34,6 +34,15 @@
   --glass-border: rgba(0, 0, 0, 0.08);
   --glass-blur: saturate(180%) blur(20px);
 
+  /* Bề mặt riêng cho Dropdown / Menu nổi: độ đục cao hơn header để chữ rõ nét
+     trên nền thẻ trắng, kèm viền sáng nội bộ (specular highlight) kiểu macOS */
+  --dropdown-bg: rgba(255, 255, 255, 0.94);
+  --dropdown-border: rgba(0, 0, 0, 0.1);
+  --dropdown-shadow: 0 18px 42px rgba(0, 0, 0, 0.14),
+    0 4px 12px rgba(0, 0, 0, 0.06), inset 0 0.5px 0 rgba(255, 255, 255, 0.85);
+  --dropdown-item-hover: rgba(0, 0, 0, 0.055);
+  --dropdown-item-selected: rgba(0, 113, 227, 0.1);
+
   /* Bo góc — thang đo nhất quán kiểu Apple (góc bo lớn, mềm) */
   --bottom-nav-h: 26px; /* chiều cao footer tối giản (26px) nhường tối đa không gian cho việc đọc */
 
@@ -88,6 +97,13 @@
 
   --glass-bg: rgba(28, 28, 30, 0.72);
   --glass-border: rgba(255, 255, 255, 0.1);
+
+  --dropdown-bg: rgba(34, 34, 38, 0.94);
+  --dropdown-border: rgba(255, 255, 255, 0.14);
+  --dropdown-shadow: 0 22px 48px rgba(0, 0, 0, 0.62),
+    0 6px 16px rgba(0, 0, 0, 0.42), inset 0 0.5px 0 rgba(255, 255, 255, 0.12);
+  --dropdown-item-hover: rgba(255, 255, 255, 0.09);
+  --dropdown-item-selected: rgba(10, 132, 255, 0.22);
 
   --shadow: rgba(0, 0, 0, 0.4);
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3), 0 1px 3px rgba(0, 0, 0, 0.4);
@@ -176,7 +192,8 @@ select {
   color: var(--text);
   background: var(--card);
   font-family: inherit;
-  transition: border-color 0.2s var(--ease), box-shadow 0.2s var(--ease);
+  transition: border-color 0.2s var(--ease), box-shadow 0.2s var(--ease),
+    background-color 0.2s var(--ease);
 }
 /* Vòng focus mềm kiểu Apple cho mọi ô nhập có viền */
 input:focus-visible,
@@ -185,6 +202,56 @@ select:focus-visible {
   outline: none;
   border-color: var(--primary);
   box-shadow: 0 0 0 4px var(--ring);
+}
+
+/* Fallback & progressive enhancement cho thẻ <select> thuần (nếu còn dùng):
+   thay mũi tên mặc định của hệ điều hành bằng chevron mảnh, nâng cấp lên
+   customizable select (appearance: base-select) trên trình duyệt hỗ trợ. */
+select {
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%236e6e73' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  padding-inline-end: 30px;
+  cursor: pointer;
+}
+select:hover {
+  background-color: var(--hover-bg);
+}
+@supports (appearance: base-select) {
+  select,
+  select::picker(select) {
+    appearance: base-select;
+  }
+  select {
+    background-image: none;
+    padding-inline-end: 12px;
+  }
+  select::picker(select) {
+    margin-block-start: 6px;
+    padding: 6px;
+    background: var(--dropdown-bg);
+    border: 1px solid var(--dropdown-border);
+    border-radius: 14px;
+    box-shadow: var(--dropdown-shadow);
+    color: var(--text);
+  }
+  select::picker-icon {
+    color: var(--muted);
+  }
+  select option {
+    padding: 8px 10px;
+    border-radius: 9px;
+    font-size: 13.5px;
+    cursor: pointer;
+  }
+  select option:hover {
+    background: var(--dropdown-item-hover);
+  }
+  select option::checkmark {
+    color: var(--primary);
+  }
 }
 
 a {
@@ -1687,12 +1754,12 @@ a.recent-folder-chip:hover {
   grid-template-columns: repeat(4, 1fr);
   gap: 6px;
   padding: 8px;
-  background: var(--glass-bg);
-  backdrop-filter: var(--glass-blur);
-  -webkit-backdrop-filter: var(--glass-blur);
-  border: 1px solid var(--glass-border);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow-lg);
+  background: var(--dropdown-bg);
+  backdrop-filter: saturate(180%) blur(24px);
+  -webkit-backdrop-filter: saturate(180%) blur(24px);
+  border: 1px solid var(--dropdown-border);
+  border-radius: 14px;
+  box-shadow: var(--dropdown-shadow);
 }
 .sticky-swatch {
   width: 24px;
@@ -1839,31 +1906,34 @@ a.recent-folder-chip:hover {
 /* Hộp danh sách xổ xuống, nổi đè lên nội dung phía dưới */
 .author-options {
   position: absolute;
-  top: calc(100% + 4px);
+  top: calc(100% + 6px);
   left: 0;
   right: 0;
-  z-index: 30;
+  z-index: 40;
   margin: 0;
-  padding: 4px;
+  padding: 6px;
   list-style: none;
   max-height: 240px;
   overflow-y: auto;
-  background: var(--glass-bg);
-  backdrop-filter: var(--glass-blur);
-  -webkit-backdrop-filter: var(--glass-blur);
-  border: 1px solid var(--glass-border);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow-lg);
+  overscroll-behavior: contain;
+  background: var(--dropdown-bg);
+  backdrop-filter: saturate(180%) blur(24px);
+  -webkit-backdrop-filter: saturate(180%) blur(24px);
+  border: 1px solid var(--dropdown-border);
+  border-radius: 14px;
+  box-shadow: var(--dropdown-shadow);
 }
 .author-option {
   display: flex;
   align-items: center;
   gap: 8px;
   padding: 8px 10px;
-  border-radius: 6px;
-  font-size: 14px;
+  border-radius: 9px;
+  font-size: 13.5px;
+  font-weight: 500;
   color: var(--text);
   cursor: pointer;
+  transition: background 0.12s ease;
 }
 .author-option .author-option-name {
   flex: 1;
@@ -1872,8 +1942,13 @@ a.recent-folder-chip:hover {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.author-option:hover,
 .author-option.is-active {
-  background: var(--hover-bg);
+  background: var(--dropdown-item-hover);
+}
+.author-option[aria-selected='true'] {
+  background: var(--dropdown-item-selected);
+  font-weight: 600;
 }
 .author-option svg {
   flex-shrink: 0;
@@ -2102,20 +2177,15 @@ a.recent-folder-chip:hover {
   position: static;
   transform: none;
 }
-.search-author {
+.search-author-dropdown {
   flex-shrink: 0;
-  max-width: 200px;
-  padding: 11px 12px;
-  font-size: 14px;
-  color: var(--text);
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  cursor: pointer;
+  max-inline-size: 210px;
 }
-.search-author:focus {
-  outline: none;
-  border-color: var(--primary);
+.search-author-dropdown .dropdown-trigger {
+  min-block-size: 44px;
+  padding: 9px 14px;
+  border-radius: var(--radius-pill);
+  box-shadow: var(--shadow-sm);
 }
 .search-count {
   margin: 0 0 12px;
@@ -2529,47 +2599,284 @@ mark {
 .btn-icon svg {
   flex-shrink: 0;
 }
-/* ----- Dropdown "New" (gộp New note/markdown/HTML/PDF vào một nút) ----- */
+/* ============================================================
+   Hệ thống Dropdown & Menu nổi (DropdownSelect + NewDocMenu)
+   Phong cách kính mờ macOS/iOS: nền sáng rõ, bo góc mềm 14px,
+   icon đầu dòng kích thước cố định, chevron xoay mượt, dấu check.
+   ============================================================ */
+.dropdown-select,
 .new-menu {
   position: relative;
   display: inline-flex;
+  min-inline-size: 0;
+  max-inline-size: 100%;
 }
-/* Bảng menu xổ xuống ngay dưới nút New */
-.new-menu-pop {
-  position: absolute;
-  top: calc(100% + 6px);
-  left: 0;
-  z-index: 30;
-  min-width: 180px;
+.dropdown-select.is-full {
+  display: flex;
+  width: 100%;
+}
+.dropdown-select.is-full .dropdown-trigger {
+  width: 100%;
+}
+
+.dropdown-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  max-inline-size: 100%;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--text);
+  font-weight: 500;
+  white-space: nowrap;
+  box-shadow: var(--shadow-sm);
+}
+.dropdown-trigger-md {
+  min-block-size: 36px;
+  padding: 7px 11px 7px 12px;
+  font-size: 14px;
+  border-radius: 10px;
+}
+.dropdown-trigger-sm {
+  block-size: 34px;
+  padding: 0 10px;
+  font-size: 13px;
+  border-radius: 8px;
+}
+.dropdown-trigger:hover {
+  background: var(--hover-bg);
+  border-color: rgba(0, 0, 0, 0.16);
+}
+[data-theme='dark'] .dropdown-trigger:hover {
+  border-color: rgba(255, 255, 255, 0.22);
+}
+/* Trạng thái đang mở menu: làm nổi rõ viền và vòng nhấn để biết menu nào đang mở */
+.dropdown-trigger[aria-expanded='true'] {
+  border-color: var(--primary);
+  background: var(--subtle);
+  box-shadow: 0 0 0 3px var(--ring);
+}
+.new-menu-trigger {
+  border-radius: 10px;
+  min-block-size: 36px;
+  padding: 7px 12px 7px 13px;
+}
+.new-menu-trigger[aria-expanded='true'] {
+  background: var(--primary-hover);
+  border-color: var(--primary-hover);
+  box-shadow: 0 0 0 3px var(--ring);
+}
+
+.dropdown-trigger-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: var(--primary);
+}
+.dropdown-trigger-label {
+  flex: 1 1 auto;
+  min-inline-size: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: start;
+}
+.dropdown-chevron {
+  flex-shrink: 0;
+  margin-inline-start: 1px;
+  opacity: 0.65;
+  transition: transform 0.18s var(--ease), opacity 0.18s var(--ease);
+}
+.dropdown-trigger:hover .dropdown-chevron,
+.new-menu-trigger:hover .dropdown-chevron {
+  opacity: 0.95;
+}
+.dropdown-trigger[aria-expanded='true'] .dropdown-chevron,
+.new-menu-trigger[aria-expanded='true'] .dropdown-chevron {
+  transform: rotate(180deg);
+  opacity: 1;
+}
+
+/* Ràng buộc độ rộng cho các dropdown chọn folder và trong modal */
+.folder-dropdown {
+  max-inline-size: 210px;
+}
+.folder-pick .folder-dropdown {
+  max-inline-size: 260px;
+}
+.modal-dropdown {
+  margin-bottom: 16px;
+}
+.modal-dropdown .dropdown-trigger {
+  min-block-size: 40px;
+  border-radius: 8px;
+  box-shadow: none;
+}
+
+/* Bảng menu nổi (render qua Portal vào body, tọa độ kẹp trong viewport) */
+.dropdown-menu-pop {
+  position: fixed;
+  inset: auto;
+  margin: 0;
+  z-index: 9500;
   display: flex;
   flex-direction: column;
+  gap: 2px;
+  max-inline-size: calc(100vw - 16px);
+  max-block-size: min(320px, calc(100dvh - 24px));
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 6px;
-  background: var(--glass-bg);
-  backdrop-filter: var(--glass-blur);
-  -webkit-backdrop-filter: var(--glass-blur);
-  border: 1px solid var(--glass-border);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow-lg);
-  animation: modal-in 0.2s var(--ease);
+  background: var(--dropdown-bg);
+  backdrop-filter: saturate(180%) blur(24px);
+  -webkit-backdrop-filter: saturate(180%) blur(24px);
+  border: 1px solid var(--dropdown-border);
+  border-radius: 14px;
+  box-shadow: var(--dropdown-shadow);
 }
-/* Mỗi dòng trong menu: căn trái, full chiều ngang, viền trong suốt cho gọn */
-.new-menu-item {
+@media (prefers-reduced-motion: no-preference) {
+  .dropdown-menu-pop {
+    animation: dropdown-pop-in 0.13s var(--ease);
+  }
+}
+@keyframes dropdown-pop-in {
+  from {
+    opacity: 0;
+    translate: 0 -4px;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+
+/* Từng dòng mục chọn trong menu */
+.dropdown-item {
   display: flex;
   align-items: center;
-  justify-content: flex-start;
-  gap: 8px;
+  gap: 10px;
   width: 100%;
   padding: 8px 10px;
-  border: 1px solid transparent;
+  border: none;
+  border-radius: 9px;
   background: transparent;
-  border-radius: 8px;
-  text-align: left;
+  color: var(--text);
+  font-size: 13.5px;
+  font-weight: 500;
+  text-align: start;
+  transition: background 0.12s ease, color 0.12s ease;
 }
-.new-menu-item:hover {
-  background: var(--hover-bg);
+.dropdown-item:hover {
+  background: var(--dropdown-item-hover);
 }
-.new-menu-item svg {
-  flex-shrink: 0;
+.dropdown-item:active {
+  transform: none;
+  background: var(--dropdown-item-hover);
+}
+.dropdown-item:focus-visible {
+  outline: none;
+  background: var(--dropdown-item-hover);
+  box-shadow: inset 0 0 0 1.5px var(--primary);
+}
+.dropdown-item.is-selected {
+  background: var(--dropdown-item-selected);
+  font-weight: 600;
+}
+.dropdown-item.is-selected:hover {
+  background: var(--dropdown-item-selected);
+}
+
+/* Khe cố định cho icon đầu dòng để cột nhãn luôn thẳng hàng */
+.dropdown-item-icon {
+  flex: none;
+  inline-size: 26px;
+  block-size: 26px;
+  border-radius: 7px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--subtle);
+  border: 1px solid var(--glass-border);
+  color: var(--primary);
+}
+.dropdown-item.is-selected .dropdown-item-icon {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
+
+/* Sắc độ icon theo loại tài liệu trong menu "+ New" */
+.dropdown-item-icon.icon-tint-note {
+  background: rgba(124, 58, 237, 0.12);
+  border-color: rgba(124, 58, 237, 0.2);
+  color: var(--note);
+}
+.dropdown-item-icon.icon-tint-markdown {
+  background: rgba(8, 145, 178, 0.12);
+  border-color: rgba(8, 145, 178, 0.2);
+  color: var(--markdown);
+}
+.dropdown-item-icon.icon-tint-html {
+  background: rgba(234, 88, 12, 0.12);
+  border-color: rgba(234, 88, 12, 0.2);
+  color: var(--html);
+}
+.dropdown-item-icon.icon-tint-embed {
+  background: rgba(14, 165, 233, 0.12);
+  border-color: rgba(14, 165, 233, 0.2);
+  color: #0284c7;
+}
+[data-theme='dark'] .dropdown-item-icon.icon-tint-embed {
+  color: #38bdf8;
+}
+.dropdown-item-icon.icon-tint-pdf {
+  background: rgba(215, 0, 21, 0.1);
+  border-color: rgba(215, 0, 21, 0.2);
+  color: var(--danger);
+}
+.dropdown-item-icon.icon-tint-web {
+  background: var(--primary-soft);
+  border-color: rgba(0, 113, 227, 0.2);
+  color: var(--primary);
+}
+
+.dropdown-item-body {
+  flex: 1 1 auto;
+  min-inline-size: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.dropdown-item-label {
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dropdown-item-desc {
+  font-size: 11.5px;
+  font-weight: 400;
+  line-height: 1.3;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dropdown-item-check {
+  flex: none;
+  inline-size: 16px;
+  margin-inline-start: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--primary);
+}
+
+/* Đường phân tách nhóm mục trong menu bằng thẻ <hr> ngữ nghĩa chuẩn */
+hr.dropdown-sep {
+  border: 0;
+  border-top: 1px solid var(--dropdown-border);
+  margin: 4px 6px;
 }
 
 /* Link "Mở" trong share-bar trông như nút cho đồng bộ */
@@ -2762,6 +3069,13 @@ a.btn-icon:hover {
     max-inline-size: 112px;
     padding: 6px 10px;
     font-size: 12px;
+  }
+  .search-author-dropdown {
+    max-inline-size: 156px;
+  }
+  .search-author-dropdown .dropdown-trigger {
+    padding: 9px 11px;
+    font-size: 13px;
   }
 }
 
@@ -3108,6 +3422,12 @@ a.btn-icon:hover {
   --code-bg: #eae0cf;
   --glass-bg: rgba(248, 241, 229, 0.85);
   --glass-border: rgba(45, 40, 34, 0.08);
+  --dropdown-bg: rgba(248, 241, 229, 0.96);
+  --dropdown-border: rgba(45, 40, 34, 0.14);
+  --dropdown-shadow: 0 18px 42px rgba(45, 40, 34, 0.18),
+    0 4px 12px rgba(45, 40, 34, 0.08), inset 0 0.5px 0 rgba(255, 255, 255, 0.6);
+  --dropdown-item-hover: rgba(158, 100, 41, 0.1);
+  --dropdown-item-selected: rgba(158, 100, 41, 0.16);
 }
 
 /* 3. Phông chữ theo thiết lập đọc */

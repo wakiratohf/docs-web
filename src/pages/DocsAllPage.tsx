@@ -10,6 +10,8 @@ import {
   LayoutGrid,
   Clock,
   FolderPlus,
+  ArrowUpDown,
+  User,
 } from 'lucide-react';
 import { useDocuments } from '../context/DocumentsContext';
 import { useUploadDocuments } from '../hooks/useUploadDocuments';
@@ -22,6 +24,7 @@ import Spinner from '../components/Spinner';
 import EmptyState from '../components/EmptyState';
 import CreateFolderModal from '../components/CreateFolderModal';
 import NewDocMenu from '../components/NewDocMenu';
+import DropdownSelect, { type DropdownOption } from '../components/DropdownSelect';
 import { searchDocs, collectAuthors, ALL_AUTHORS } from '../lib/search';
 import { formatDate } from '../lib/formatDate';
 import {
@@ -46,6 +49,30 @@ const GLYPH: Record<DocumentType, string> = {
   pdf: '📄',
   embed: '🔗',
 };
+
+const HOME_SORT_OPTIONS: readonly DropdownOption<HomeSortBy>[] = [
+  { value: 'default', label: 'Mặc định' },
+  { value: 'updated', label: 'Ngày sửa mới nhất' },
+  { value: 'created', label: 'Ngày tạo mới nhất' },
+  { value: 'name', label: 'Tên (A–Z)' },
+];
+
+const HOME_VIEW_OPTIONS: readonly DropdownOption<HomeViewMode>[] = [
+  {
+    value: 'folders',
+    label: 'Dạng Folder',
+    triggerLabel: 'Folder',
+    description: 'Lưới thư mục & tài liệu lẻ',
+    icon: <LayoutGrid size={15} />,
+  },
+  {
+    value: 'recent',
+    label: 'Gần đây',
+    triggerLabel: 'Gần đây',
+    description: 'Danh sách phẳng mọi tài liệu',
+    icon: <Clock size={15} />,
+  },
+];
 
 export default function DocsAllPage() {
   const {
@@ -81,6 +108,13 @@ export default function DocsAllPage() {
   const [author, setAuthor] = useState<string>(ALL_AUTHORS);
   // Danh sách tác giả load động từ dữ liệu để đổ vào dropdown.
   const authors = useMemo(() => collectAuthors(documents), [documents]);
+  const authorOptions = useMemo<DropdownOption<string>[]>(
+    () => [
+      { value: ALL_AUTHORS, label: 'Tất cả tác giả' },
+      ...authors.map((a) => ({ value: a, label: a })),
+    ],
+    [authors],
+  );
   // Trễ 200ms trước khi search thật sự chạy, tránh tính search (DOMParser cho
   // note/html) trên mỗi keystroke khi gõ nhanh.
   const debouncedQuery = useDebouncedValue(query, 200);
@@ -357,40 +391,25 @@ export default function DocsAllPage() {
 
         <div className="actions-right">
           {!searching && (
-            <select
-              className="sort-select"
+            <DropdownSelect<HomeSortBy>
               value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as HomeSortBy)}
-              title="Sắp xếp màn hình chính"
-              aria-label="Sắp xếp màn hình chính"
-            >
-              <option value="default">Mặc định</option>
-              <option value="updated">Ngày sửa mới nhất</option>
-              <option value="created">Ngày tạo mới nhất</option>
-              <option value="name">Tên (A–Z)</option>
-            </select>
+              onChange={setSortBy}
+              options={HOME_SORT_OPTIONS}
+              ariaLabel="Sắp xếp màn hình chính"
+              align="end"
+              minMenuWidth={210}
+              triggerIcon={<ArrowUpDown size={15} />}
+            />
           )}
 
-          <div className="view-toggle" role="group" aria-label="Chế độ xem trang chủ">
-            <button
-              type="button"
-              className={`btn-icon ${viewMode === 'folders' ? 'primary' : ''}`}
-              onClick={() => switchViewMode('folders')}
-              title="Hiển thị dạng lưới Folder"
-              aria-pressed={viewMode === 'folders'}
-            >
-              <LayoutGrid size={16} aria-hidden="true" /> Folder
-            </button>
-            <button
-              type="button"
-              className={`btn-icon ${viewMode === 'recent' ? 'primary' : ''}`}
-              onClick={() => switchViewMode('recent')}
-              title="Hiển thị danh sách phẳng tất cả tài liệu"
-              aria-pressed={viewMode === 'recent'}
-            >
-              <Clock size={16} aria-hidden="true" /> Gần đây
-            </button>
-          </div>
+          <DropdownSelect<HomeViewMode>
+            value={viewMode}
+            onChange={switchViewMode}
+            options={HOME_VIEW_OPTIONS}
+            ariaLabel="Chế độ xem trang chủ"
+            align="end"
+            minMenuWidth={248}
+          />
         </div>
       </div>
 
@@ -403,18 +422,16 @@ export default function DocsAllPage() {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
-        <select
-          className="search-author"
-          title="Lọc theo tác giả"
-          aria-label="Lọc theo tác giả"
+        <DropdownSelect<string>
+          className="search-author-dropdown"
           value={author}
-          onChange={(e) => setAuthor(e.target.value)}
-        >
-          <option value={ALL_AUTHORS}>Tất cả tác giả</option>
-          {authors.map((a) => (
-            <option key={a} value={a}>{a}</option>
-          ))}
-        </select>
+          onChange={setAuthor}
+          options={authorOptions}
+          ariaLabel="Lọc theo tác giả"
+          align="end"
+          minMenuWidth={210}
+          triggerIcon={<User size={15} />}
+        />
         {searching && (
           <button
             type="button"

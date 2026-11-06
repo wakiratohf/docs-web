@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, fireEvent, cleanup } from '@testing-library/react';
+import { render, fireEvent, cleanup, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { ThemeProvider } from '../context/ThemeContext';
 import DocsAllPage from './DocsAllPage';
@@ -55,7 +55,7 @@ function renderHome() {
   );
 }
 
-describe('DocsAllPage view modes', () => {
+describe('DocsAllPage view modes dropdown', () => {
   afterEach(() => {
     cleanup();
   });
@@ -118,18 +118,25 @@ describe('DocsAllPage view modes', () => {
     };
   });
 
-  it('mặc định mở chế độ lưới Folder, chuyển sang Gần đây hiện đầy đủ tài liệu + skill và lưu localStorage', () => {
-    const { container, getByRole, queryByText, unmount } = renderHome();
+  it('mặc định mở chế độ lưới Folder, chọn Gần đây trong dropdown hiện đầy đủ tài liệu + skill và lưu localStorage', () => {
+    const { container, getByRole, getByLabelText, queryByText, unmount } =
+      renderHome();
 
     // Mặc định đang ở chế độ lưới Folder: chỉ thấy tài liệu đứng riêng, chưa thấy tài liệu nằm sâu trong folder
     expect(container.querySelector('.home-grid')).not.toBeNull();
     expect(queryByText('Ghi chú đứng riêng')).not.toBeNull();
     expect(queryByText('Tài liệu trong folder')).toBeNull();
 
-    // Bấm sang chế độ "Gần đây"
-    const recentBtn = getByRole('button', { name: /Gần đây/i });
-    fireEvent.click(recentBtn);
-    expect(recentBtn.getAttribute('aria-pressed')).toBe('true');
+    // Mở dropdown chế độ xem rồi chọn "Gần đây"
+    const viewTrigger = getByLabelText('Chế độ xem trang chủ');
+    expect(viewTrigger.getAttribute('aria-expanded')).toBe('false');
+    fireEvent.click(viewTrigger);
+    expect(viewTrigger.getAttribute('aria-expanded')).toBe('true');
+
+    const recentOption = screen.getByRole('option', { name: /Gần đây/i });
+    fireEvent.click(recentOption);
+    expect(viewTrigger.getAttribute('aria-expanded')).toBe('false');
+    expect(viewTrigger.textContent).toContain('Gần đây');
 
     // Hiện danh sách phẳng với role="list", gồm cả tài liệu trong folder, tài liệu lẻ và skill AI
     const list = container.querySelector('ul.home-recent-list[role="list"]');
@@ -152,12 +159,15 @@ describe('DocsAllPage view modes', () => {
     expect(remounted.container.querySelector('ul.home-recent-list')).not.toBeNull();
   });
 
-  it('đổi tiêu chí sắp xếp sang Tên (A–Z) cập nhật ngay thứ tự hiển thị', () => {
-    const { container, getByRole, getByLabelText } = renderHome();
-    fireEvent.click(getByRole('button', { name: /Gần đây/i }));
+  it('đổi tiêu chí sắp xếp sang Tên (A–Z) từ dropdown cập nhật ngay thứ tự hiển thị', () => {
+    const { container, getByLabelText } = renderHome();
 
-    const sortSelect = getByLabelText('Sắp xếp màn hình chính') as HTMLSelectElement;
-    fireEvent.change(sortSelect, { target: { value: 'name' } });
+    fireEvent.click(getByLabelText('Chế độ xem trang chủ'));
+    fireEvent.click(screen.getByRole('option', { name: /Gần đây/i }));
+
+    const sortTrigger = getByLabelText('Sắp xếp màn hình chính');
+    fireEvent.click(sortTrigger);
+    fireEvent.click(screen.getByRole('option', { name: /Tên \(A–Z\)/i }));
 
     const titles = Array.from(
       container.querySelectorAll('.home-recent-list .doc-title'),
@@ -184,11 +194,34 @@ describe('DocsAllPage view modes', () => {
       loading: false,
     };
 
-    const { getByRole, queryByText } = renderHome();
-    fireEvent.click(getByRole('button', { name: /Gần đây/i }));
+    const { getByLabelText, queryByText } = renderHome();
+    fireEvent.click(getByLabelText('Chế độ xem trang chủ'));
+    fireEvent.click(screen.getByRole('option', { name: /Gần đây/i }));
 
     expect(
-      queryByText('Các folder hiện đang trống. Tạo ghi chú hoặc tải tài liệu lên để xem tại đây.'),
+      queryByText(
+        'Các folder hiện đang trống. Tạo ghi chú hoặc tải tài liệu lên để xem tại đây.',
+      ),
     ).not.toBeNull();
+  });
+
+  it('hỗ trợ điều hướng bàn phím (ArrowDown mở & chuyển mục, Escape đóng & trả focus)', () => {
+    const { getByLabelText } = renderHome();
+    const viewTrigger = getByLabelText('Chế độ xem trang chủ');
+
+    viewTrigger.focus();
+    fireEvent.keyDown(viewTrigger, { key: 'ArrowDown' });
+    expect(viewTrigger.getAttribute('aria-expanded')).toBe('true');
+
+    const listbox = screen.getByRole('listbox', { name: 'Chế độ xem trang chủ' });
+    const options = screen.getAllByRole('option');
+    expect(document.activeElement).toBe(options[0]);
+
+    fireEvent.keyDown(listbox, { key: 'ArrowDown' });
+    expect(document.activeElement).toBe(options[1]);
+
+    fireEvent.keyDown(listbox, { key: 'Escape' });
+    expect(viewTrigger.getAttribute('aria-expanded')).toBe('false');
+    expect(document.activeElement).toBe(viewTrigger);
   });
 });

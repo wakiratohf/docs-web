@@ -1,14 +1,36 @@
-import { useRef, useState, type ChangeEvent, type DragEvent } from 'react';
+import { useMemo, useRef, useState, type ChangeEvent, type DragEvent } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
-import { X, ArrowLeft } from 'lucide-react';
+import { X, ArrowLeft, FolderOpen, FileText, Hash, Code2 } from 'lucide-react';
 import { useDocuments } from '../context/DocumentsContext';
 import { useUploadDocuments } from '../hooks/useUploadDocuments';
 import { useToast } from '../context/ToastContext';
 import { detectType, extractHtmlBody, stripExt } from '../lib/uploadHelpers';
 import { htmlToMarkdown, isMeaningfulHtml } from '../lib/htmlToMarkdown';
 import ThemeToggle from '../components/ThemeToggle';
+import DropdownSelect, { type DropdownOption } from '../components/DropdownSelect';
 import type { DocumentType } from '../types';
+
+const UPLOAD_TYPE_OPTIONS: readonly DropdownOption<DocumentType>[] = [
+  {
+    value: 'markdown',
+    label: 'Markdown',
+    triggerLabel: 'markdown',
+    icon: <Hash size={14} />,
+  },
+  {
+    value: 'note',
+    label: 'Note (rich-text)',
+    triggerLabel: 'note',
+    icon: <FileText size={14} />,
+  },
+  {
+    value: 'html',
+    label: 'HTML (mã thô)',
+    triggerLabel: 'html',
+    icon: <Code2 size={14} />,
+  },
+];
 
 // Một file đã chọn, chờ tạo thành tài liệu. Người dùng có thể sửa tiêu đề/loại
 // hoặc bỏ ra trước khi bấm tạo.
@@ -30,6 +52,13 @@ export default function BatchUploadPage() {
   const initialFolder = searchParams.get('folder') ?? '';
   const [folderId, setFolderId] = useState<string>(
     folders.some((f) => f.id === initialFolder) ? initialFolder : '',
+  );
+  const folderOptions = useMemo<DropdownOption<string>[]>(
+    () => [
+      { value: '', label: 'Không thuộc folder nào' },
+      ...folders.map((f) => ({ value: f.id, label: f.name })),
+    ],
+    [folders],
   );
   const [items, setItems] = useState<PickedItem[]>([]);
   const [dragOver, setDragOver] = useState(false);
@@ -146,21 +175,19 @@ export default function BatchUploadPage() {
       </p>
 
       <div className="upload-toolbar">
-        <label className="folder-pick">
-          Thư mục đích:
-          <select
-            className="folder-select"
+        <div className="folder-pick">
+          <label htmlFor="batch-target-folder">Thư mục đích:</label>
+          <DropdownSelect<string>
+            id="batch-target-folder"
+            className="folder-dropdown"
             value={folderId}
-            onChange={(e) => setFolderId(e.target.value)}
-          >
-            <option value="">Không thuộc folder nào</option>
-            {folders.map((f) => (
-              <option key={f.id} value={f.id}>
-                {f.name}
-              </option>
-            ))}
-          </select>
-        </label>
+            onChange={setFolderId}
+            options={folderOptions}
+            ariaLabel="Thư mục đích"
+            minMenuWidth={230}
+            triggerIcon={<FolderOpen size={15} />}
+          />
+        </div>
       </div>
 
       <div
@@ -236,19 +263,15 @@ export default function BatchUploadPage() {
                   onChange={(e) => updateItem(it.key, { title: e.target.value })}
                   placeholder="(không tiêu đề)"
                 />
-                <select
-                  className="type-select"
+                <DropdownSelect<DocumentType>
+                  size="sm"
+                  align="end"
                   value={it.type}
-                  onChange={(e) =>
-                    updateItem(it.key, {
-                      type: e.target.value as DocumentType,
-                    })
-                  }
-                >
-                  <option value="markdown">markdown</option>
-                  <option value="note">note</option>
-                  <option value="html">html</option>
-                </select>
+                  onChange={(nextType) => updateItem(it.key, { type: nextType })}
+                  options={UPLOAD_TYPE_OPTIONS}
+                  ariaLabel={`Loại tài liệu cho ${it.file.name}`}
+                  minMenuWidth={185}
+                />
                 <span className="upload-filename muted" title={it.file.name}>
                   {it.file.name}
                 </span>
