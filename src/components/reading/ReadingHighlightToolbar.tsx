@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { Trash2, Highlighter } from 'lucide-react';
 import {
   HIGHLIGHT_COLORS,
@@ -12,13 +13,19 @@ export interface ReadingHighlightToolbarProps {
   onRemoveHighlight?: (text: string, context?: TextContext) => void;
 }
 
+interface Coords {
+  x: number;
+  y: number;
+  placement: 'top' | 'bottom';
+}
+
 export default function ReadingHighlightToolbar({
   containerRef,
   onHighlight,
   onRemoveHighlight,
 }: ReadingHighlightToolbarProps) {
   const [visible, setVisible] = useState(false);
-  const [coords, setCoords] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [coords, setCoords] = useState<Coords>({ x: 0, y: 0, placement: 'top' });
   const [selectedText, setSelectedText] = useState('');
   const [activeColor, setActiveColor] = useState<HighlightColor | null>(null);
   const [isExistingMark, setIsExistingMark] = useState(false);
@@ -98,13 +105,18 @@ export default function ReadingHighlightToolbar({
           if (match) detectedColor = match[1] as HighlightColor;
         }
 
+        const x = Math.max(120, Math.min(window.innerWidth - 120, rect.left + rect.width / 2));
+        const placeBelow = rect.top < 56;
+        const y = placeBelow ? rect.bottom + 8 : rect.top - 8;
+
         setSelectedText(text);
         setContext(ctx);
         setIsExistingMark(Boolean(markEl));
         setActiveColor(detectedColor);
         setCoords({
-          x: rect.left + rect.width / 2,
-          y: rect.top + window.scrollY,
+          x,
+          y,
+          placement: placeBelow ? 'bottom' : 'top',
         });
         setVisible(true);
       }, 10);
@@ -134,13 +146,18 @@ export default function ReadingHighlightToolbar({
         const match = /hl-([a-z]+)/.exec(mark.className);
         const col = match ? (match[1] as HighlightColor) : 'yellow';
 
+        const x = Math.max(120, Math.min(window.innerWidth - 120, rect.left + rect.width / 2));
+        const placeBelow = rect.top < 56;
+        const y = placeBelow ? rect.bottom + 8 : rect.top - 8;
+
         setSelectedText(text);
         setContext(ctx);
         setIsExistingMark(true);
         setActiveColor(col);
         setCoords({
-          x: rect.left + rect.width / 2,
-          y: rect.top + window.scrollY,
+          x,
+          y,
+          placement: placeBelow ? 'bottom' : 'top',
         });
         setVisible(true);
       }
@@ -156,6 +173,11 @@ export default function ReadingHighlightToolbar({
       }
     };
 
+    const onScroll = () => {
+      // Ẩn bảng màu khi cuộn trang để tránh lệch vị trí so với chữ
+      hide();
+    };
+
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') hide();
     };
@@ -164,16 +186,19 @@ export default function ReadingHighlightToolbar({
     container.addEventListener('click', onClick);
     document.addEventListener('selectionchange', onSelectionChange);
     window.addEventListener('keydown', onKeyDown);
+    // Lắng nghe scroll trên toàn bộ window (capture) để bắt cả scroll của container bên trong
+    window.addEventListener('scroll', onScroll, true);
 
     return () => {
       container.removeEventListener('mouseup', onMouseUp);
       container.removeEventListener('click', onClick);
       document.removeEventListener('selectionchange', onSelectionChange);
       window.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener('scroll', onScroll, true);
     };
   }, [containerRef, extractContext, hide, isExistingMark]);
 
-  if (!visible || !selectedText) return null;
+  if (!visible || !selectedText || typeof document === 'undefined') return null;
 
   const handleApplyColor = (color: HighlightColor) => {
     onHighlight(selectedText, color, context);
@@ -190,13 +215,17 @@ export default function ReadingHighlightToolbar({
     hide();
   };
 
-  return (
+  // Sử dụng React Portal để đưa bảng màu ra ngoài document.body,
+  // đảm bảo KHÔNG bao giờ làm xô lệch hoặc đẩy thụt dòng (layout shift) của trang đọc
+  return createPortal(
     <div
       ref={toolbarRef}
       className="reading-highlight-toolbar"
       style={{
+        position: 'fixed',
         left: `${coords.x}px`,
         top: `${coords.y}px`,
+        transform: coords.placement === 'top' ? 'translate(-50%, -100%)' : 'translate(-50%, 0)',
       }}
       role="toolbar"
       aria-label="Thanh công cụ tô sáng"
@@ -233,6 +262,7 @@ export default function ReadingHighlightToolbar({
           </button>
         </>
       )}
-    </div>
+    </div>,
+    document.body,
   );
 }

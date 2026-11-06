@@ -3859,8 +3859,8 @@ mark.hl-yellow {
 
 /* ---------- Thanh công cụ nổi khi bôi đen ở chế độ đọc ---------- */
 .reading-highlight-toolbar {
-  position: absolute;
-  z-index: 1000;
+  position: fixed;
+  z-index: 9999;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -3868,9 +3868,7 @@ mark.hl-yellow {
   background: var(--card, #ffffff);
   border: 1px solid var(--border, #e2e8f0);
   border-radius: 20px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.14), 0 1px 3px rgba(0, 0, 0, 0.08);
-  transform: translate(-50%, -100%);
-  margin-top: -8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.16), 0 1px 3px rgba(0, 0, 0, 0.08);
   pointer-events: auto;
   user-select: none;
   animation: hlToolbarFadeIn 0.15s ease-out;
@@ -3885,11 +3883,9 @@ mark.hl-yellow {
 @keyframes hlToolbarFadeIn {
   from {
     opacity: 0;
-    transform: translate(-50%, -85%);
   }
   to {
     opacity: 1;
-    transform: translate(-50%, -100%);
   }
 }
 

@@ -328,7 +328,7 @@ export default function MarkdownPreview({
   };
 
   return (
-    <div ref={containerRef} className="markdown-body" style={{ position: 'relative' }}>
+    <div ref={containerRef} className="markdown-body">
       {onContentChange && (
         <ReadingHighlightToolbar
           containerRef={containerRef}

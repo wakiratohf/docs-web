@@ -52,7 +52,7 @@ export default function HtmlContent({ value, onContentChange }: HtmlContentProps
 
   if (looksLikeHtml) {
     return (
-      <div ref={containerRef} className="note-content readonly" style={{ position: 'relative' }}>
+      <div ref={containerRef} className="note-content readonly">
         {onContentChange && (
           <ReadingHighlightToolbar
             containerRef={containerRef}
@@ -69,7 +69,7 @@ export default function HtmlContent({ value, onContentChange }: HtmlContentProps
     <div
       ref={containerRef}
       className="note-content readonly"
-      style={{ whiteSpace: 'pre-wrap', position: 'relative' }}
+      style={{ whiteSpace: 'pre-wrap' }}
     >
       {onContentChange && (
         <ReadingHighlightToolbar
