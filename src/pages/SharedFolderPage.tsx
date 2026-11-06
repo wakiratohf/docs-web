@@ -1,7 +1,20 @@
 import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { onValue, ref, update } from 'firebase/database';
-import { Download, FolderX, Inbox, Boxes, Type, ListTree, FoldHorizontal, UnfoldHorizontal, RotateCcw } from 'lucide-react';
+import {
+  Download,
+  FolderX,
+  Inbox,
+  Boxes,
+  Type,
+  ListTree,
+  FoldHorizontal,
+  UnfoldHorizontal,
+  RotateCcw,
+  Search,
+  X,
+  FolderOpen,
+} from 'lucide-react';
 import { auth, db } from '../lib/firebase';
 import type { DocItem, Folder, SkillItem } from '../types';
 import HtmlContent from '../components/HtmlContent';
@@ -23,7 +36,8 @@ import { extractTocFromHtml, extractTocFromMarkdown } from '../lib/toc';
 import { downloadDocument } from '../lib/downloadHelpers';
 import { driveDownloadUrl } from '../lib/googleDrive';
 import { formatDate } from '../lib/formatDate';
-import { plainTextOf } from '../lib/search';
+import { plainTextOf, searchDocs } from '../lib/search';
+import { useDebouncedValue } from '../hooks/useDebouncedValue';
 import { DEFAULT_STICKY_COLOR } from '../lib/stickyColors';
 import {
   saveStoredSharedContent,
@@ -41,14 +55,6 @@ interface SharedFolderPayload {
   /** Các thư mục con bên trong folder này (khi chia sẻ cả cây dự án) */
   subfolders?: Record<string, Folder>;
 }
-
-const GLYPH: Record<DocItem['type'], string> = {
-  note: '✏️',
-  markdown: '#',
-  html: '<>',
-  pdf: '📄',
-  embed: '🔗',
-};
 
 type ViewState = 'loading' | 'ready' | 'notfound' | 'error';
 
@@ -241,6 +247,18 @@ export default function SharedFolderPage() {
     [payload?.subfolders],
   );
 
+  // Tìm kiếm tài liệu trong folder
+  const [query, setQuery] = useState('');
+  const debouncedQuery = useDebouncedValue(query, 200);
+  const searching = debouncedQuery.trim().length > 0;
+  const filteredDocs = useMemo<DocItem[]>(
+    () =>
+      searching
+        ? searchDocs(docs, debouncedQuery).map((r) => r.doc)
+        : docs,
+    [docs, debouncedQuery, searching],
+  );
+
   const isSkillFolder = payload?.folder.viewType === 'skill';
   const skillList = useMemo(
     () =>
@@ -363,17 +381,27 @@ export default function SharedFolderPage() {
             )}
           <ThemeToggle />
           {isOwner ? (
-            <span
-              className="badge"
-              style={{
-                backgroundColor: 'rgba(34, 197, 94, 0.15)',
-                color: '#16a34a',
-                border: '1px solid rgba(34, 197, 94, 0.3)',
-              }}
-              title="Bạn là chủ sở hữu, mọi tô sáng sẽ được tự động lưu và đồng bộ lên server"
-            >
-              Chủ sở hữu · Đồng bộ tự động
-            </span>
+            <>
+              <Link
+                to={`/docs/folder/${id}`}
+                className="btn-icon"
+                title="Mở thư mục này trong trang quản lý cá nhân"
+              >
+                <FolderOpen size={15} aria-hidden="true" />
+                <span>Quản lý</span>
+              </Link>
+              <span
+                className="badge"
+                style={{
+                  backgroundColor: 'rgba(34, 197, 94, 0.15)',
+                  color: '#16a34a',
+                  border: '1px solid rgba(34, 197, 94, 0.3)',
+                }}
+                title="Bạn là chủ sở hữu, mọi tô sáng sẽ được tự động lưu và đồng bộ lên server"
+              >
+                Chủ sở hữu · Đồng bộ tự động
+              </span>
+            </>
           ) : (
             <span className="badge badge-shared">Chia sẻ công khai · chỉ đọc</span>
           )}
@@ -395,13 +423,52 @@ export default function SharedFolderPage() {
       {state === 'ready' && payload && (
         <>
           <div className="shared-folder-hero">
-            <h1 className="shared-folder-name">📁 {payload.folder.name}</h1>
-            <p className="muted shared-folder-count">
-              {isSkillFolder
-                ? `${skillList.length} skill AI`
-                : `${docs.length} tài liệu`}
-            </p>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+              <div>
+                <h1 className="shared-folder-name">📁 {payload.folder.name}</h1>
+                <p className="muted shared-folder-count">
+                  {isSkillFolder
+                    ? `${skillList.length} skill AI`
+                    : `${docs.length} tài liệu`}
+                </p>
+              </div>
+              {isOwner && (
+                <Link
+                  to={`/docs/folder/${id}`}
+                  className="btn-icon primary"
+                  title="Mở thư mục này trong trang quản lý cá nhân"
+                >
+                  <FolderOpen size={16} aria-hidden="true" />
+                  <span>Mở trong Quản lý</span>
+                </Link>
+              )}
+            </div>
           </div>
+
+          {/* Thanh tìm kiếm tài liệu trong folder chia sẻ */}
+          {docs.length > 0 && !docId && (
+            <div className="search-bar-wrap" style={{ maxWidth: 600, margin: '0 0 20px 0' }}>
+              <Search className="search-icon" size={16} aria-hidden="true" />
+              <input
+                type="search"
+                className="search-input"
+                placeholder={`Tìm tài liệu trong “${payload.folder.name}”…`}
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+              />
+              {searching && (
+                <button
+                  type="button"
+                  className="search-clear"
+                  title="Xóa tìm kiếm"
+                  aria-label="Xóa tìm kiếm"
+                  onClick={() => setQuery('')}
+                >
+                  <X size={16} aria-hidden="true" />
+                </button>
+              )}
+            </div>
+          )}
 
           {isSkillFolder ? (
             /* Folder kiểu skill: marketplace card */
@@ -542,16 +609,23 @@ export default function SharedFolderPage() {
                 <Link to={`/share/f/${id}`}>← Quay lại folder</Link>
               </p>
             )
-          ) : docs.length === 0 ? (
-            // Danh sách tài liệu của folder
-            <EmptyState
-              icon={<Inbox size={40} aria-hidden="true" />}
-              title="Folder này chưa có tài liệu nào"
-            />
+          ) : filteredDocs.length === 0 ? (
+            searching ? (
+              <EmptyState
+                icon={<Search size={40} aria-hidden="true" />}
+                title="Không tìm thấy tài liệu phù hợp"
+                description="Thử tìm với từ khóa khác."
+              />
+            ) : (
+              <EmptyState
+                icon={<Inbox size={40} aria-hidden="true" />}
+                title="Folder này chưa có tài liệu nào"
+              />
+            )
           ) : payload.folder.viewType === 'sticky' ? (
-            // Folder kiểu sticky note: lưới ô giấy nhớ màu (chỉ đọc).
+            // Folder kiểu sticky note: lưới ô giấy nhớ màu (chỉ đọc)
             <ul className="sticky-grid">
-              {docs.map((d) => {
+              {filteredDocs.map((d) => {
                 const color = d.color ?? DEFAULT_STICKY_COLOR;
                 const preview = plainTextOf(d).trim();
                 return (
@@ -562,16 +636,21 @@ export default function SharedFolderPage() {
                         {d.title || '(không tiêu đề)'}
                       </span>
                       {preview && <p className="sticky-preview">{preview}</p>}
+                      {d.author && (
+                        <span className="sticky-author" title={`Tác giả: ${d.author}`}>
+                          ✍ {d.author}
+                        </span>
+                      )}
                     </Link>
                   </li>
                 );
               })}
             </ul>
-          ) : subfolders.length > 0 ? (
+          ) : subfolders.length > 0 && !searching ? (
             // Có thư mục con: gom nhóm hiển thị theo từng thư mục con
             <div className="shared-subfolder-groups">
               {(() => {
-                const directDocs = docs.filter(
+                const directDocs = filteredDocs.filter(
                   (d) => !d.folderId || d.folderId === payload.folder.id,
                 );
                 return (
@@ -579,17 +658,21 @@ export default function SharedFolderPage() {
                     {directDocs.length > 0 && (
                       <div className="shared-group-block">
                         <h2 className="shared-group-title">📄 Tài liệu chung</h2>
-                        <ul className="share-doc-list">
+                        <ul className="doc-list">
                           {directDocs.map((d) => (
-                            <li key={d.id} className="share-doc-row">
-                              <span className="doc-icon" aria-hidden="true">
-                                {GLYPH[d.type]}
-                              </span>
-                              <Link to={`/share/f/${id}/${d.id}`} className="doc-link">
+                            <li key={d.id} className="doc-line">
+                              <Link to={`/share/f/${id}/${d.id}`} className="doc-item">
+                                <span className={`badge badge-${d.type}`}>{d.type}</span>
                                 <span className="doc-title">{d.title || '(không tiêu đề)'}</span>
-                                <span className="doc-meta muted">
-                                  {d.author && <span className="doc-author">✍ {d.author}</span>}
-                                  <span>{formatDate(d.updatedAt)}</span>
+                                <span className="doc-dates">
+                                  {d.author && (
+                                    <span className="doc-date" title={`Tác giả: ${d.author}`}>
+                                      ✍ {d.author}
+                                    </span>
+                                  )}
+                                  <span className="doc-date muted">
+                                    Sửa: {formatDate(d.updatedAt)}
+                                  </span>
                                 </span>
                               </Link>
                             </li>
@@ -599,7 +682,7 @@ export default function SharedFolderPage() {
                     )}
 
                     {subfolders.map((sub) => {
-                      const subDocs = docs.filter((d) => d.folderId === sub.id);
+                      const subDocs = filteredDocs.filter((d) => d.folderId === sub.id);
                       return (
                         <div key={sub.id} className="shared-group-block">
                           <h2 className="shared-group-title">
@@ -609,17 +692,21 @@ export default function SharedFolderPage() {
                           {subDocs.length === 0 ? (
                             <p className="muted empty-sub-text">Chưa có tài liệu trong thư mục này.</p>
                           ) : (
-                            <ul className="share-doc-list">
+                            <ul className="doc-list">
                               {subDocs.map((d) => (
-                                <li key={d.id} className="share-doc-row">
-                                  <span className="doc-icon" aria-hidden="true">
-                                    {GLYPH[d.type]}
-                                  </span>
-                                  <Link to={`/share/f/${id}/${d.id}`} className="doc-link">
+                                <li key={d.id} className="doc-line">
+                                  <Link to={`/share/f/${id}/${d.id}`} className="doc-item">
+                                    <span className={`badge badge-${d.type}`}>{d.type}</span>
                                     <span className="doc-title">{d.title || '(không tiêu đề)'}</span>
-                                    <span className="doc-meta muted">
-                                      {d.author && <span className="doc-author">✍ {d.author}</span>}
-                                      <span>{formatDate(d.updatedAt)}</span>
+                                    <span className="doc-dates">
+                                      {d.author && (
+                                        <span className="doc-date" title={`Tác giả: ${d.author}`}>
+                                          ✍ {d.author}
+                                        </span>
+                                      )}
+                                      <span className="doc-date muted">
+                                        Sửa: {formatDate(d.updatedAt)}
+                                      </span>
                                     </span>
                                   </Link>
                                 </li>
@@ -634,18 +721,22 @@ export default function SharedFolderPage() {
               })()}
             </div>
           ) : (
-            // Folder phẳng chuẩn (không có thư mục con): bảng/lưới tài liệu
-            <ul className="share-doc-list">
-              {docs.map((d) => (
-                <li key={d.id} className="share-doc-row">
-                  <span className="doc-icon" aria-hidden="true">
-                    {GLYPH[d.type]}
-                  </span>
-                  <Link to={`/share/f/${id}/${d.id}`} className="doc-link">
+            // Folder chuẩn: danh sách thẻ card đẹp mắt như chế độ owner
+            <ul className="doc-list">
+              {filteredDocs.map((d) => (
+                <li key={d.id} className="doc-line">
+                  <Link to={`/share/f/${id}/${d.id}`} className="doc-item">
+                    <span className={`badge badge-${d.type}`}>{d.type}</span>
                     <span className="doc-title">{d.title || '(không tiêu đề)'}</span>
-                    <span className="doc-meta muted">
-                      {d.author && <span className="doc-author">✍ {d.author}</span>}
-                      <span>{formatDate(d.updatedAt)}</span>
+                    <span className="doc-dates">
+                      {d.author && (
+                        <span className="doc-date" title={`Tác giả: ${d.author}`}>
+                          ✍ {d.author}
+                        </span>
+                      )}
+                      <span className="doc-date muted">
+                        Sửa: {formatDate(d.updatedAt)}
+                      </span>
                     </span>
                   </Link>
                 </li>

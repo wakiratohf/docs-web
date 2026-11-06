@@ -596,6 +596,28 @@ a:hover {
   color: var(--muted);
 }
 
+/* Header / Hero của SharedFolderPage */
+.shared-folder-hero {
+  margin: 12px 0 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.shared-folder-name {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0 0 6px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.shared-folder-count {
+  font-size: 0.88rem;
+  margin: 0;
+}
+
 /* Cụm nút chỉnh cỡ chữ + badge nằm cùng bên phải header */
 .share-header-actions {
   display: flex;

@@ -144,4 +144,39 @@ describe('SharedFolderPage — tự động cập nhật ngầm khi file trong f
     expect(screen.getByText(/Tài liệu nhóm v2/)).toBeTruthy();
     expect(screen.getByText('File 2 mới tải lên')).toBeTruthy();
   });
+
+  it('hiển thị danh sách tài liệu dạng card với badge và hỗ trợ tìm kiếm', () => {
+    const { container } = render(
+      <ThemeProvider>
+        <MemoryRouter initialEntries={['/share/f/f1']}>
+          <Routes>
+            <Route path="/share/f/:id" element={<SharedFolderPage />} />
+          </Routes>
+        </MemoryRouter>
+      </ThemeProvider>,
+    );
+
+    emitSharedFolder({
+      folder: makeFolder({ name: 'Dự án v1.53' }),
+      ownerId: 'owner-1',
+      documents: {
+        d1: makeDoc({ id: 'd1', title: 'firebase_remote_config_basics.html', type: 'html' }),
+        d2: makeDoc({ id: 'd2', title: 'firebase_basics.html', type: 'html' }),
+      },
+    });
+
+    // Kiểm tra render theo cấu trúc card .doc-list, .doc-item
+    const docList = container.querySelector('.doc-list');
+    expect(docList).toBeTruthy();
+    const docItems = container.querySelectorAll('.doc-item');
+    expect(docItems.length).toBe(2);
+
+    // Kiểm tra badge loại tài liệu
+    const badges = container.querySelectorAll('.badge-html');
+    expect(badges.length).toBe(2);
+
+    // Kiểm tra thanh tìm kiếm
+    const searchInput = screen.getByPlaceholderText(/Tìm tài liệu trong “Dự án v1.53”…/);
+    expect(searchInput).toBeTruthy();
+  });
 });
