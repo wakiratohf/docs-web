@@ -47,7 +47,8 @@ export function getMarkdownHighlightTags(color: HighlightColor = 'yellow'): {
 
 /**
  * Áp dụng tô sáng cho một đoạn văn bản trong nội dung Markdown.
- * Hỗ trợ nhận diện ngữ cảnh xung quanh (prefix/suffix) để định vị chính xác vị trí cần tô sáng.
+ * Hỗ trợ nhận diện ngữ cảnh xung quanh (prefix/suffix) để định vị chính xác vị trí cần tô sáng,
+ * đồng thời linh hoạt với khoảng trắng, xuống dòng và các ký tự định dạng Markdown.
  */
 export function applyHighlightToMarkdown(
   content: string,
@@ -63,24 +64,67 @@ export function applyHighlightToMarkdown(
   // 1. Nếu đoạn text này đang nằm trong ==...== hoặc <mark>...</mark>, đổi màu highlight
   const alreadyMarkedRegex = new RegExp(
     `(==(?:[a-z]+:)?${escapeRegExp(cleanSelected)}==|<mark(?:\\s+class=["'][^"']+["'])?>${escapeRegExp(cleanSelected)}<\\/mark>)`,
+    'i',
   );
   if (alreadyMarkedRegex.test(content)) {
     return content.replace(alreadyMarkedRegex, `${open}${cleanSelected}${close}`);
   }
 
-  // 2. Dùng ngữ cảnh prefix/suffix nếu có để tìm vị trí xuất hiện chính xác
-  if (context?.prefix || context?.suffix) {
-    const p = escapeRegExp((context.prefix ?? '').slice(-30));
-    const s = escapeRegExp((context.suffix ?? '').slice(0, 30));
-    const pattern = new RegExp(`(${p})(${escapeRegExp(cleanSelected)})(${s})`);
-    if (pattern.test(content)) {
-      return content.replace(pattern, `$1${open}$2${close}$3`);
+  // Ký tự phân cách giữa các từ: khoảng trắng hoặc ký hiệu định dạng Markdown (#, *, _, ~, `)
+  const MD_SEP = '(?:\\s+|[#*_~`])+';
+
+  // Tách các từ để tìm kiếm linh hoạt bất kể dấu cách, xuống dòng hoặc ký hiệu markdown inline
+  const words = cleanSelected.split(/\s+/).map(escapeRegExp);
+  const targetPattern = words.join(MD_SEP);
+
+  // Lấy từ khóa gần nhất của prefix và suffix để định vị chính xác đoạn trùng lặp
+  const preWords = (context?.prefix || '').trim().split(/\s+/).filter(Boolean);
+  const lastPreWord = preWords.length > 0 ? escapeRegExp(preWords[preWords.length - 1]) : '';
+  const postWords = (context?.suffix || '').trim().split(/\s+/).filter(Boolean);
+  const firstPostWord = postWords.length > 0 ? escapeRegExp(postWords[0]) : '';
+
+  if (lastPreWord && firstPostWord) {
+    const contextRegex = new RegExp(
+      `(${lastPreWord}${MD_SEP})(==(?:[a-z]+:)?${targetPattern}==|${targetPattern})(${MD_SEP}${firstPostWord})`,
+      'i',
+    );
+    if (contextRegex.test(content)) {
+      return content.replace(contextRegex, (_match, p1, target, p3) => {
+        const unwrapped = target.replace(/^==(?:[a-z]+:)?|==$/gi, '');
+        return `${p1}${open}${unwrapped}${close}${p3}`;
+      });
     }
   }
 
-  // 3. Fallback: thay thế lần xuất hiện đầu tiên của cleanSelected
-  const firstOccurrence = new RegExp(escapeRegExp(cleanSelected));
-  return content.replace(firstOccurrence, `${open}${cleanSelected}${close}`);
+  if (lastPreWord) {
+    const preRegex = new RegExp(
+      `(${lastPreWord}${MD_SEP})(==(?:[a-z]+:)?${targetPattern}==|${targetPattern})`,
+      'i',
+    );
+    if (preRegex.test(content)) {
+      return content.replace(preRegex, (_match, p1, target) => {
+        const unwrapped = target.replace(/^==(?:[a-z]+:)?|==$/gi, '');
+        return `${p1}${open}${unwrapped}${close}`;
+      });
+    }
+  }
+
+  // 2. Fallback: tìm theo pattern từ linh hoạt
+  const targetRegex = new RegExp(`(==(?:[a-z]+:)?${targetPattern}==|${targetPattern})`, 'i');
+  if (targetRegex.test(content)) {
+    return content.replace(targetRegex, (_match, target) => {
+      const unwrapped = target.replace(/^==(?:[a-z]+:)?|==$/gi, '');
+      return `${open}${unwrapped}${close}`;
+    });
+  }
+
+  // 3. Fallback cuối cùng: thay thế chuỗi trần
+  const firstOccurrence = new RegExp(escapeRegExp(cleanSelected), 'i');
+  if (firstOccurrence.test(content)) {
+    return content.replace(firstOccurrence, `${open}${cleanSelected}${close}`);
+  }
+
+  return content;
 }
 
 /**
@@ -89,29 +133,20 @@ export function applyHighlightToMarkdown(
 export function removeHighlightFromMarkdown(
   content: string,
   targetText: string,
-  context?: TextContext,
+  _context?: TextContext,
 ): string {
   const cleanTarget = targetText.trim();
   if (!cleanTarget) return content;
 
-  // Tìm các dạng: ==target==, ==color:target==, <mark>target</mark>, <mark class="...">target</mark>
+  const words = cleanTarget.split(/\s+/).map(escapeRegExp);
+  const targetPattern = words.join('(?:\\s+|[#*_~`])+');
+
   const markedRegex = new RegExp(
-    `==(?:[a-z]+:)?${escapeRegExp(cleanTarget)}==|<mark(?:\\s+class=["'][^"']+["'])?>${escapeRegExp(cleanTarget)}<\\/mark>`,
-    'g',
+    `==(?:[a-z]+:)?(${targetPattern})==|<mark(?:\\s+class=["'][^"']+["'])?>(${targetPattern})<\\/mark>`,
+    'i',
   );
 
-  if (context?.prefix || context?.suffix) {
-    const p = escapeRegExp((context.prefix ?? '').slice(-30));
-    const s = escapeRegExp((context.suffix ?? '').slice(0, 30));
-    const contextPattern = new RegExp(
-      `(${p})(?:==(?:[a-z]+:)?${escapeRegExp(cleanTarget)}==|<mark(?:\\s+class=["'][^"']+["'])?>${escapeRegExp(cleanTarget)}<\\/mark>)(${s})`,
-    );
-    if (contextPattern.test(content)) {
-      return content.replace(contextPattern, `$1${cleanTarget}$2`);
-    }
-  }
-
-  return content.replace(markedRegex, cleanTarget);
+  return content.replace(markedRegex, (_match, p1, p2) => p1 || p2 || cleanTarget);
 }
 
 /**
@@ -193,7 +228,7 @@ export function applyHighlightToHtml(
   const markOpen = `<mark class="hl-${color}">`;
   const markClose = '</mark>';
 
-  // Nếu đã nằm trong mark, đổi class màu
+  // 1. Nếu đã nằm trong mark, đổi class màu
   const alreadyMarkedRegex = new RegExp(
     `<mark(?:\\s+class=["'][^"']*["'])?>(${escapeRegExp(cleanSelected)})<\\/mark>`,
     'i',
@@ -202,19 +237,36 @@ export function applyHighlightToHtml(
     return html.replace(alreadyMarkedRegex, `${markOpen}$1${markClose}`);
   }
 
-  // Dùng ngữ cảnh nếu có
-  if (context?.prefix || context?.suffix) {
-    const p = escapeRegExp((context.prefix ?? '').slice(-30));
-    const s = escapeRegExp((context.suffix ?? '').slice(0, 30));
-    const pattern = new RegExp(`(${p})(${escapeRegExp(cleanSelected)})(${s})`);
-    if (pattern.test(html)) {
-      return html.replace(pattern, `$1${markOpen}$2${markClose}$3`);
+  const words = cleanSelected.split(/\s+/).map(escapeRegExp);
+  const targetPattern = words.join('(?:\\s+|<[^>]+>)*');
+
+  const preWords = (context?.prefix || '').trim().split(/\s+/).filter(Boolean);
+  const lastPreWord = preWords.length > 0 ? escapeRegExp(preWords[preWords.length - 1]) : '';
+  const postWords = (context?.suffix || '').trim().split(/\s+/).filter(Boolean);
+  const firstPostWord = postWords.length > 0 ? escapeRegExp(postWords[0]) : '';
+
+  if (lastPreWord && firstPostWord) {
+    const contextRegex = new RegExp(
+      `(${lastPreWord}(?:\\s+|<[^>]+>)+)(${targetPattern})((?:\\s+|<[^>]+>)+${firstPostWord})`,
+      'i',
+    );
+    if (contextRegex.test(html)) {
+      return html.replace(contextRegex, `$1${markOpen}$2${markClose}$3`);
     }
   }
 
-  // Thay thế lần xuất hiện đầu tiên ngoài thẻ tag
-  const firstOccurrence = new RegExp(escapeRegExp(cleanSelected));
-  return html.replace(firstOccurrence, `${markOpen}${cleanSelected}${markClose}`);
+  const targetRegex = new RegExp(`(${targetPattern})`, 'i');
+  if (targetRegex.test(html)) {
+    return html.replace(targetRegex, `${markOpen}$1${markClose}`);
+  }
+
+  // Fallback
+  const firstOccurrence = new RegExp(escapeRegExp(cleanSelected), 'i');
+  if (firstOccurrence.test(html)) {
+    return html.replace(firstOccurrence, `${markOpen}${cleanSelected}${markClose}`);
+  }
+
+  return html;
 }
 
 /**
@@ -223,25 +275,16 @@ export function applyHighlightToHtml(
 export function removeHighlightFromHtml(
   html: string,
   targetText: string,
-  context?: TextContext,
+  _context?: TextContext,
 ): string {
   const cleanTarget = targetText.trim();
   if (!cleanTarget) return html;
 
-  if (context?.prefix || context?.suffix) {
-    const p = escapeRegExp((context.prefix ?? '').slice(-30));
-    const s = escapeRegExp((context.suffix ?? '').slice(0, 30));
-    const pattern = new RegExp(
-      `(${p})<mark(?:\\s+class=["'][^"']*["'])?>(${escapeRegExp(cleanTarget)})<\\/mark>(${s})`,
-      'i',
-    );
-    if (pattern.test(html)) {
-      return html.replace(pattern, `$1$2$3`);
-    }
-  }
+  const words = cleanTarget.split(/\s+/).map(escapeRegExp);
+  const targetPattern = words.join('(?:\\s+|<[^>]+>)*');
 
   const markRegex = new RegExp(
-    `<mark(?:\\s+class=["'][^"']*["'])?>(${escapeRegExp(cleanTarget)})<\\/mark>`,
+    `<mark(?:\\s+class=["'][^"']*["'])?>(${targetPattern})<\\/mark>`,
     'gi',
   );
   return html.replace(markRegex, '$1');

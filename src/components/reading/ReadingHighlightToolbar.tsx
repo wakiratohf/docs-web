@@ -34,18 +34,24 @@ export default function ReadingHighlightToolbar({
 
   // Trích xuất ngữ cảnh văn bản xung quanh một node / range
   const extractContext = useCallback(
-    (_range: Range, text: string): TextContext => {
+    (range: Range, _text: string): TextContext => {
       const container = containerRef.current;
       if (!container) return {};
 
       try {
-        const fullText = container.textContent || '';
-        const idx = fullText.indexOf(text);
-        if (idx !== -1) {
-          const prefix = fullText.slice(Math.max(0, idx - 40), idx);
-          const suffix = fullText.slice(idx + text.length, idx + text.length + 40);
-          return { prefix, suffix };
-        }
+        const preRange = document.createRange();
+        preRange.selectNodeContents(container);
+        preRange.setEnd(range.startContainer, range.startOffset);
+        const preText = preRange.toString();
+        const prefix = preText.slice(-40);
+
+        const postRange = document.createRange();
+        postRange.selectNodeContents(container);
+        postRange.setStart(range.endContainer, range.endOffset);
+        const postText = postRange.toString();
+        const suffix = postText.slice(0, 40);
+
+        return { prefix, suffix };
       } catch {
         // Fallback
       }
@@ -133,15 +139,25 @@ export default function ReadingHighlightToolbar({
         if (!text.trim()) return;
 
         const rect = mark.getBoundingClientRect();
-        const fullText = container.textContent || '';
-        const idx = fullText.indexOf(text);
-        const ctx: TextContext =
-          idx !== -1
-            ? {
-                prefix: fullText.slice(Math.max(0, idx - 40), idx),
-                suffix: fullText.slice(idx + text.length, idx + text.length + 40),
-              }
-            : {};
+        let ctx: TextContext = {};
+        try {
+          const preRange = document.createRange();
+          preRange.selectNodeContents(container);
+          preRange.setEndBefore(mark);
+          const preText = preRange.toString();
+
+          const postRange = document.createRange();
+          postRange.selectNodeContents(container);
+          postRange.setStartAfter(mark);
+          const postText = postRange.toString();
+
+          ctx = {
+            prefix: preText.slice(-40),
+            suffix: postText.slice(0, 40),
+          };
+        } catch {
+          // Fallback
+        }
 
         const match = /hl-([a-z]+)/.exec(mark.className);
         const col = match ? (match[1] as HighlightColor) : 'yellow';
@@ -243,6 +259,11 @@ export default function ReadingHighlightToolbar({
           style={{ backgroundColor: c.bgHex }}
           title={`Tô màu ${c.label}`}
           aria-label={`Tô màu ${c.label}`}
+          onMouseDown={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            handleApplyColor(c.key);
+          }}
           onClick={() => handleApplyColor(c.key)}
         />
       ))}
@@ -253,6 +274,11 @@ export default function ReadingHighlightToolbar({
           <button
             type="button"
             className="hl-action-btn danger"
+            onMouseDown={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              handleRemove();
+            }}
             onClick={handleRemove}
             title="Xóa tô sáng khỏi đoạn này"
             aria-label="Xóa tô sáng"

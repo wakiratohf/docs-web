@@ -76,12 +76,14 @@ export default function NoteEditor({ value, onChange }: Props) {
   const applyHighlight = (color: HighlightColor) => {
     setActiveHighlightColor(color);
     setShowColorPicker(false);
-    elRef.current?.focus();
 
     const sel = window.getSelection();
     if (!sel || sel.rangeCount === 0 || sel.isCollapsed) return;
 
     const range = sel.getRangeAt(0);
+    // Đảm bảo vùng chọn thuộc về vùng soạn thảo
+    if (!elRef.current || !elRef.current.contains(range.commonAncestorContainer)) return;
+
     const className = `hl-${color}`;
 
     // Kiểm tra xem selection có đang nằm trong thẻ mark không
@@ -104,6 +106,7 @@ export default function NoteEditor({ value, onChange }: Props) {
         // Khác màu: cập nhật màu mới
         existingMark.className = className;
       }
+      elRef.current?.focus();
       emit();
       return;
     }
@@ -114,6 +117,13 @@ export default function NoteEditor({ value, onChange }: Props) {
       mark.className = className;
       mark.appendChild(range.extractContents());
       range.insertNode(mark);
+
+      // Chọn lại nội dung vừa bọc và giữ focus
+      const newRange = document.createRange();
+      newRange.selectNodeContents(mark);
+      sel.removeAllRanges();
+      sel.addRange(newRange);
+      elRef.current?.focus();
       emit();
     } catch {
       // Fallback nếu vùng chọn phức tạp
@@ -122,28 +132,33 @@ export default function NoteEditor({ value, onChange }: Props) {
       if (!document.execCommand('hiliteColor', false, colorHex)) {
         document.execCommand('backColor', false, colorHex);
       }
+      elRef.current?.focus();
       emit();
     }
   };
 
   const removeHighlight = () => {
     setShowColorPicker(false);
-    elRef.current?.focus();
     const sel = window.getSelection();
     if (!sel || sel.rangeCount === 0) return;
+
     const range = sel.getRangeAt(0);
+    if (!elRef.current || !elRef.current.contains(range.commonAncestorContainer)) return;
+
     let parent = range.commonAncestorContainer as Node | null;
     while (parent && parent !== elRef.current) {
       if (parent.nodeName === 'MARK') {
         const mark = parent as HTMLElement;
         const textNode = document.createTextNode(mark.textContent || '');
         mark.parentNode?.replaceChild(textNode, mark);
+        elRef.current?.focus();
         emit();
         return;
       }
       parent = parent.parentNode;
     }
     document.execCommand('removeFormat');
+    elRef.current?.focus();
     emit();
   };
 
@@ -235,6 +250,7 @@ export default function NoteEditor({ value, onChange }: Props) {
             className="hl-btn-main"
             title="Tô sáng (Ctrl+Shift+H)"
             aria-label="Tô sáng"
+            onMouseDown={keepFocus}
             onClick={() => applyHighlight(activeHighlightColor)}
           >
             <Highlighter size={ICON} aria-hidden="true" />
@@ -249,6 +265,7 @@ export default function NoteEditor({ value, onChange }: Props) {
             className="hl-btn-caret"
             title="Chọn màu tô sáng"
             aria-label="Chọn màu tô sáng"
+            onMouseDown={keepFocus}
             onClick={() => setShowColorPicker((v) => !v)}
           >
             <ChevronDown size={11} aria-hidden="true" />
@@ -264,6 +281,10 @@ export default function NoteEditor({ value, onChange }: Props) {
                   style={{ backgroundColor: c.bgHex }}
                   title={`Màu ${c.label}`}
                   aria-label={`Màu ${c.label}`}
+                  onMouseDown={(e) => {
+                    keepFocus(e);
+                    applyHighlight(c.key);
+                  }}
                   onClick={() => applyHighlight(c.key)}
                 />
               ))}
@@ -273,6 +294,10 @@ export default function NoteEditor({ value, onChange }: Props) {
                 className="hl-remove-btn"
                 title="Gỡ bỏ tô sáng"
                 aria-label="Gỡ bỏ tô sáng"
+                onMouseDown={(e) => {
+                  keepFocus(e);
+                  removeHighlight();
+                }}
                 onClick={removeHighlight}
               >
                 Gỡ

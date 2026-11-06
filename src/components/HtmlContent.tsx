@@ -29,6 +29,12 @@ purifier.addHook('afterSanitizeAttributes', (node) => {
   }
 });
 
+// Cấu hình DOMPurify cho phép thẻ mark và thuộc tính class phục vụ tô sáng highlight
+const SANITIZE_CONFIG = {
+  ADD_TAGS: ['mark'],
+  ADD_ATTR: ['class'],
+};
+
 export interface HtmlContentProps {
   value: string;
   onContentChange?: (html: string) => void;
@@ -60,7 +66,7 @@ export default function HtmlContent({ value, onContentChange }: HtmlContentProps
             onRemoveHighlight={handleRemoveHighlight}
           />
         )}
-        <div dangerouslySetInnerHTML={{ __html: purifier.sanitize(value) }} />
+        <div dangerouslySetInnerHTML={{ __html: purifier.sanitize(value, SANITIZE_CONFIG) }} />
       </div>
     );
   }

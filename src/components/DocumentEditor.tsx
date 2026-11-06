@@ -532,6 +532,7 @@ export default function DocumentEditor({ doc }: { doc: DocItem }) {
                 <button
                   type="button"
                   className="btn-icon btn-square"
+                  onMouseDown={(e) => e.preventDefault()}
                   onClick={() => onToggleMarkdownHighlight()}
                   title="Tô sáng vùng chọn (Ctrl+Shift+H)"
                   aria-label="Tô sáng"

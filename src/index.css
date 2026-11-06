@@ -3806,7 +3806,8 @@ a.btn-icon:hover {
 .markdown-body mark,
 .note-content mark,
 .reading-doc-container mark,
-mark.hl-yellow {
+mark.hl-yellow,
+mark {
   background-color: var(--hl-yellow);
   color: var(--hl-yellow-text);
   padding: 1px 3px;
@@ -3818,28 +3819,32 @@ mark.hl-yellow {
 
 .markdown-body mark.hl-green,
 .note-content mark.hl-green,
-.reading-doc-container mark.hl-green {
+.reading-doc-container mark.hl-green,
+mark.hl-green {
   background-color: var(--hl-green);
   color: var(--hl-green-text);
 }
 
 .markdown-body mark.hl-blue,
 .note-content mark.hl-blue,
-.reading-doc-container mark.hl-blue {
+.reading-doc-container mark.hl-blue,
+mark.hl-blue {
   background-color: var(--hl-blue);
   color: var(--hl-blue-text);
 }
 
 .markdown-body mark.hl-pink,
 .note-content mark.hl-pink,
-.reading-doc-container mark.hl-pink {
+.reading-doc-container mark.hl-pink,
+mark.hl-pink {
   background-color: var(--hl-pink);
   color: var(--hl-pink-text);
 }
 
 .markdown-body mark.hl-orange,
 .note-content mark.hl-orange,
-.reading-doc-container mark.hl-orange {
+.reading-doc-container mark.hl-orange,
+mark.hl-orange {
   background-color: var(--hl-orange);
   color: var(--hl-orange-text);
 }
