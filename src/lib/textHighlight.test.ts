@@ -36,6 +36,15 @@ describe('textHighlight - Markdown logic', () => {
     expect(res).toBe('Đây là đoạn đã tô màu trong văn bản.');
   });
 
+  it('xóa đúng thẻ highlight trong Markdown dựa trên ngữ cảnh khi có nhiều từ trùng lặp', () => {
+    const md = 'Đoạn 1 ==yellow:chú ý== đầu. Đoạn 2 ==green:chú ý== sau.';
+    const res = removeHighlightFromMarkdown(md, 'chú ý', {
+      prefix: 'Đoạn 2 ',
+      suffix: ' sau.',
+    });
+    expect(res).toBe('Đoạn 1 ==yellow:chú ý== đầu. Đoạn 2 chú ý sau.');
+  });
+
   it('dùng ngữ cảnh prefix/suffix để tô sáng chính xác vị trí bị trùng lặp từ', () => {
     const md = 'Từ khóa xuất hiện lần 1. Và Từ khóa xuất hiện lần 2.';
     const res = applyHighlightToMarkdown(md, 'Từ khóa', 'orange', {
@@ -93,6 +102,17 @@ describe('textHighlight - HTML logic', () => {
     const res = removeHighlightFromHtml(html, 'mọi người');
     expect(res).toBe('<p>Xin chào mọi người!</p>');
   });
+
+  it('xóa đúng thẻ <mark> trong HTML dựa trên ngữ cảnh khi có nhiều từ trùng lặp', () => {
+    const html = '<p>Đoạn một <mark class="hl-yellow">chú ý</mark> đầu. Đoạn hai <mark class="hl-green">chú ý</mark> sau.</p>';
+    const res = removeHighlightFromHtml(html, 'chú ý', {
+      prefix: 'Đoạn hai ',
+      suffix: ' sau.',
+    });
+    expect(res).toBe(
+      '<p>Đoạn một <mark class="hl-yellow">chú ý</mark> đầu. Đoạn hai chú ý sau.</p>',
+    );
+  });
 });
 
 describe('textHighlight - Remark plugin', () => {
@@ -145,5 +165,13 @@ describe('textHighlight - Remark plugin', () => {
     expect(html).toContain('Điểm chặn C1 ở mục 2 không cần BE quyết');
     expect(html).not.toContain('==green:');
     expect(html).not.toContain('BE.==');
+  });
+
+  it('render highlight trong tight list item', () => {
+    const listMd = '- Mục 1: ==blue:công việc quan trọng==\n- Mục 2: Việc khác';
+    const el = React.createElement(ReactMarkdown, { remarkPlugins: [remarkHighlight] }, listMd);
+    const html = renderToStaticMarkup(el);
+    expect(html).toContain('<mark class="hl-blue">công việc quan trọng</mark>');
+    expect(html).not.toContain('==blue:');
   });
 });

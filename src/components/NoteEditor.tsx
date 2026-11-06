@@ -25,9 +25,9 @@ function stripBbcode(text: string): string {
   return text.replace(/\[\/?[^\]]*\]/g, '');
 }
 
-// Bỏ các thẻ inline rỗng mà trình duyệt hay để lại (vd <b></b>).
+// Bỏ các thẻ inline rỗng mà trình duyệt hay để lại (vd <b></b> hoặc <mark class="..."></mark>).
 function cleanHtml(html: string): string {
-  return html.replace(/<(b|i|u|strong|em|span|mark)>\s*<\/\1>/gi, '');
+  return html.replace(/<(b|i|u|strong|em|span|mark)(?:\s+[^>]*)?>\s*<\/\1>/gi, '');
 }
 
 interface Props {

@@ -198,9 +198,19 @@ export default function ReadingHighlightToolbar({
       if (e.key === 'Escape') hide();
     };
 
+    // Đóng toolbar khi click ra ngoài (ngoài toolbar và ngoài thẻ mark)
+    const onDocMouseDown = (e: MouseEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (!target) return;
+      if (toolbarRef.current?.contains(target)) return;
+      if (target.closest('mark')) return;
+      hide();
+    };
+
     container.addEventListener('mouseup', onMouseUp);
     container.addEventListener('click', onClick);
     document.addEventListener('selectionchange', onSelectionChange);
+    document.addEventListener('mousedown', onDocMouseDown);
     window.addEventListener('keydown', onKeyDown);
     // Lắng nghe scroll trên toàn bộ window (capture) để bắt cả scroll của container bên trong
     window.addEventListener('scroll', onScroll, true);
@@ -209,6 +219,7 @@ export default function ReadingHighlightToolbar({
       container.removeEventListener('mouseup', onMouseUp);
       container.removeEventListener('click', onClick);
       document.removeEventListener('selectionchange', onSelectionChange);
+      document.removeEventListener('mousedown', onDocMouseDown);
       window.removeEventListener('keydown', onKeyDown);
       window.removeEventListener('scroll', onScroll, true);
     };

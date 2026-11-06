@@ -133,14 +133,15 @@ function createTurndownService(options?: HtmlToMarkdownOptions): TurndownService
     filter: (node) => node.nodeName === 'MARK',
     replacement: (content, node) => {
       const clean = content.trim();
-      if (!clean) return '';
+      if (!clean) return content;
+      const leading = content.match(/^\s*/)?.[0] || '';
+      const trailing = content.match(/\s*$/)?.[0] || '';
       const el = node as HTMLElement;
       const classAttr = el.getAttribute('class') || '';
       const match = /hl-([a-z]+)/.exec(classAttr);
-      if (match && match[1] !== 'yellow') {
-        return `==${match[1]}:${clean}==`;
-      }
-      return `==${clean}==`;
+      const tag =
+        match && match[1] !== 'yellow' ? `==${match[1]}:${clean}==` : `==${clean}==`;
+      return `${leading}${tag}${trailing}`;
     },
   });
 

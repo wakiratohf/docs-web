@@ -129,18 +129,45 @@ export function applyHighlightToMarkdown(
 
 /**
  * Xóa tô sáng khỏi một đoạn văn bản trong Markdown.
+ * Hỗ trợ nhận diện ngữ cảnh (context) để xóa chính xác thẻ mark ở vị trí người dùng tương tác
+ * khi bài viết có nhiều từ trùng nhau.
  */
 export function removeHighlightFromMarkdown(
   content: string,
   targetText: string,
-  _context?: TextContext,
+  context?: TextContext,
 ): string {
   const cleanTarget = targetText.trim();
   if (!cleanTarget) return content;
 
+  const MD_SEP = '(?:\\s+|[#*_~`])+';
   const words = cleanTarget.split(/\s+/).map(escapeRegExp);
-  const targetPattern = words.join('(?:\\s+|[#*_~`])+');
+  const targetPattern = words.join(MD_SEP);
+  const markTarget = `(?:==(?:[a-z]+:)?(?:${targetPattern})==|<mark(?:\\s+class=["'][^"']+["'])?>(?:${targetPattern})<\\/mark>)`;
 
+  const preWords = (context?.prefix || '').trim().split(/\s+/).filter(Boolean);
+  const lastPreWord = preWords.length > 0 ? escapeRegExp(preWords[preWords.length - 1]) : '';
+  const postWords = (context?.suffix || '').trim().split(/\s+/).filter(Boolean);
+  const firstPostWord = postWords.length > 0 ? escapeRegExp(postWords[0]) : '';
+
+  if (lastPreWord && firstPostWord) {
+    const contextRegex = new RegExp(
+      `(${lastPreWord}${MD_SEP})(${markTarget})(${MD_SEP}${firstPostWord})`,
+      'i',
+    );
+    if (contextRegex.test(content)) {
+      return content.replace(contextRegex, (_m, p1, _marked, p3) => `${p1}${cleanTarget}${p3}`);
+    }
+  }
+
+  if (lastPreWord) {
+    const preRegex = new RegExp(`(${lastPreWord}${MD_SEP})(${markTarget})`, 'i');
+    if (preRegex.test(content)) {
+      return content.replace(preRegex, (_m, p1) => `${p1}${cleanTarget}`);
+    }
+  }
+
+  // Fallback: tìm thẻ khớp đầu tiên
   const markedRegex = new RegExp(
     `==(?:[a-z]+:)?(${targetPattern})==|<mark(?:\\s+class=["'][^"']+["'])?>(${targetPattern})<\\/mark>`,
     'i',
@@ -271,22 +298,46 @@ export function applyHighlightToHtml(
 
 /**
  * Xóa thẻ tô sáng <mark> khỏi chuỗi HTML.
+ * Hỗ trợ nhận diện ngữ cảnh (context) để xóa đúng vị trí được chọn.
  */
 export function removeHighlightFromHtml(
   html: string,
   targetText: string,
-  _context?: TextContext,
+  context?: TextContext,
 ): string {
   const cleanTarget = targetText.trim();
   if (!cleanTarget) return html;
 
   const words = cleanTarget.split(/\s+/).map(escapeRegExp);
   const targetPattern = words.join('(?:\\s+|<[^>]+>)*');
+  const markTarget = `<mark(?:\\s+class=["'][^"']*["'])?>(${targetPattern})<\\/mark>`;
 
-  const markRegex = new RegExp(
-    `<mark(?:\\s+class=["'][^"']*["'])?>(${targetPattern})<\\/mark>`,
-    'gi',
-  );
+  const preWords = (context?.prefix || '').trim().split(/\s+/).filter(Boolean);
+  const lastPreWord = preWords.length > 0 ? escapeRegExp(preWords[preWords.length - 1]) : '';
+  const postWords = (context?.suffix || '').trim().split(/\s+/).filter(Boolean);
+  const firstPostWord = postWords.length > 0 ? escapeRegExp(postWords[0]) : '';
+
+  if (lastPreWord && firstPostWord) {
+    const contextRegex = new RegExp(
+      `(${lastPreWord}(?:\\s+|<[^>]+>)+)(${markTarget})((?:\\s+|<[^>]+>)+${firstPostWord})`,
+      'i',
+    );
+    if (contextRegex.test(html)) {
+      return html.replace(
+        contextRegex,
+        (_m, p1, _marked, inner, p3) => `${p1}${inner || cleanTarget}${p3}`,
+      );
+    }
+  }
+
+  if (lastPreWord) {
+    const preRegex = new RegExp(`(${lastPreWord}(?:\\s+|<[^>]+>)+)(${markTarget})`, 'i');
+    if (preRegex.test(html)) {
+      return html.replace(preRegex, (_m, p1, _marked, inner) => `${p1}${inner || cleanTarget}`);
+    }
+  }
+
+  const markRegex = new RegExp(markTarget, 'i');
   return html.replace(markRegex, '$1');
 }
 
@@ -459,11 +510,26 @@ export function remarkHighlight() {
       if (!node) return;
       if (node.type === 'code') return;
 
-      if (
+      const isKnownInlineBlock =
         node.type === 'paragraph' ||
         node.type === 'heading' ||
-        node.type === 'tableCell'
-      ) {
+        node.type === 'tableCell';
+
+      // Kiểm tra xem node có chứa trực tiếp các phần tử inline không (tight list item, v.v.)
+      const hasDirectInlineChildren =
+        Array.isArray(node.children) &&
+        node.children.some(
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (c: any) =>
+            c.type === 'text' ||
+            c.type === 'inlineCode' ||
+            c.type === 'html' ||
+            c.type === 'strong' ||
+            c.type === 'emphasis' ||
+            c.type === 'link',
+        );
+
+      if (isKnownInlineBlock || (node.type === 'listItem' && hasDirectInlineChildren)) {
         if (node.children && Array.isArray(node.children)) {
           node.children = transformInlineChildren(node.children);
         }

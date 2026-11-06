@@ -52,6 +52,12 @@ describe('htmlToMarkdown library', () => {
       expect(md).toContain('==green:xanh==');
     });
 
+    it('giữ khoảng trắng biên khi chuyển đổi thẻ mark', () => {
+      const html = '<p>Từ trước <mark class="hl-yellow"> giữa </mark> từ sau</p>';
+      const md = htmlToMarkdown(html);
+      expect(md).toContain('Từ trước ==giữa== từ sau');
+    });
+
     it('trả về chuỗi rỗng khi đầu vào rỗng', () => {
       expect(htmlToMarkdown('')).toBe('');
       expect(htmlToMarkdown('   ')).toBe('');
