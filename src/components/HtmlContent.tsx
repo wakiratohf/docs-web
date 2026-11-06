@@ -1,4 +1,12 @@
+import { useRef } from 'react';
 import DOMPurify from 'dompurify';
+import ReadingHighlightToolbar from './reading/ReadingHighlightToolbar';
+import {
+  applyHighlightToHtml,
+  removeHighlightFromHtml,
+  type HighlightColor,
+  type TextContext,
+} from '../lib/textHighlight';
 
 // Render nội dung có thể là HTML (note) ở chế độ chỉ đọc.
 // ⚠️ Không đặt dangerouslySetInnerHTML cùng children JSX trên cùng một thẻ
@@ -21,20 +29,55 @@ purifier.addHook('afterSanitizeAttributes', (node) => {
   }
 });
 
-export default function HtmlContent({ value }: { value: string }) {
+export interface HtmlContentProps {
+  value: string;
+  onContentChange?: (html: string) => void;
+}
+
+export default function HtmlContent({ value, onContentChange }: HtmlContentProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
   const looksLikeHtml = /<[a-z][\s\S]*>/i.test(value);
+
+  const handleHighlight = (text: string, color: HighlightColor, ctx?: TextContext) => {
+    if (!onContentChange) return;
+    const nextHtml = applyHighlightToHtml(value, text, color, ctx);
+    onContentChange(nextHtml);
+  };
+
+  const handleRemoveHighlight = (text: string, ctx?: TextContext) => {
+    if (!onContentChange) return;
+    const nextHtml = removeHighlightFromHtml(value, text, ctx);
+    onContentChange(nextHtml);
+  };
 
   if (looksLikeHtml) {
     return (
-      <div
-        className="note-content readonly"
-        dangerouslySetInnerHTML={{ __html: purifier.sanitize(value) }}
-      />
+      <div ref={containerRef} className="note-content readonly" style={{ position: 'relative' }}>
+        {onContentChange && (
+          <ReadingHighlightToolbar
+            containerRef={containerRef}
+            onHighlight={handleHighlight}
+            onRemoveHighlight={handleRemoveHighlight}
+          />
+        )}
+        <div dangerouslySetInnerHTML={{ __html: purifier.sanitize(value) }} />
+      </div>
     );
   }
 
   return (
-    <div className="note-content readonly" style={{ whiteSpace: 'pre-wrap' }}>
+    <div
+      ref={containerRef}
+      className="note-content readonly"
+      style={{ whiteSpace: 'pre-wrap', position: 'relative' }}
+    >
+      {onContentChange && (
+        <ReadingHighlightToolbar
+          containerRef={containerRef}
+          onHighlight={handleHighlight}
+          onRemoveHighlight={handleRemoveHighlight}
+        />
+      )}
       {value}
     </div>
   );

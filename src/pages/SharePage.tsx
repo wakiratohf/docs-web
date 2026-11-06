@@ -226,11 +226,21 @@ export default function SharePage() {
             ) : doc.type === 'embed' ? (
               <EmbedViewer value={doc.content} />
             ) : doc.type === 'note' ? (
-              <HtmlContent value={doc.content} />
+              <HtmlContent
+                value={doc.content}
+                onContentChange={(newContent) =>
+                  setDoc((prev) => (prev ? { ...prev, content: newContent } : null))
+                }
+              />
             ) : doc.type === 'html' ? (
               <HtmlDocument value={doc.content} />
             ) : (
-              <MarkdownPreview content={doc.content} />
+              <MarkdownPreview
+                content={doc.content}
+                onContentChange={(newContent) =>
+                  setDoc((prev) => (prev ? { ...prev, content: newContent } : null))
+                }
+              />
             )}
           </FullscreenViewer>
         </article>

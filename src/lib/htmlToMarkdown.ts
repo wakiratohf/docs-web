@@ -128,6 +128,22 @@ function createTurndownService(options?: HtmlToMarkdownOptions): TurndownService
     },
   });
 
+  // Quy tắc xử lý thẻ <mark> tô sáng sang cú pháp Markdown ==nội dung==
+  service.addRule('markHighlight', {
+    filter: (node) => node.nodeName === 'MARK',
+    replacement: (content, node) => {
+      const clean = content.trim();
+      if (!clean) return '';
+      const el = node as HTMLElement;
+      const classAttr = el.getAttribute('class') || '';
+      const match = /hl-([a-z]+)/.exec(classAttr);
+      if (match && match[1] !== 'yellow') {
+        return `==${match[1]}:${clean}==`;
+      }
+      return `==${clean}==`;
+    },
+  });
+
   return service;
 }
 

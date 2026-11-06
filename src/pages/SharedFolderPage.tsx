@@ -363,11 +363,45 @@ export default function SharedFolderPage() {
                   ) : current.type === 'embed' ? (
                     <EmbedViewer value={current.content} />
                   ) : current.type === 'note' ? (
-                    <HtmlContent value={current.content} />
+                    <HtmlContent
+                      value={current.content}
+                      onContentChange={(newContent) => {
+                        setPayload((prev) => {
+                          if (!prev?.documents?.[current.id]) return prev;
+                          return {
+                            ...prev,
+                            documents: {
+                              ...prev.documents,
+                              [current.id]: {
+                                ...prev.documents[current.id],
+                                content: newContent,
+                              },
+                            },
+                          };
+                        });
+                      }}
+                    />
                   ) : current.type === 'html' ? (
                     <HtmlDocument value={current.content} />
                   ) : (
-                    <MarkdownPreview content={current.content} />
+                    <MarkdownPreview
+                      content={current.content}
+                      onContentChange={(newContent) => {
+                        setPayload((prev) => {
+                          if (!prev?.documents?.[current.id]) return prev;
+                          return {
+                            ...prev,
+                            documents: {
+                              ...prev.documents,
+                              [current.id]: {
+                                ...prev.documents[current.id],
+                                content: newContent,
+                              },
+                            },
+                          };
+                        });
+                      }}
+                    />
                   )}
                 </FullscreenViewer>
 

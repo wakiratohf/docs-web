@@ -1,9 +1,11 @@
-import { useEffect, useRef, type ClipboardEvent, type MouseEvent } from 'react';
+import { useEffect, useRef, useState, type ClipboardEvent, type MouseEvent } from 'react';
 import {
   Bold,
   Italic,
   Underline,
   Strikethrough,
+  Highlighter,
+  ChevronDown,
   Pilcrow,
   List,
   ListOrdered,
@@ -13,6 +15,10 @@ import {
   RemoveFormatting,
 } from 'lucide-react';
 import { usePrompt } from '../context/ConfirmContext';
+import {
+  HIGHLIGHT_COLORS,
+  type HighlightColor,
+} from '../lib/textHighlight';
 
 // Lột mã BBCode kiểu [b]...[/b], [user=42]... khi dán.
 function stripBbcode(text: string): string {
@@ -21,7 +27,7 @@ function stripBbcode(text: string): string {
 
 // Bỏ các thẻ inline rỗng mà trình duyệt hay để lại (vd <b></b>).
 function cleanHtml(html: string): string {
-  return html.replace(/<(b|i|u|strong|em|span)>\s*<\/\1>/gi, '');
+  return html.replace(/<(b|i|u|strong|em|span|mark)>\s*<\/\1>/gi, '');
 }
 
 interface Props {
@@ -31,7 +37,10 @@ interface Props {
 
 export default function NoteEditor({ value, onChange }: Props) {
   const elRef = useRef<HTMLDivElement>(null);
+  const colorPickerRef = useRef<HTMLDivElement>(null);
   const prompt = usePrompt();
+  const [activeHighlightColor, setActiveHighlightColor] = useState<HighlightColor>('yellow');
+  const [showColorPicker, setShowColorPicker] = useState(false);
 
   // Chỉ nạp nội dung ban đầu một lần khi mount (parent remount bằng key theo
   // doc.id), để con trỏ không bị nhảy về đầu khi đang gõ.
@@ -41,6 +50,18 @@ export default function NoteEditor({ value, onChange }: Props) {
     }
   }, []);
 
+  // Đóng bảng màu khi bấm ra ngoài
+  useEffect(() => {
+    if (!showColorPicker) return;
+    const onClickOutside = (e: MouseEvent | globalThis.MouseEvent) => {
+      if (colorPickerRef.current && !colorPickerRef.current.contains(e.target as Node)) {
+        setShowColorPicker(false);
+      }
+    };
+    document.addEventListener('mousedown', onClickOutside);
+    return () => document.removeEventListener('mousedown', onClickOutside);
+  }, [showColorPicker]);
+
   const emit = () => {
     if (!elRef.current) return;
     onChange(cleanHtml(elRef.current.innerHTML));
@@ -49,6 +70,80 @@ export default function NoteEditor({ value, onChange }: Props) {
   const exec = (command: string, arg?: string) => {
     document.execCommand(command, false, arg);
     elRef.current?.focus();
+    emit();
+  };
+
+  const applyHighlight = (color: HighlightColor) => {
+    setActiveHighlightColor(color);
+    setShowColorPicker(false);
+    elRef.current?.focus();
+
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0 || sel.isCollapsed) return;
+
+    const range = sel.getRangeAt(0);
+    const className = `hl-${color}`;
+
+    // Kiểm tra xem selection có đang nằm trong thẻ mark không
+    let parent = range.commonAncestorContainer as Node | null;
+    let existingMark: HTMLElement | null = null;
+    while (parent && parent !== elRef.current) {
+      if (parent.nodeName === 'MARK') {
+        existingMark = parent as HTMLElement;
+        break;
+      }
+      parent = parent.parentNode;
+    }
+
+    if (existingMark) {
+      if (existingMark.className === className) {
+        // Cùng màu: toggle gỡ bỏ highlight
+        const textNode = document.createTextNode(existingMark.textContent || '');
+        existingMark.parentNode?.replaceChild(textNode, existingMark);
+      } else {
+        // Khác màu: cập nhật màu mới
+        existingMark.className = className;
+      }
+      emit();
+      return;
+    }
+
+    // Bọc nội dung bằng thẻ mark
+    try {
+      const mark = document.createElement('mark');
+      mark.className = className;
+      mark.appendChild(range.extractContents());
+      range.insertNode(mark);
+      emit();
+    } catch {
+      // Fallback nếu vùng chọn phức tạp
+      const colorOption = HIGHLIGHT_COLORS.find((c) => c.key === color);
+      const colorHex = colorOption?.bgHex || '#fef08a';
+      if (!document.execCommand('hiliteColor', false, colorHex)) {
+        document.execCommand('backColor', false, colorHex);
+      }
+      emit();
+    }
+  };
+
+  const removeHighlight = () => {
+    setShowColorPicker(false);
+    elRef.current?.focus();
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0) return;
+    const range = sel.getRangeAt(0);
+    let parent = range.commonAncestorContainer as Node | null;
+    while (parent && parent !== elRef.current) {
+      if (parent.nodeName === 'MARK') {
+        const mark = parent as HTMLElement;
+        const textNode = document.createTextNode(mark.textContent || '');
+        mark.parentNode?.replaceChild(textNode, mark);
+        emit();
+        return;
+      }
+      parent = parent.parentNode;
+    }
+    document.execCommand('removeFormat');
     emit();
   };
 
@@ -101,6 +196,12 @@ export default function NoteEditor({ value, onChange }: Props) {
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
       e.preventDefault();
       void onLink();
+      return;
+    }
+    // Phím tắt Ctrl+Shift+H / Cmd+Shift+H để tô sáng
+    if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'h') {
+      e.preventDefault();
+      applyHighlight(activeHighlightColor);
     }
   };
 
@@ -108,6 +209,8 @@ export default function NoteEditor({ value, onChange }: Props) {
   const keepFocus = (e: MouseEvent) => e.preventDefault();
 
   const ICON = 16;
+  const activeColorHex =
+    HIGHLIGHT_COLORS.find((c) => c.key === activeHighlightColor)?.bgHex || '#fef08a';
 
   return (
     <div className="note-editor">
@@ -124,6 +227,60 @@ export default function NoteEditor({ value, onChange }: Props) {
         <button type="button" title="Gạch ngang" aria-label="Gạch ngang" onClick={() => exec('strikeThrough')}>
           <Strikethrough size={ICON} aria-hidden="true" />
         </button>
+
+        {/* Nút tô sáng Highlight */}
+        <div ref={colorPickerRef} className="hl-toolbar-picker">
+          <button
+            type="button"
+            className="hl-btn-main"
+            title="Tô sáng (Ctrl+Shift+H)"
+            aria-label="Tô sáng"
+            onClick={() => applyHighlight(activeHighlightColor)}
+          >
+            <Highlighter size={ICON} aria-hidden="true" />
+            <span
+              className="hl-btn-stripe"
+              style={{ backgroundColor: activeColorHex }}
+              aria-hidden="true"
+            />
+          </button>
+          <button
+            type="button"
+            className="hl-btn-caret"
+            title="Chọn màu tô sáng"
+            aria-label="Chọn màu tô sáng"
+            onClick={() => setShowColorPicker((v) => !v)}
+          >
+            <ChevronDown size={11} aria-hidden="true" />
+          </button>
+
+          {showColorPicker && (
+            <div className="hl-color-menu" onMouseDown={keepFocus}>
+              {HIGHLIGHT_COLORS.map((c) => (
+                <button
+                  key={c.key}
+                  type="button"
+                  className={`hl-color-dot ${activeHighlightColor === c.key ? 'active' : ''}`}
+                  style={{ backgroundColor: c.bgHex }}
+                  title={`Màu ${c.label}`}
+                  aria-label={`Màu ${c.label}`}
+                  onClick={() => applyHighlight(c.key)}
+                />
+              ))}
+              <span className="sep" />
+              <button
+                type="button"
+                className="hl-remove-btn"
+                title="Gỡ bỏ tô sáng"
+                aria-label="Gỡ bỏ tô sáng"
+                onClick={removeHighlight}
+              >
+                Gỡ
+              </button>
+            </div>
+          )}
+        </div>
+
         <span className="sep" />
         <button type="button" title="Tiêu đề 1" aria-label="Tiêu đề 1" onClick={() => exec('formatBlock', 'H1')}>H1</button>
         <button type="button" title="Tiêu đề 2" aria-label="Tiêu đề 2" onClick={() => exec('formatBlock', 'H2')}>H2</button>

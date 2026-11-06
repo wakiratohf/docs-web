@@ -2,6 +2,7 @@ import {
   isValidElement,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
   type ReactElement,
@@ -24,6 +25,14 @@ import MermaidDiagram from './MermaidDiagram';
 import { slugifyHeading } from '../lib/toc';
 import { highlightCode } from '../lib/highlight';
 import { toggleTaskAtIndex, toggleTaskAtLine } from '../lib/taskLists';
+import {
+  remarkHighlight,
+  applyHighlightToMarkdown,
+  removeHighlightFromMarkdown,
+  type HighlightColor,
+  type TextContext,
+} from '../lib/textHighlight';
+import ReadingHighlightToolbar from './reading/ReadingHighlightToolbar';
 
 /**
  * Trích xuất chữ thuần từ ReactNode (dùng để tạo id / anchor cho tiêu đề).
@@ -297,6 +306,8 @@ export default function MarkdownPreview({
   content,
   onContentChange,
 }: MarkdownPreviewProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
+
   if (!content.trim()) {
     return <p className="muted">Chưa có nội dung. Gõ Markdown ở tab Edit.</p>;
   }
@@ -304,10 +315,29 @@ export default function MarkdownPreview({
   // Khởi tạo bộ đếm checkbox theo thứ tự xuất hiện trong lần render này
   let checkboxCounter = 0;
 
+  const handleHighlight = (text: string, color: HighlightColor, ctx?: TextContext) => {
+    if (!onContentChange) return;
+    const next = applyHighlightToMarkdown(content, text, color, ctx);
+    onContentChange(next);
+  };
+
+  const handleRemoveHighlight = (text: string, ctx?: TextContext) => {
+    if (!onContentChange) return;
+    const next = removeHighlightFromMarkdown(content, text, ctx);
+    onContentChange(next);
+  };
+
   return (
-    <div className="markdown-body">
+    <div ref={containerRef} className="markdown-body" style={{ position: 'relative' }}>
+      {onContentChange && (
+        <ReadingHighlightToolbar
+          containerRef={containerRef}
+          onHighlight={handleHighlight}
+          onRemoveHighlight={handleRemoveHighlight}
+        />
+      )}
       <ReactMarkdown
-        remarkPlugins={[remarkGfm, remarkMath]}
+        remarkPlugins={[remarkGfm, remarkMath, remarkHighlight]}
         rehypePlugins={[rehypeKatex]}
         components={{
           pre: PreBlock,
@@ -316,6 +346,11 @@ export default function MarkdownPreview({
           h2: (props) => <HeadingBlock level={2} {...props} />,
           h3: (props) => <HeadingBlock level={3} {...props} />,
           table: TableBlock,
+          mark: ({ className, children, ...props }) => (
+            <mark className={className || 'hl-yellow'} {...props}>
+              {children}
+            </mark>
+          ),
           input: ({ node, ...props }) => {
             if (props.type === 'checkbox') {
               const taskIndex = checkboxCounter++;

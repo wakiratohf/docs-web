@@ -106,4 +106,16 @@ $$
     expect(displayEl).not.toBeNull();
     expect(displayEl?.textContent).toContain('a2+b2=c2');
   });
+
+  it('hiển thị nội dung tô sáng dạng ==văn bản== và ==color:văn bản==', () => {
+    const md = 'Đoạn ==tô vàng== và ==green:tô xanh lá== trong bài viết.';
+    const { container } = render(<MarkdownPreview content={md} />);
+
+    const marks = container.querySelectorAll('mark');
+    expect(marks).toHaveLength(2);
+    expect(marks[0].textContent).toBe('tô vàng');
+    expect(marks[0].className).toContain('hl-yellow');
+    expect(marks[1].textContent).toBe('tô xanh lá');
+    expect(marks[1].className).toContain('hl-green');
+  });
 });

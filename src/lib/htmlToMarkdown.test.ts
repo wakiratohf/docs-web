@@ -45,6 +45,13 @@ describe('htmlToMarkdown library', () => {
       expect(md).toBe('[Về chúng tôi](https://example.com/docs/about)');
     });
 
+    it('chuyển đổi thẻ mark highlight sang cú pháp ==nội dung==', () => {
+      const html = '<p>Đoạn <mark>tô sáng</mark> và <mark class="hl-green">xanh</mark></p>';
+      const md = htmlToMarkdown(html);
+      expect(md).toContain('==tô sáng==');
+      expect(md).toContain('==green:xanh==');
+    });
+
     it('trả về chuỗi rỗng khi đầu vào rỗng', () => {
       expect(htmlToMarkdown('')).toBe('');
       expect(htmlToMarkdown('   ')).toBe('');

@@ -13,6 +13,7 @@ import {
   ListTree,
   FoldHorizontal,
   UnfoldHorizontal,
+  Highlighter,
 } from 'lucide-react';
 import type { DocItem, DocumentType } from '../types';
 import { useDocuments } from '../context/DocumentsContext';
@@ -24,10 +25,15 @@ import { htmlToMarkdown, isMeaningfulHtml } from '../lib/htmlToMarkdown';
 import { calculateReadingStats } from '../lib/readingStats';
 import { extractTocFromHtml, extractTocFromMarkdown } from '../lib/toc';
 import { getTasksSummary } from '../lib/taskLists';
+import {
+  toggleMarkdownTextareaHighlight,
+  type HighlightColor,
+} from '../lib/textHighlight';
 import { useReadingPreferences } from '../hooks/useReadingPreferences';
 import NoteEditor from './NoteEditor';
 import AuthorInput from './AuthorInput';
 import MarkdownPreview from './MarkdownPreview';
+import HtmlContent from './HtmlContent';
 import HtmlDocument from './HtmlDocument';
 import PdfViewer from './PdfViewer';
 import EmbedViewer from './EmbedViewer';
@@ -234,6 +240,34 @@ export default function DocumentEditor({ doc }: { doc: DocItem }) {
     });
   };
 
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const onToggleMarkdownHighlight = (color: HighlightColor = 'yellow') => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+    const start = textarea.selectionStart ?? 0;
+    const end = textarea.selectionEnd ?? 0;
+    const { newContent, newStart, newEnd } = toggleMarkdownTextareaHighlight(
+      content,
+      start,
+      end,
+      color,
+    );
+    onContent(newContent);
+    window.requestAnimationFrame(() => {
+      textarea.focus();
+      textarea.selectionStart = newStart;
+      textarea.selectionEnd = newEnd;
+    });
+  };
+
+  const onMarkdownKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'h') {
+      e.preventDefault();
+      onToggleMarkdownHighlight();
+    }
+  };
+
   const onDelete = async () => {
     const ok = await confirm({
       title: 'Xóa tài liệu',
@@ -425,11 +459,9 @@ export default function DocumentEditor({ doc }: { doc: DocItem }) {
             <EmbedViewer value={content} />
           </FullscreenViewer>
         </div>
-      ) : type === 'note' ? (
-        <NoteEditor value={content} onChange={onContent} />
       ) : (
-        // markdown & html dùng chung khung soạn thảo có tab Edit/Preview/Split;
-        // chỉ khác placeholder và cách render preview.
+        // note, markdown & html dùng chung khung soạn thảo có tab Edit/Preview/Split;
+        // hỗ trợ tùy chỉnh công thái học và tô sáng ở cả chế độ đọc và sửa.
         <div
           className="md-editor"
           data-reading-theme={tab !== 'edit' && prefs.theme !== 'app' ? prefs.theme : undefined}
@@ -439,14 +471,20 @@ export default function DocumentEditor({ doc }: { doc: DocItem }) {
             <button
               type="button"
               className={tab === 'edit' ? 'active' : ''}
-              onClick={() => setTab('edit')}
+              onClick={() => {
+                flush();
+                setTab('edit');
+              }}
             >
               Edit
             </button>
             <button
               type="button"
               className={tab === 'preview' ? 'active' : ''}
-              onClick={() => setTab('preview')}
+              onClick={() => {
+                flush();
+                setTab('preview');
+              }}
             >
               Preview
             </button>
@@ -454,7 +492,10 @@ export default function DocumentEditor({ doc }: { doc: DocItem }) {
               <button
                 type="button"
                 className={`btn-split-tab ${tab === 'split' ? 'active' : ''}`}
-                onClick={() => setTab('split')}
+                onClick={() => {
+                  flush();
+                  setTab('split');
+                }}
                 title="Soạn thảo và xem trước song song (Split View)"
               >
                 Split
@@ -484,6 +525,18 @@ export default function DocumentEditor({ doc }: { doc: DocItem }) {
                   aria-label="Mục lục"
                 >
                   <ListTree size={15} aria-hidden="true" />
+                </button>
+              )}
+              {/* Nút tô sáng nhanh khi soạn thảo Markdown */}
+              {type === 'markdown' && tab !== 'preview' && (
+                <button
+                  type="button"
+                  className="btn-icon btn-square"
+                  onClick={() => onToggleMarkdownHighlight()}
+                  title="Tô sáng vùng chọn (Ctrl+Shift+H)"
+                  aria-label="Tô sáng"
+                >
+                  <Highlighter size={15} aria-hidden="true" />
                 </button>
               )}
               {/* Nút bật/tắt nhanh độ rộng: Giãn toàn màn hình (Full width 100%) vs Thu hẹp vừa đọc (720px) */}
@@ -527,25 +580,33 @@ export default function DocumentEditor({ doc }: { doc: DocItem }) {
           </div>
 
           {tab === 'edit' ? (
-            <textarea
-              className="md-textarea"
-              value={content}
-              onChange={(e) => onContent(e.target.value)}
-              onPaste={onMarkdownPaste}
-              placeholder={
-                type === 'html'
-                  ? '<h1>Tiêu đề</h1>\n\n<p>Viết HTML thô ở đây…</p>'
-                  : '# Tiêu đề\n\nViết Markdown ở đây… (hỗ trợ Smart Paste từ web)'
-              }
-            />
+            type === 'note' ? (
+              <NoteEditor value={content} onChange={onContent} />
+            ) : (
+              <textarea
+                ref={textareaRef}
+                className="md-textarea"
+                value={content}
+                onChange={(e) => onContent(e.target.value)}
+                onPaste={onMarkdownPaste}
+                onKeyDown={onMarkdownKeyDown}
+                placeholder={
+                  type === 'html'
+                    ? '<h1>Tiêu đề</h1>\n\n<p>Viết HTML thô ở đây…</p>'
+                    : '# Tiêu đề\n\nViết Markdown ở đây… (hỗ trợ Smart Paste từ web)'
+                }
+              />
+            )
           ) : tab === 'split' ? (
             <div className="md-split-container">
               <div className="md-split-pane">
                 <textarea
+                  ref={textareaRef}
                   className="md-textarea"
                   value={content}
                   onChange={(e) => onContent(e.target.value)}
                   onPaste={onMarkdownPaste}
+                  onKeyDown={onMarkdownKeyDown}
                   placeholder="# Tiêu đề\n\nViết Markdown ở đây…"
                 />
               </div>
@@ -558,6 +619,17 @@ export default function DocumentEditor({ doc }: { doc: DocItem }) {
                 </div>
               </div>
             </div>
+          ) : type === 'note' ? (
+            <FullscreenViewer label="Xem nội dung toàn màn hình">
+              <div className="md-preview-viewport">
+                <div className="reading-doc-container" {...containerAttributes}>
+                  {showToc && tocItems.length > 0 && (
+                    <TableOfContents items={tocItems} onClose={() => setShowToc(false)} />
+                  )}
+                  <HtmlContent value={content} onContentChange={onContent} />
+                </div>
+              </div>
+            </FullscreenViewer>
           ) : type === 'html' ? (
             <FullscreenViewer label="Xem nội dung toàn màn hình">
               <div className="md-preview-viewport">
