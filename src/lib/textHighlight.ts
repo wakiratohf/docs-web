@@ -297,87 +297,183 @@ export function removeHighlightFromHtml(
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function remarkHighlight() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return (tree: any) => {
+  function transformInlineChildren(children: any[]): any[] {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    function transformChildren(children: any[]): any[] {
+    const output: any[] = [];
+    let activeHighlight: {
+      color: string;
+      rawOpen: string;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const result: any[] = [];
-      let i = 0;
+      collected: any[];
+    } | null = null;
 
-      while (i < children.length) {
-        const child = children[i];
+    function processText(text: string) {
+      let remaining = text;
+      while (remaining.length > 0) {
+        if (!activeHighlight) {
+          // Tìm cú pháp mở: == hoặc ==color:
+          const openMatch = /(==(?:([a-z]+):)?)/i.exec(remaining);
+          if (!openMatch) {
+            output.push({ type: 'text', value: remaining });
+            break;
+          }
 
-        // Bỏ qua bên trong code block hoặc inline code
-        if (child.type === 'code' || child.type === 'inlineCode') {
-          result.push(child);
-          i++;
+          const before = remaining.slice(0, openMatch.index);
+          if (before) {
+            output.push({ type: 'text', value: before });
+          }
+
+          const color = openMatch[2] || 'yellow';
+          const rawOpen = openMatch[1];
+          const rest = remaining.slice(openMatch.index + rawOpen.length);
+
+          // Kiểm tra xem dấu đóng == có nằm ngay trong đoạn text này không
+          const closeIndex = rest.indexOf('==');
+          if (closeIndex !== -1) {
+            const inside = rest.slice(0, closeIndex);
+            output.push({
+              type: 'mark',
+              data: {
+                hName: 'mark',
+                hProperties: { className: `hl-${color}` },
+              },
+              children: inside ? [{ type: 'text', value: inside }] : [],
+            });
+            remaining = rest.slice(closeIndex + 2);
+          } else {
+            // Dấu đóng nằm ở text node sau (băng qua inline code, strong, v.v.)
+            activeHighlight = {
+              color,
+              rawOpen,
+              collected: rest ? [{ type: 'text', value: rest }] : [],
+            };
+            break;
+          }
+        } else {
+          // Đang nằm trong một highlight mở: tìm dấu đóng ==
+          const closeIndex = remaining.indexOf('==');
+          if (closeIndex !== -1) {
+            const inside = remaining.slice(0, closeIndex);
+            if (inside) {
+              activeHighlight.collected.push({ type: 'text', value: inside });
+            }
+            output.push({
+              type: 'mark',
+              data: {
+                hName: 'mark',
+                hProperties: { className: `hl-${activeHighlight.color}` },
+              },
+              children: activeHighlight.collected,
+            });
+            remaining = remaining.slice(closeIndex + 2);
+            activeHighlight = null;
+          } else {
+            activeHighlight.collected.push({ type: 'text', value: remaining });
+            break;
+          }
+        }
+      }
+    }
+
+    for (let i = 0; i < children.length; i++) {
+      const child = children[i];
+
+      // Code block độc lập: không xử lý
+      if (child.type === 'code') {
+        output.push(child);
+        continue;
+      }
+
+      // Inline code (`...`): nếu đang trong highlight thì gom vào, ngược lại giữ nguyên
+      if (child.type === 'inlineCode') {
+        if (activeHighlight) {
+          activeHighlight.collected.push(child);
+        } else {
+          output.push(child);
+        }
+        continue;
+      }
+
+      // Text node
+      if (child.type === 'text') {
+        processText(child.value);
+        continue;
+      }
+
+      // HTML node (<mark...> và </mark>)
+      if (child.type === 'html') {
+        const openMark = /^<mark(?:\s+class=["']([^"']+)["'])?>/i.exec(child.value);
+        if (openMark) {
+          const cls = openMark[1] || 'hl-yellow';
+          const matchCol = /hl-([a-z]+)/.exec(cls);
+          activeHighlight = {
+            color: matchCol ? matchCol[1] : 'yellow',
+            rawOpen: child.value,
+            collected: [],
+          };
           continue;
         }
-
-        // 1. Xử lý text node chứa cú pháp ==...==
-        if (child.type === 'text' && child.value.includes('==')) {
-          const parts = child.value.split(/(==(?:[a-z]+:)?[^=\n]+==)/g);
-          for (const part of parts) {
-            const match = /^==(?:([a-z]+):)?([^=\n]+)==$/.exec(part);
-            if (match) {
-              const color = match[1] || 'yellow';
-              result.push({
-                type: 'mark',
-                data: {
-                  hName: 'mark',
-                  hProperties: { className: `hl-${color}` },
-                },
-                children: [{ type: 'text', value: match[2] }],
-              });
-            } else if (part) {
-              result.push({ type: 'text', value: part });
-            }
-          }
-          i++;
-        }
-        // 2. Xử lý html node mở <mark class="..."> và đóng </mark>
-        else if (
-          child.type === 'html' &&
-          /^<mark(?:\s+class=["']([^"']+)["'])?>/i.test(child.value)
-        ) {
-          const openMatch = /^<mark(?:\s+class=["']([^"']+)["'])?>/i.exec(child.value);
-          const cls = openMatch?.[1] || 'hl-yellow';
-
-          // Gom các node con nằm giữa <mark> và </mark>
-          let j = i + 1;
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const innerChildren: any[] = [];
-          while (
-            j < children.length &&
-            !(children[j].type === 'html' && /<\/mark>/i.test(children[j].value))
-          ) {
-            innerChildren.push(children[j]);
-            j++;
-          }
-
-          result.push({
+        if (/^<\/mark>/i.test(child.value) && activeHighlight) {
+          output.push({
             type: 'mark',
             data: {
               hName: 'mark',
-              hProperties: { className: cls },
+              hProperties: { className: `hl-${activeHighlight.color}` },
             },
-            children: transformChildren(innerChildren),
+            children: activeHighlight.collected,
           });
-          i = j + 1;
-        } else {
-          if (child.children) {
-            child.children = transformChildren(child.children);
-          }
-          result.push(child);
-          i++;
+          activeHighlight = null;
+          continue;
         }
       }
 
-      return result;
+      // Các inline node khác (strong, emphasis, link, delete, v.v.)
+      if (activeHighlight) {
+        if (child.children) {
+          child.children = transformInlineChildren(child.children);
+        }
+        activeHighlight.collected.push(child);
+      } else {
+        if (child.children) {
+          child.children = transformInlineChildren(child.children);
+        }
+        output.push(child);
+      }
     }
 
-    if (tree.children) {
-      tree.children = transformChildren(tree.children);
+    // Nếu duyệt hết mà chưa đóng highlight (unclosed ==)
+    if (activeHighlight) {
+      output.push({ type: 'text', value: activeHighlight.rawOpen });
+      for (const item of activeHighlight.collected) {
+        output.push(item);
+      }
     }
+
+    return output;
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (tree: any) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    function visit(node: any) {
+      if (!node) return;
+      if (node.type === 'code') return;
+
+      if (
+        node.type === 'paragraph' ||
+        node.type === 'heading' ||
+        node.type === 'tableCell'
+      ) {
+        if (node.children && Array.isArray(node.children)) {
+          node.children = transformInlineChildren(node.children);
+        }
+      } else if (node.children && Array.isArray(node.children)) {
+        for (const child of node.children) {
+          visit(child);
+        }
+      }
+    }
+
+    visit(tree);
   };
 }

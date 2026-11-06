@@ -124,4 +124,26 @@ describe('textHighlight - Remark plugin', () => {
     expect(html).not.toContain('<mark');
     expect(html).toContain('b == c');
   });
+
+  it('render highlight bao quanh inline code `code` và formatting', () => {
+    const md = '==green:Đoạn văn có chứa `doh` và **in đậm** kết thúc ở đây.==';
+    const el = React.createElement(ReactMarkdown, { remarkPlugins: [remarkHighlight] }, md);
+    const html = renderToStaticMarkup(el);
+    expect(html).toContain('<mark class="hl-green">');
+    expect(html).toContain('<code>doh</code>');
+    expect(html).toContain('<strong>in đậm</strong>');
+    expect(html).not.toContain('==green:');
+  });
+
+  it('render chính xác văn bản dài chứa inline code trong thực tế', () => {
+    const realMd =
+      '==green:BE đã trả lời đủ 17 câu. Phần trả lời được ưu tiên hơn phần hướng dẫn cũ khi hai bên khác nhau. Các quyết định đã chốt của team Android đều được BE chấp nhận: nới cổng VALIDATED qua Remote Config, DNS hệ thống trước, `doh` để trống khi chưa cần DoH. Còn 5 điểm cần làm rõ và 2 ô BE chưa điền. Điểm chặn C1 ở mục 2 không cần BE quyết, vì app dùng tên khóa mới và báo lại BE.==';
+    const el = React.createElement(ReactMarkdown, { remarkPlugins: [remarkHighlight] }, realMd);
+    const html = renderToStaticMarkup(el);
+    expect(html).toContain('<mark class="hl-green">');
+    expect(html).toContain('<code>doh</code>');
+    expect(html).toContain('Điểm chặn C1 ở mục 2 không cần BE quyết');
+    expect(html).not.toContain('==green:');
+    expect(html).not.toContain('BE.==');
+  });
 });
