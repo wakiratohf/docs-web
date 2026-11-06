@@ -1,9 +1,20 @@
-import { useMemo, useState, type DragEvent } from 'react';
+import { useEffect, useMemo, useState, type DragEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Plus, Upload, Search, X, Pin, FolderOpen } from 'lucide-react';
+import {
+  Plus,
+  Upload,
+  Search,
+  X,
+  Pin,
+  FolderOpen,
+  LayoutGrid,
+  Clock,
+  FolderPlus,
+} from 'lucide-react';
 import { useDocuments } from '../context/DocumentsContext';
 import { useUploadDocuments } from '../hooks/useUploadDocuments';
 import { useDebouncedValue } from '../hooks/useDebouncedValue';
+import { useHomeViewPreferences } from '../hooks/useHomeViewPreferences';
 import { useAuth } from '../auth/useAuth';
 import ThemeToggle from '../components/ThemeToggle';
 import SearchResults from '../components/SearchResults';
@@ -12,6 +23,15 @@ import EmptyState from '../components/EmptyState';
 import CreateFolderModal from '../components/CreateFolderModal';
 import NewDocMenu from '../components/NewDocMenu';
 import { searchDocs, collectAuthors, ALL_AUTHORS } from '../lib/search';
+import { formatDate } from '../lib/formatDate';
+import {
+  sortFoldersForHome,
+  sortLooseDocsForHome,
+  buildRecentFeed,
+  type HomeFeedItem,
+  type HomeSortBy,
+  type HomeViewMode,
+} from '../lib/homeView';
 import { STICKY_COLORS, DEFAULT_STICKY_COLOR } from '../lib/stickyColors';
 import type { DocItem, DocumentType, Folder, FolderViewType, SkillItem } from '../types';
 
@@ -19,7 +39,13 @@ import type { DocItem, DocumentType, Folder, FolderViewType, SkillItem } from '.
 const SWATCH_BY_KEY = new Map(STICKY_COLORS.map((c) => [c.key, c.swatch]));
 
 // Biểu tượng hiển thị trên icon tài liệu theo loại.
-const GLYPH: Record<DocumentType, string> = { note: '✏️', markdown: '#', html: '<>', pdf: '📄', embed: '🔗' };
+const GLYPH: Record<DocumentType, string> = {
+  note: '✏️',
+  markdown: '#',
+  html: '<>',
+  pdf: '📄',
+  embed: '🔗',
+};
 
 export default function DocsAllPage() {
   const {
@@ -36,10 +62,18 @@ export default function DocsAllPage() {
   const { user, signOutUser } = useAuth();
   const navigate = useNavigate();
 
-  // Folder đang được kéo qua (làm nổi viền ô folder).
+  const { viewMode, sortBy, setViewMode, setSortBy } = useHomeViewPreferences();
+
+  // Folder đang được kéo qua (làm nổi viền ô folder ở chế độ lưới).
   const [dragOver, setDragOver] = useState<string | null>(null);
+  // Đang kéo file từ máy tính qua toàn trang (chỉ bật ở chế độ 'recent').
+  const [fileDragOver, setFileDragOver] = useState(false);
   // Mở hộp thoại tạo folder (chọn tên + kiểu hiển thị).
   const [creatingFolder, setCreatingFolder] = useState(false);
+
+  useEffect(() => {
+    if (viewMode !== 'recent') setFileDragOver(false);
+  }, [viewMode]);
 
   // Từ khóa tìm kiếm toàn cục (trên TẤT CẢ folder + tài liệu lẻ).
   const [query, setQuery] = useState('');
@@ -56,7 +90,7 @@ export default function DocsAllPage() {
     () => (searching ? searchDocs(documents, debouncedQuery, author) : []),
     [documents, debouncedQuery, author, searching],
   );
-  // Map id → folder để kết quả tìm kiếm cho biết tài liệu nằm ở folder nào.
+  // Map id → folder để kết quả tìm kiếm và chế độ Gần đây hiển thị tên folder.
   const foldersById = useMemo(
     () => new Map(folders.map((f) => [f.id, f])),
     [folders],
@@ -86,7 +120,23 @@ export default function DocsAllPage() {
   }, [skills]);
   const docsOf = (fid: string) => docsByFolder.get(fid) ?? [];
   const skillsOf = (fid: string) => skillsByFolder.get(fid) ?? [];
-  const looseDocs = documents.filter((d) => !d.folderId);
+
+  const looseDocs = useMemo(
+    () => documents.filter((d) => !d.folderId),
+    [documents],
+  );
+  const sortedFolders = useMemo(
+    () => sortFoldersForHome(folders, docsByFolder, skillsByFolder, sortBy),
+    [folders, docsByFolder, skillsByFolder, sortBy],
+  );
+  const sortedLooseDocs = useMemo(
+    () => sortLooseDocsForHome(looseDocs, sortBy),
+    [looseDocs, sortBy],
+  );
+  const recentFeed = useMemo(
+    () => (viewMode === 'recent' ? buildRecentFeed(documents, skills, sortBy) : []),
+    [viewMode, documents, skills, sortBy],
+  );
 
   const create = (type: DocumentType) => {
     const created = addDocument(type);
@@ -98,6 +148,16 @@ export default function DocsAllPage() {
     setCreatingFolder(false);
     const f = addFolder(name, viewType);
     if (f) navigate(`/docs/folder/${f.id}`);
+  };
+
+  const switchViewMode = (nextMode: HomeViewMode) => {
+    setViewMode(nextMode);
+    // Nếu đang ở màn kết quả tìm kiếm mà người dùng chủ động bấm chuyển chế độ xem,
+    // thoát chế độ lọc để hiển thị ngay chế độ xem vừa chọn.
+    if (searching) {
+      setQuery('');
+      setAuthor(ALL_AUTHORS);
+    }
   };
 
   // ----- Kéo-thả (HTML5 native): kéo tài liệu thả vào ô folder -----
@@ -125,9 +185,31 @@ export default function DocsAllPage() {
     if (id) moveDocument(id, folderId);
   };
 
+  // ----- Kéo-thả file từ máy tính vào trang khi ở chế độ 'recent' -----
+  const onPageDragOver = (e: DragEvent) => {
+    if (viewMode !== 'recent') return;
+    if (!Array.from(e.dataTransfer.types).includes('Files')) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+    if (!fileDragOver) setFileDragOver(true);
+  };
+  const onPageDragLeave = (e: DragEvent) => {
+    if (viewMode !== 'recent') return;
+    if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
+      setFileDragOver(false);
+    }
+  };
+  const onPageDrop = (e: DragEvent) => {
+    if (viewMode !== 'recent') return;
+    if (!e.dataTransfer.files || e.dataTransfer.files.length === 0) return;
+    e.preventDefault();
+    setFileDragOver(false);
+    void uploadFiles(e.dataTransfer.files, undefined);
+  };
+
   const openFolder = (f: Folder) => navigate(`/docs/folder/${f.id}`);
 
-  // Một ô tài liệu (icon + nhãn), có thể kéo.
+  // Một ô tài liệu đứng riêng trên lưới (icon + nhãn), có thể kéo vào folder.
   const renderDoc = (d: DocItem) => (
     <Link
       key={d.id}
@@ -147,8 +229,99 @@ export default function DocsAllPage() {
     </Link>
   );
 
+  // Một dòng mục trong danh sách phẳng của chế độ "Gần đây" (DocItem hoặc SkillItem).
+  const renderRecentItem = (entry: HomeFeedItem) => {
+    const { kind, item } = entry;
+    const to =
+      kind === 'skill' ? `/docs/skill/${item.id}` : `/docs/view/document/${item.id}`;
+    const folder = item.folderId ? foldersById.get(item.folderId) : undefined;
+    const isPinned = kind === 'doc' && Boolean(entry.item.isPinned);
+    const titleText =
+      item.title || (kind === 'skill' ? '(không tên)' : '(không tiêu đề)');
+    const authorText = (item.author ?? '').trim();
+
+    return (
+      <li key={`${kind}-${item.id}`} className="doc-line home-recent-line">
+        <Link to={to} className="doc-item">
+          {kind === 'skill' ? (
+            <span className="badge badge-skill">
+              <span aria-hidden="true">{entry.item.icon || '🧩'}</span> skill
+            </span>
+          ) : (
+            <span className={`badge badge-${entry.item.type}`}>
+              {entry.item.type}
+            </span>
+          )}
+
+          <span className="recent-main">
+            <span className="recent-title-row">
+              <span className="doc-title">{titleText}</span>
+              {isPinned && (
+                <span className="recent-pin-flag" title="Đã ghim">
+                  <Pin size={13} aria-hidden="true" />
+                  <span className="sr-only">Đã ghim</span>
+                </span>
+              )}
+              {item.isShared && (
+                <span className="share-flag" title="Đang chia sẻ công khai">
+                  <span aria-hidden="true">🔗</span>
+                  <span className="sr-only">Đang chia sẻ công khai</span>
+                </span>
+              )}
+            </span>
+            {authorText && (
+              <span className="recent-author muted">✍ {authorText}</span>
+            )}
+          </span>
+
+          <span className="doc-dates muted">
+            <span className="doc-date" title="Thời gian cập nhật gần nhất">
+              Sửa: {formatDate(item.updatedAt)}
+            </span>
+            <span className="doc-date" title="Thời gian tạo">
+              Tạo: {formatDate(item.createdAt)}
+            </span>
+          </span>
+        </Link>
+
+        {folder ? (
+          <Link
+            to={`/docs/folder/${folder.id}`}
+            className="recent-folder-chip"
+            title={`Mở folder ${folder.name}`}
+            aria-label={`Mở folder ${folder.name}`}
+          >
+            <span aria-hidden="true">📁</span>
+            <span className="recent-folder-name">{folder.name}</span>
+          </Link>
+        ) : (
+          <span
+            className="recent-folder-chip is-loose"
+            title="Tài liệu đứng riêng (không thuộc folder)"
+          >
+            General
+          </span>
+        )}
+      </li>
+    );
+  };
+
+  const isAllEmpty =
+    folders.length === 0 && documents.length === 0 && skills.length === 0;
+
   return (
-    <div className="container">
+    <div
+      className={`container${fileDragOver ? ' file-drag-over' : ''}`}
+      onDragOver={onPageDragOver}
+      onDragLeave={onPageDragLeave}
+      onDrop={onPageDrop}
+    >
+      {fileDragOver && (
+        <div className="file-drop-banner">
+          📄 Thả file để tải lên trang chủ (General)
+        </div>
+      )}
+
       <header className="app-header">
         <h1>📄 Tài liệu của tôi</h1>
         <div className="user-box">
@@ -158,14 +331,67 @@ export default function DocsAllPage() {
         </div>
       </header>
 
-      <div className="actions">
-        <NewDocMenu
-          onCreate={create}
-          onPdfCreated={(id) => navigate(`/docs/view/document/${id}`)}
-        />
-        <button type="button" className="btn-icon" onClick={() => navigate('/docs/upload')}>
-          <Upload size={16} aria-hidden="true" /> Tải lên hàng loạt
-        </button>
+      <div className="actions home-actions">
+        <div className="actions-left">
+          <NewDocMenu
+            onCreate={create}
+            onPdfCreated={(id) => navigate(`/docs/view/document/${id}`)}
+          />
+          {viewMode === 'recent' && (
+            <button
+              type="button"
+              className="btn-icon"
+              onClick={() => setCreatingFolder(true)}
+            >
+              <FolderPlus size={16} aria-hidden="true" /> Folder mới
+            </button>
+          )}
+          <button
+            type="button"
+            className="btn-icon"
+            onClick={() => navigate('/docs/upload')}
+          >
+            <Upload size={16} aria-hidden="true" /> Tải lên hàng loạt
+          </button>
+        </div>
+
+        <div className="actions-right">
+          {!searching && (
+            <select
+              className="sort-select"
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as HomeSortBy)}
+              title="Sắp xếp màn hình chính"
+              aria-label="Sắp xếp màn hình chính"
+            >
+              <option value="default">Mặc định</option>
+              <option value="updated">Ngày sửa mới nhất</option>
+              <option value="created">Ngày tạo mới nhất</option>
+              <option value="name">Tên (A–Z)</option>
+            </select>
+          )}
+
+          <div className="view-toggle" role="group" aria-label="Chế độ xem trang chủ">
+            <button
+              type="button"
+              className={`btn-icon ${viewMode === 'folders' ? 'primary' : ''}`}
+              onClick={() => switchViewMode('folders')}
+              title="Hiển thị dạng lưới Folder"
+              aria-pressed={viewMode === 'folders'}
+            >
+              <LayoutGrid size={16} aria-hidden="true" /> Folder
+            </button>
+            <button
+              type="button"
+              className={`btn-icon ${viewMode === 'recent' ? 'primary' : ''}`}
+              onClick={() => switchViewMode('recent')}
+              title="Hiển thị danh sách phẳng tất cả tài liệu"
+              aria-pressed={viewMode === 'recent'}
+            >
+              <Clock size={16} aria-hidden="true" /> Gần đây
+            </button>
+          </div>
+        </div>
       </div>
 
       <div className="search-bar-wrap has-author">
@@ -215,91 +441,124 @@ export default function DocsAllPage() {
           foldersById={foldersById}
           showFolder
         />
-      ) : folders.length === 0 && documents.length === 0 ? (
+      ) : isAllEmpty ? (
         <EmptyState
           icon={<FolderOpen size={40} aria-hidden="true" />}
           title="Chưa có tài liệu nào"
           description="Tạo ghi chú, tài liệu Markdown hoặc folder để bắt đầu."
           action={
-            <button type="button" className="btn-icon primary" onClick={() => create('note')}>
+            <button
+              type="button"
+              className="btn-icon primary"
+              onClick={() => create('note')}
+            >
               <Plus size={16} aria-hidden="true" /> New note
             </button>
           }
         />
+      ) : viewMode === 'recent' ? (
+        recentFeed.length === 0 ? (
+          <EmptyState
+            icon={<Clock size={40} aria-hidden="true" />}
+            title="Chưa có tài liệu nào"
+            description="Các folder hiện đang trống. Tạo ghi chú hoặc tải tài liệu lên để xem tại đây."
+            action={
+              <button
+                type="button"
+                className="btn-icon primary"
+                onClick={() => create('note')}
+              >
+                <Plus size={16} aria-hidden="true" /> New note
+              </button>
+            }
+          />
+        ) : (
+          <>
+            <p className="search-count muted">
+              Tổng cộng {recentFeed.length} mục
+            </p>
+            <ul className="doc-list home-recent-list" role="list">
+              {recentFeed.map(renderRecentItem)}
+            </ul>
+          </>
+        )
       ) : (
         <div className="home-grid">
           {/* Ô folder — bấm để mở trang chi tiết */}
-          {folders.map((f) => {
+          {sortedFolders.map((f) => {
             // Số tệp hiển thị trong badge: đúng loại nội dung đang đổ vào lưới mini bên dưới.
-            const count = f.viewType === 'skill' ? skillsOf(f.id).length : docsOf(f.id).length;
+            const count =
+              f.viewType === 'skill' ? skillsOf(f.id).length : docsOf(f.id).length;
             return (
-            <div
-              key={f.id}
-              className={`tile folder-tile${dragOver === f.id ? ' drop-over' : ''}${
-                f.isPinned ? ' is-pinned' : ''
-              }`}
-              role="button"
-              tabIndex={0}
-              aria-label={`Mở folder ${f.name}`}
-              onClick={() => openFolder(f)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') openFolder(f);
-              }}
-              onDragOver={(e) => allowDrop(e, f.id)}
-              onDragLeave={() => setDragOver((k) => (k === f.id ? null : k))}
-              onDrop={(e) => onDropToFolder(e, f.id)}
-              title={f.name}
-            >
-              <span className="folder-icon-box">
-                {/* Nút ghim: bấm để ghim/bỏ ghim, chặn nổi bọt để không mở folder */}
-                <button
-                  type="button"
-                  className="folder-pin"
-                  title={f.isPinned ? 'Bỏ ghim folder' : 'Ghim folder lên đầu'}
-                  aria-label={f.isPinned ? 'Bỏ ghim folder' : 'Ghim folder lên đầu'}
-                  aria-pressed={f.isPinned ? true : false}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    togglePinFolder(f.id);
-                  }}
-                >
-                  <Pin size={14} aria-hidden="true" />
-                </button>
-                {count > 0 && (
-                  <span className="folder-count" title={`${count} tệp`}>{count}</span>
-                )}
-                <span className="folder-mini">
-                  {f.viewType === 'skill'
-                    ? // Folder skill: ô mini hiện emoji của từng skill.
-                      skillsOf(f.id)
-                        .slice(0, 9)
-                        .map((s) => (
-                          <span key={s.id} className="mini-skill" aria-hidden="true">
-                            {s.icon || '🧩'}
-                          </span>
-                        ))
-                    : docsOf(f.id)
-                        .slice(0, 9)
-                        .map((d) =>
-                          // Folder sticky: ô mini tô theo màu giấy nhớ của tài liệu.
-                          f.viewType === 'sticky' ? (
-                            <span
-                              key={d.id}
-                              className="mini-doc"
-                              style={{
-                                background: SWATCH_BY_KEY.get(
-                                  d.color ?? DEFAULT_STICKY_COLOR,
-                                ),
-                              }}
-                            />
-                          ) : (
-                            <span key={d.id} className={`mini-doc mini-${d.type}`} />
-                          ),
-                        )}
+              <div
+                key={f.id}
+                className={`tile folder-tile${dragOver === f.id ? ' drop-over' : ''}${
+                  f.isPinned ? ' is-pinned' : ''
+                }`}
+                role="button"
+                tabIndex={0}
+                aria-label={`Mở folder ${f.name}`}
+                onClick={() => openFolder(f)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') openFolder(f);
+                }}
+                onDragOver={(e) => allowDrop(e, f.id)}
+                onDragLeave={() => setDragOver((k) => (k === f.id ? null : k))}
+                onDrop={(e) => onDropToFolder(e, f.id)}
+                title={f.name}
+              >
+                <span className="folder-icon-box">
+                  {/* Nút ghim: bấm để ghim/bỏ ghim, chặn nổi bọt để không mở folder */}
+                  <button
+                    type="button"
+                    className="folder-pin"
+                    title={f.isPinned ? 'Bỏ ghim folder' : 'Ghim folder lên đầu'}
+                    aria-label={f.isPinned ? 'Bỏ ghim folder' : 'Ghim folder lên đầu'}
+                    aria-pressed={f.isPinned ? true : false}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      togglePinFolder(f.id);
+                    }}
+                  >
+                    <Pin size={14} aria-hidden="true" />
+                  </button>
+                  {count > 0 && (
+                    <span className="folder-count" title={`${count} tệp`}>
+                      {count}
+                    </span>
+                  )}
+                  <span className="folder-mini">
+                    {f.viewType === 'skill'
+                      ? // Folder skill: ô mini hiện emoji của từng skill.
+                        skillsOf(f.id)
+                          .slice(0, 9)
+                          .map((s) => (
+                            <span key={s.id} className="mini-skill" aria-hidden="true">
+                              {s.icon || '🧩'}
+                            </span>
+                          ))
+                      : docsOf(f.id)
+                          .slice(0, 9)
+                          .map((d) =>
+                            // Folder sticky: ô mini tô theo màu giấy nhớ của tài liệu.
+                            f.viewType === 'sticky' ? (
+                              <span
+                                key={d.id}
+                                className="mini-doc"
+                                style={{
+                                  background: SWATCH_BY_KEY.get(
+                                    d.color ?? DEFAULT_STICKY_COLOR,
+                                  ),
+                                }}
+                              />
+                            ) : (
+                              <span key={d.id} className={`mini-doc mini-${d.type}`} />
+                            ),
+                          )}
+                  </span>
                 </span>
-              </span>
-              <span className="tile-label">{f.name}</span>
-            </div>
+                <span className="tile-label">{f.name}</span>
+              </div>
             );
           })}
 
@@ -318,7 +577,7 @@ export default function DocsAllPage() {
           </button>
 
           {/* Tài liệu không thuộc folder nào — nằm thẳng trên lưới */}
-          {looseDocs.map(renderDoc)}
+          {sortedLooseDocs.map(renderDoc)}
         </div>
       )}
 
