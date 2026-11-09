@@ -506,6 +506,86 @@ a:hover {
   font-size: 12px;
   background: var(--card);
 }
+/* Bảng chia sẻ (SharePopover): bấm nút chỉ mở bảng, phải bấm rõ "Bật" mới công khai */
+.share-popover {
+  position: fixed;
+  z-index: 9500;
+  inline-size: min(340px, calc(100vw - 16px));
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px;
+  background: var(--dropdown-bg);
+  backdrop-filter: saturate(180%) blur(24px);
+  -webkit-backdrop-filter: saturate(180%) blur(24px);
+  border: 1px solid var(--dropdown-border);
+  border-radius: 14px;
+  box-shadow: var(--dropdown-shadow);
+  color: var(--text);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .share-popover {
+    animation: dropdown-pop-in 0.13s var(--ease);
+  }
+}
+.share-popover-status {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  color: var(--muted);
+}
+.share-popover-status.is-public {
+  color: var(--primary);
+}
+.share-popover-status strong {
+  display: block;
+  color: var(--text);
+  font-size: 14px;
+}
+.share-popover-status p {
+  margin: 2px 0 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+.share-popover-note {
+  display: flex;
+  gap: 8px;
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--share-bg);
+  border: 1px solid var(--share-border);
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--text);
+}
+.share-popover-note svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: var(--muted);
+}
+.share-popover-link {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.share-popover-link .share-url {
+  min-width: 0;
+}
+.share-popover-action {
+  justify-content: center;
+  inline-size: 100%;
+}
+
+/* Mục nguy hiểm trong menu "⋯" (ActionMenu) */
+.dropdown-item.is-danger {
+  color: var(--danger);
+}
+.dropdown-item.is-danger:hover,
+.dropdown-item.is-danger:focus-visible {
+  background: var(--danger-bg);
+}
+
 .share-header {
   display: flex;
   align-items: center;
@@ -2365,6 +2445,19 @@ mark {
   flex: 1;
   font-size: 14px;
   line-height: 1.4;
+}
+.toast-action {
+  flex-shrink: 0;
+  border: none;
+  background: transparent;
+  color: var(--primary);
+  font-size: 13.5px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 6px;
+}
+.toast-action:hover {
+  background: var(--hover-bg);
 }
 .toast-close {
   flex-shrink: 0;

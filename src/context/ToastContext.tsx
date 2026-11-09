@@ -13,16 +13,27 @@ import { CheckCircle2, AlertCircle, Info, X } from 'lucide-react';
 
 // Một thông báo nổi (toast). type quyết định màu + icon + thời gian tự tắt.
 type ToastType = 'success' | 'error' | 'info';
+// Nút hành động tùy chọn trong toast (vd. "Hoàn tác"). Bấm xong toast tự đóng.
+export interface ToastAction {
+  label: string;
+  onClick: () => void;
+}
+interface ToastOptions {
+  type?: ToastType;
+  duration?: number;
+  action?: ToastAction;
+}
 interface Toast {
   id: string;
   message: string;
   type: ToastType;
   duration: number;
+  action?: ToastAction;
 }
 
 interface ToastContextValue {
   // Hàm gốc; trả id để có thể tự gỡ sớm nếu cần.
-  toast: (message: string, opts?: { type?: ToastType; duration?: number }) => string;
+  toast: (message: string, opts?: ToastOptions) => string;
   toastSuccess: (message: string, duration?: number) => string;
   toastError: (message: string, duration?: number) => string;
   toastInfo: (message: string, duration?: number) => string;
@@ -53,11 +64,11 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const toast = useCallback(
-    (message: string, opts?: { type?: ToastType; duration?: number }): string => {
+    (message: string, opts?: ToastOptions): string => {
       const type = opts?.type ?? 'info';
       const duration = opts?.duration ?? DEFAULT_DURATION[type];
       const id = uuidv4();
-      setToasts((prev) => [...prev, { id, message, type, duration }]);
+      setToasts((prev) => [...prev, { id, message, type, duration, action: opts?.action }]);
       const timer = window.setTimeout(() => dismiss(id), duration);
       timers.current.set(id, timer);
       return id;
@@ -125,6 +136,18 @@ function ToastViewport({
           >
             <Icon className="toast-icon" size={18} aria-hidden="true" />
             <span className="toast-msg">{t.message}</span>
+            {t.action && (
+              <button
+                type="button"
+                className="toast-action"
+                onClick={() => {
+                  t.action?.onClick();
+                  onDismiss(t.id);
+                }}
+              >
+                {t.action.label}
+              </button>
+            )}
             <button
               type="button"
               className="toast-close"

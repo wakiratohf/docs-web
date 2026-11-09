@@ -2,16 +2,12 @@ import { useMemo, useState, type DragEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
   Pin,
-  Link2,
-  Share2,
   Pencil,
   Trash2,
   Upload,
   Search,
   X,
   CornerUpLeft,
-  Copy,
-  ExternalLink,
   Plus,
   Inbox,
   List,
@@ -41,6 +37,7 @@ import SkillEditModal from '../components/SkillEditModal';
 import CreateFolderModal from '../components/CreateFolderModal';
 import MoveFolderModal from '../components/MoveFolderModal';
 import BreadcrumbNav from '../components/BreadcrumbNav';
+import SharePopover from '../components/SharePopover';
 import { searchDocs, plainTextOf } from '../lib/search';
 import { collectAuthors } from '../lib/authors';
 import {
@@ -111,7 +108,7 @@ export default function FolderPage() {
   const defaultAuthor = user?.displayName ?? user?.email ?? '';
   // Danh sách tác giả đã từng dùng (mọi tài liệu) để nạp sẵn dropdown gợi ý.
   const authors = useMemo(() => collectAuthors(documents), [documents]);
-  const { toastSuccess, toastError } = useToast();
+  const { toastSuccess } = useToast();
   const confirm = useConfirm();
   const navigate = useNavigate();
 
@@ -448,14 +445,7 @@ export default function FolderPage() {
   };
 
   const shareUrl = `${window.location.origin}/share/f/${folder.id}`;
-  const onCopyShare = async () => {
-    try {
-      await navigator.clipboard.writeText(shareUrl);
-      toastSuccess('Đã copy link chia sẻ');
-    } catch {
-      toastError('Không copy được link');
-    }
-  };
+  const parentSharedAncestors = getSharedAncestors(folders, folder.parentId);
 
   return (
     <div
@@ -538,15 +528,14 @@ export default function FolderPage() {
           >
             <Pin size={16} aria-hidden="true" /> {folder.isPinned ? 'Đã ghim' : 'Ghim folder'}
           </button>
-          <button
-            type="button"
-            className={`btn-icon ${folder.isShared ? 'primary' : ''}`}
-            onClick={() => toggleShareFolder(folder.id)}
-            title="Bật/tắt chia sẻ công khai cả folder"
-          >
-            {folder.isShared ? <Link2 size={16} aria-hidden="true" /> : <Share2 size={16} aria-hidden="true" />}{' '}
-            {folder.isShared ? 'Đang chia sẻ' : 'Chia sẻ folder'}
-          </button>
+          <SharePopover
+            kind="folder"
+            shareUrl={shareUrl}
+            isShared={Boolean(folder.isShared)}
+            inherited={parentSharedAncestors.length > 0}
+            inheritedFolderName={parentSharedAncestors[parentSharedAncestors.length - 1]?.name}
+            onToggle={() => toggleShareFolder(folder.id)}
+          />
           <button type="button" className="btn-icon" onClick={startRename}>
             <Pencil size={16} aria-hidden="true" /> Đổi tên
           </button>
@@ -555,26 +544,6 @@ export default function FolderPage() {
           </button>
         </div>
       </header>
-
-      {folder.isShared && (
-        <div className="share-bar">
-          <span className="muted">
-            Link công khai (ai có link đều xem được cả folder):
-          </span>
-          <input
-            className="share-url"
-            readOnly
-            value={shareUrl}
-            onFocus={(e) => e.target.select()}
-          />
-          <button type="button" className="btn-icon" onClick={onCopyShare}>
-            <Copy size={16} aria-hidden="true" /> Copy
-          </button>
-          <a className="btn-icon" href={shareUrl} target="_blank" rel="noreferrer">
-            <ExternalLink size={16} aria-hidden="true" /> Mở
-          </a>
-        </div>
-      )}
 
       <div className="actions">
         {isSkill ? (

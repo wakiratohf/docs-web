@@ -1,11 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
-  Share2,
-  Link2,
   Trash2,
-  Copy,
-  ExternalLink,
   Loader2,
   Check,
   ArrowLeft,
@@ -22,6 +18,8 @@ import {
 } from 'lucide-react';
 import type { DocItem, DocumentType } from '../types';
 import { useDocuments } from '../context/DocumentsContext';
+import SharePopover from './SharePopover';
+import ActionMenu from './ActionMenu';
 import { useToast } from '../context/ToastContext';
 import { useConfirm } from '../context/ConfirmContext';
 import { collectAuthors } from '../lib/authors';
@@ -140,19 +138,8 @@ export default function DocumentEditor({ doc }: { doc: DocItem }) {
   }, [content, type]);
 
   const shareUrl = `${window.location.origin}/share/d/${doc.id}`;
-  const isFolderShared = doc.folderId
-    ? getSharedAncestors(folders, doc.folderId).length > 0
-    : false;
-  const isSharedEffective = Boolean(doc.isShared || isFolderShared);
-
-  const onCopyShare = async () => {
-    try {
-      await navigator.clipboard.writeText(shareUrl);
-      toastSuccess('Đã copy link chia sẻ');
-    } catch {
-      toastError('Không copy được link');
-    }
-  };
+  const sharedAncestors = getSharedAncestors(folders, doc.folderId);
+  const isFolderShared = sharedAncestors.length > 0;
 
   // Auto-save có debounce ~600ms.
   const timer = useRef<number | undefined>(undefined);
@@ -539,39 +526,34 @@ export default function DocumentEditor({ doc }: { doc: DocItem }) {
           minMenuWidth={220}
           triggerIcon={<FolderOpen size={14} />}
         />
-        {/* Nút chia sẻ/xóa gọn lại còn icon (chữ chỉ hiện qua tooltip) */}
-        <button
-          type="button"
-          className={`btn-icon btn-square ${isSharedEffective ? 'primary' : ''}`}
-          onClick={() => {
+        {/* Bấm nút chia sẻ chỉ MỞ bảng chia sẻ; bật công khai phải bấm rõ trong bảng.
+            Flush auto-save trước để bản công khai nhận nội dung mới nhất. */}
+        <SharePopover
+          kind="document"
+          variant="icon"
+          shareUrl={shareUrl}
+          isShared={Boolean(doc.isShared)}
+          inherited={isFolderShared}
+          inheritedFolderName={sharedAncestors[sharedAncestors.length - 1]?.name}
+          onToggle={() => {
             window.clearTimeout(timer.current);
             flush();
             toggleShareDocument(doc.id);
           }}
-          title={
-            isFolderShared
-              ? 'Đang chia sẻ theo thư mục'
-              : isSharedEffective
-                ? 'Đang chia sẻ — bấm để tắt'
-                : 'Chia sẻ công khai'
-          }
-          aria-label={isSharedEffective ? 'Đang chia sẻ' : 'Chia sẻ'}
-        >
-          {isSharedEffective ? (
-            <Link2 size={16} aria-hidden="true" />
-          ) : (
-            <Share2 size={16} aria-hidden="true" />
-          )}
-        </button>
-        <button
-          type="button"
-          className="btn-icon btn-square danger"
-          onClick={onDelete}
-          title="Xóa tài liệu"
-          aria-label="Xóa tài liệu"
-        >
-          <Trash2 size={16} aria-hidden="true" />
-        </button>
+        />
+        {/* Xóa nằm trong menu "⋯" để không đứng sát nút chia sẻ (tránh bấm nhầm) */}
+        <ActionMenu
+          label="Thêm thao tác cho tài liệu"
+          items={[
+            {
+              key: 'delete',
+              label: 'Xóa tài liệu',
+              icon: <Trash2 size={16} aria-hidden="true" />,
+              onSelect: onDelete,
+              danger: true,
+            },
+          ]}
+        />
         {saveState !== 'idle' && (
           <span
             className={`save-indicator ${saveState === 'saved' ? 'is-saved' : ''}`}
@@ -589,42 +571,6 @@ export default function DocumentEditor({ doc }: { doc: DocItem }) {
           </span>
         )}
       </div>
-
-      {isSharedEffective && (
-        <div className="share-bar">
-          <Link2 size={15} aria-hidden="true" className="share-bar-icon" />
-          <input
-            className="share-url"
-            readOnly
-            value={shareUrl}
-            onFocus={(e) => e.target.select()}
-            title={
-              isFolderShared
-                ? 'Link công khai (tài liệu nằm trong thư mục đang chia sẻ)'
-                : 'Link công khai — ai có link đều xem được'
-            }
-          />
-          <button
-            type="button"
-            className="btn-icon btn-square"
-            onClick={onCopyShare}
-            title="Copy link"
-            aria-label="Copy link"
-          >
-            <Copy size={16} aria-hidden="true" />
-          </button>
-          <a
-            className="btn-icon btn-square"
-            href={shareUrl}
-            target="_blank"
-            rel="noreferrer"
-            title="Mở link trong tab mới"
-            aria-label="Mở link"
-          >
-            <ExternalLink size={16} aria-hidden="true" />
-          </a>
-        </div>
-      )}
 
       {type === 'pdf' ? (
         // PDF chỉ xem (content là fileId Drive); vẫn sửa được tiêu đề/tác giả ở trên.

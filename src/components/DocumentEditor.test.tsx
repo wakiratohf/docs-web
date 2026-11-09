@@ -23,6 +23,7 @@ vi.mock('../context/DocumentsContext', () => ({
 
 vi.mock('../context/ToastContext', () => ({
   useToast: () => ({
+    toast: vi.fn(),
     toastSuccess: vi.fn(),
     toastError: vi.fn(),
     toastInfo: vi.fn(),
@@ -169,5 +170,47 @@ describe('DocumentEditor — đồng bộ ngầm khi file bị ghi đè/thay đ�
     expect(container.querySelector('.note-content')?.innerHTML).toContain(
       'Ghi chú mới sau khi ghi đè',
     );
+  });
+});
+
+describe('DocumentEditor — chia sẻ và xóa an toàn', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    localStorage.clear();
+  });
+
+  afterEach(() => cleanup());
+
+  function renderEditor() {
+    return render(
+      <ThemeProvider>
+        <MemoryRouter>
+          <DocumentEditor doc={makeDoc()} />
+        </MemoryRouter>
+      </ThemeProvider>,
+    );
+  }
+
+  it('bấm nút "Chia sẻ" KHÔNG bật công khai ngay; phải xác nhận trong bảng', () => {
+    renderEditor();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Chia sẻ' }));
+    expect(toggleShareDocumentMock).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: /Bật chia sẻ công khai/ }));
+    expect(toggleShareDocumentMock).toHaveBeenCalledWith('doc-1');
+  });
+
+  it('nút Xóa không còn đứng trên thanh công cụ, chỉ nằm trong menu "⋯"', async () => {
+    renderEditor();
+
+    expect(screen.queryByRole('button', { name: 'Xóa tài liệu' })).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Thêm thao tác cho tài liệu' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Xóa tài liệu' }));
+
+    // useConfirm giả lập luôn trả true → xóa sau khi xác nhận.
+    await act(async () => {});
+    expect(deleteDocumentMock).toHaveBeenCalledWith('doc-1');
   });
 });

@@ -5,13 +5,9 @@ import {
   Download,
   Pencil,
   Trash2,
-  Share2,
-  Link2,
-  Copy,
-  ExternalLink,
 } from 'lucide-react';
 import { useDocuments } from '../context/DocumentsContext';
-import { useToast } from '../context/ToastContext';
+import SharePopover from '../components/SharePopover';
 import { useConfirm } from '../context/ConfirmContext';
 import ThemeToggle from '../components/ThemeToggle';
 import Spinner from '../components/Spinner';
@@ -36,7 +32,6 @@ export default function SkillDetailPage() {
   const { id } = useParams();
   const { skills, folders, loading, deleteSkill, toggleShareSkill } =
     useDocuments();
-  const { toastSuccess, toastError } = useToast();
   const confirm = useConfirm();
   const navigate = useNavigate();
   const [editOpen, setEditOpen] = useState(false);
@@ -86,18 +81,7 @@ export default function SkillDetailPage() {
   };
 
   const shareUrl = `${window.location.origin}/share/skill/${skill.id}`;
-  const isFolderShared = skill.folderId
-    ? getSharedAncestors(folders, skill.folderId).length > 0
-    : false;
-  const isSharedEffective = Boolean(skill.isShared || isFolderShared);
-  const onCopyShare = async () => {
-    try {
-      await navigator.clipboard.writeText(shareUrl);
-      toastSuccess('Đã copy link chia sẻ');
-    } catch {
-      toastError('Không copy được link');
-    }
-  };
+  const sharedAncestors = getSharedAncestors(folders, skill.folderId);
 
   const sizeLabel = formatSize(skill.fileSize);
 
@@ -118,52 +102,19 @@ export default function SkillDetailPage() {
           >
             <Pencil size={16} aria-hidden="true" /> Sửa
           </button>
-          <button
-            type="button"
-            className={`btn-icon ${isSharedEffective ? 'primary' : ''}`}
-            onClick={() => toggleShareSkill(skill.id)}
-            title={
-              isFolderShared
-                ? 'Đang chia sẻ theo thư mục'
-                : isSharedEffective
-                  ? 'Đang chia sẻ — bấm để tắt'
-                  : 'Chia sẻ công khai skill này'
-            }
-          >
-            {isSharedEffective ? (
-              <Link2 size={16} aria-hidden="true" />
-            ) : (
-              <Share2 size={16} aria-hidden="true" />
-            )}{' '}
-            {isSharedEffective ? 'Đang chia sẻ' : 'Chia sẻ'}
-          </button>
+          <SharePopover
+            kind="skill"
+            shareUrl={shareUrl}
+            isShared={Boolean(skill.isShared)}
+            inherited={sharedAncestors.length > 0}
+            inheritedFolderName={sharedAncestors[sharedAncestors.length - 1]?.name}
+            onToggle={() => toggleShareSkill(skill.id)}
+          />
           <button type="button" className="btn-icon danger" onClick={onDelete}>
             <Trash2 size={16} aria-hidden="true" /> Xóa
           </button>
         </div>
       </header>
-
-      {isSharedEffective && (
-        <div className="share-bar">
-          <span className="muted">
-            {isFolderShared
-              ? 'Link công khai (skill nằm trong thư mục đang chia sẻ):'
-              : 'Link công khai (ai có link đều xem được):'}
-          </span>
-          <input
-            className="share-url"
-            readOnly
-            value={shareUrl}
-            onFocus={(e) => e.target.select()}
-          />
-          <button type="button" className="btn-icon" onClick={onCopyShare}>
-            <Copy size={16} aria-hidden="true" /> Copy
-          </button>
-          <a className="btn-icon" href={shareUrl} target="_blank" rel="noreferrer">
-            <ExternalLink size={16} aria-hidden="true" /> Mở
-          </a>
-        </div>
-      )}
 
       <article className="skill-detail">
         <div className="skill-detail-head">
