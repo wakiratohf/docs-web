@@ -9,7 +9,8 @@ import {
 import { useDocuments } from '../context/DocumentsContext';
 import SharePopover from '../components/SharePopover';
 import { useConfirm } from '../context/ConfirmContext';
-import ThemeToggle from '../components/ThemeToggle';
+import AccountMenu from '../components/AccountMenu';
+import ActionMenu from '../components/ActionMenu';
 import Spinner from '../components/Spinner';
 import MarkdownPreview from '../components/MarkdownPreview';
 import SkillPrompts from '../components/SkillPrompts';
@@ -94,7 +95,6 @@ export default function SkillDetailPage() {
           <span>Chi tiết skill</span>
         </h1>
         <div className="user-box">
-          <ThemeToggle />
           <button
             type="button"
             className="btn-icon"
@@ -110,9 +110,19 @@ export default function SkillDetailPage() {
             inheritedFolderName={sharedAncestors[sharedAncestors.length - 1]?.name}
             onToggle={() => toggleShareSkill(skill.id)}
           />
-          <button type="button" className="btn-icon danger" onClick={onDelete}>
-            <Trash2 size={16} aria-hidden="true" /> Xóa
-          </button>
+          <ActionMenu
+            label="Thêm thao tác cho skill"
+            items={[
+              {
+                key: 'delete',
+                label: 'Xóa skill',
+                icon: <Trash2 size={16} aria-hidden="true" />,
+                onSelect: onDelete,
+                danger: true,
+              },
+            ]}
+          />
+          <AccountMenu />
         </div>
       </header>
 

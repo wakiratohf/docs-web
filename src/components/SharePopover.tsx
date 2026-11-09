@@ -111,7 +111,7 @@ export default function SharePopover({
         title={isPublic ? 'Đang chia sẻ công khai — bấm để xem link' : `Chia sẻ ${noun}`}
       >
         {isPublic ? <Link2 size={16} aria-hidden="true" /> : <Share2 size={16} aria-hidden="true" />}
-        {variant === 'labeled' && <> {label}</>}
+        {variant === 'labeled' && <span className="btn-label">{label}</span>}
       </button>
 
       {open &&

@@ -20,6 +20,7 @@ import type { DocItem, DocumentType } from '../types';
 import { useDocuments } from '../context/DocumentsContext';
 import SharePopover from './SharePopover';
 import ActionMenu from './ActionMenu';
+import AccountMenu from './AccountMenu';
 import { useToast } from '../context/ToastContext';
 import { useConfirm } from '../context/ConfirmContext';
 import { collectAuthors } from '../lib/authors';
@@ -570,6 +571,8 @@ export default function DocumentEditor({ doc }: { doc: DocItem }) {
             )}
           </span>
         )}
+        {/* Tài khoản + đổi giao diện: đặt cuối thanh, thống nhất với các trang khác */}
+        <AccountMenu />
       </div>
 
       {type === 'pdf' ? (

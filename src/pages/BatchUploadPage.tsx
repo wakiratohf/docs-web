@@ -8,7 +8,7 @@ import { useToast } from '../context/ToastContext';
 import { buildFolderTreeOptions } from '../lib/folderTree';
 import { detectType, extractHtmlBody, stripExt } from '../lib/uploadHelpers';
 import { htmlToMarkdown, isMeaningfulHtml } from '../lib/htmlToMarkdown';
-import ThemeToggle from '../components/ThemeToggle';
+import AccountMenu from '../components/AccountMenu';
 import DropdownSelect, { type DropdownOption } from '../components/DropdownSelect';
 import type { DocumentType } from '../types';
 
@@ -167,7 +167,7 @@ export default function BatchUploadPage() {
           <span>⬆️ Tải lên hàng loạt</span>
         </h1>
         <div className="user-box">
-          <ThemeToggle />
+          <AccountMenu />
         </div>
       </header>
 

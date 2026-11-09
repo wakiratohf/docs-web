@@ -24,7 +24,8 @@ import { useAuth } from '../auth/useAuth';
 import { useUploadDocuments } from '../hooks/useUploadDocuments';
 import { useToast } from '../context/ToastContext';
 import { useConfirm } from '../context/ConfirmContext';
-import ThemeToggle from '../components/ThemeToggle';
+import AccountMenu from '../components/AccountMenu';
+import ActionMenu from '../components/ActionMenu';
 import SearchResults from '../components/SearchResults';
 import Spinner from '../components/Spinner';
 import EmptyState from '../components/EmptyState';
@@ -460,11 +461,6 @@ export default function FolderPage() {
         </div>
       )}
 
-      {/* Đường dẫn Breadcrumb phân cấp */}
-      <div className="folder-breadcrumb-bar">
-        <BreadcrumbNav folderId={folder.id} folders={folders} />
-      </div>
-
       <header className="app-header">
         <h1 className="folder-title">
           {backLink}
@@ -486,9 +482,12 @@ export default function FolderPage() {
               {folder.name}
             </span>
           )}
+          {/* Nút Ghim đã vào menu "⋯" → hiện dấu ghim cạnh tên để vẫn thấy trạng thái */}
+          {folder.isPinned && (
+            <Pin size={16} className="folder-title-pin" aria-label="Đã ghim" />
+          )}
         </h1>
         <div className="user-box">
-          <ThemeToggle />
           {/* Chuyển kiểu hiển thị tài liệu trong folder: danh sách ↔ sticky note.
               Folder skill có layout marketplace riêng nên ẩn bộ chuyển này. */}
           {!isSkill && (
@@ -512,22 +511,6 @@ export default function FolderPage() {
               minMenuWidth={236}
             />
           )}
-          <button
-            type="button"
-            className="btn-icon"
-            onClick={() => setMovingFolder(true)}
-            title="Di chuyển thư mục này sang vị trí khác"
-          >
-            <FolderInput size={16} aria-hidden="true" /> Di chuyển
-          </button>
-          <button
-            type="button"
-            className={`btn-icon ${folder.isPinned ? 'primary' : ''}`}
-            onClick={() => togglePinFolder(folder.id)}
-            title="Bật/tắt ghim folder (ưu tiên hiển thị trên cùng)"
-          >
-            <Pin size={16} aria-hidden="true" /> {folder.isPinned ? 'Đã ghim' : 'Ghim folder'}
-          </button>
           <SharePopover
             kind="folder"
             shareUrl={shareUrl}
@@ -536,14 +519,47 @@ export default function FolderPage() {
             inheritedFolderName={parentSharedAncestors[parentSharedAncestors.length - 1]?.name}
             onToggle={() => toggleShareFolder(folder.id)}
           />
-          <button type="button" className="btn-icon" onClick={startRename}>
-            <Pencil size={16} aria-hidden="true" /> Đổi tên
-          </button>
-          <button type="button" className="btn-icon danger" onClick={onDelete}>
-            <Trash2 size={16} aria-hidden="true" /> Xóa folder
-          </button>
+          {/* Thao tác phụ gom vào "⋯" để header không tràn ngang trên màn hình hẹp;
+              Xóa đặt cuối menu, tách khỏi các nút hay bấm. */}
+          <ActionMenu
+            label="Thêm thao tác cho thư mục"
+            items={[
+              {
+                key: 'move',
+                label: 'Di chuyển',
+                icon: <FolderInput size={16} aria-hidden="true" />,
+                onSelect: () => setMovingFolder(true),
+              },
+              {
+                key: 'pin',
+                label: folder.isPinned ? 'Bỏ ghim' : 'Ghim lên đầu',
+                icon: <Pin size={16} aria-hidden="true" />,
+                onSelect: () => togglePinFolder(folder.id),
+              },
+              {
+                key: 'rename',
+                label: 'Đổi tên',
+                icon: <Pencil size={16} aria-hidden="true" />,
+                onSelect: startRename,
+              },
+              {
+                key: 'delete',
+                label: 'Xóa thư mục',
+                icon: <Trash2 size={16} aria-hidden="true" />,
+                onSelect: onDelete,
+                danger: true,
+              },
+            ]}
+          />
+          <AccountMenu />
         </div>
       </header>
+
+      {/* Breadcrumb đặt SAU header: header sticky có margin âm phía trên nên nếu
+          đặt trước, nó bị header đè mất nửa chữ. */}
+      <div className="folder-breadcrumb-bar">
+        <BreadcrumbNav folderId={folder.id} folders={folders} />
+      </div>
 
       <div className="actions">
         {isSkill ? (

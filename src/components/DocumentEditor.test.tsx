@@ -21,6 +21,10 @@ vi.mock('../context/DocumentsContext', () => ({
   }),
 }));
 
+vi.mock('../auth/useAuth', () => ({
+  useAuth: () => ({ user: null, signOutUser: vi.fn() }),
+}));
+
 vi.mock('../context/ToastContext', () => ({
   useToast: () => ({
     toast: vi.fn(),

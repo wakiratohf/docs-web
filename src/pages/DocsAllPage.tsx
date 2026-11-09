@@ -17,10 +17,9 @@ import { useDocuments } from '../context/DocumentsContext';
 import { useUploadDocuments } from '../hooks/useUploadDocuments';
 import { useDebouncedValue } from '../hooks/useDebouncedValue';
 import { useHomeViewPreferences } from '../hooks/useHomeViewPreferences';
-import { useAuth } from '../auth/useAuth';
-import ThemeToggle from '../components/ThemeToggle';
+import AccountMenu from '../components/AccountMenu';
+import BottomNav from '../components/BottomNav';
 import SearchResults from '../components/SearchResults';
-import Spinner from '../components/Spinner';
 import EmptyState from '../components/EmptyState';
 import CreateFolderModal from '../components/CreateFolderModal';
 import NewDocMenu from '../components/NewDocMenu';
@@ -92,7 +91,6 @@ export default function DocsAllPage() {
     togglePinFolder,
   } = useDocuments();
   const { uploadFiles } = useUploadDocuments();
-  const { user, signOutUser } = useAuth();
   const navigate = useNavigate();
 
   const { viewMode, sortBy, setViewMode, setSortBy } = useHomeViewPreferences();
@@ -366,9 +364,7 @@ export default function DocsAllPage() {
       <header className="app-header">
         <h1>📄 Tài liệu của tôi</h1>
         <div className="user-box">
-          <ThemeToggle />
-          <span className="muted">{user?.email}</span>
-          <button type="button" onClick={() => signOutUser()}>Đăng xuất</button>
+          <AccountMenu />
         </div>
       </header>
 
@@ -456,7 +452,15 @@ export default function DocsAllPage() {
       </div>
 
       {loading ? (
-        <Spinner />
+        // Khung xương giữ chỗ các ô thư mục → bố cục không "nhảy" khi dữ liệu về
+        <div className="home-grid" aria-busy="true" aria-label="Đang tải tài liệu">
+          {Array.from({ length: 8 }, (_, i) => (
+            <div key={i} className="tile tile-skeleton" aria-hidden="true">
+              <span className="folder-icon-box skeleton-block" />
+              <span className="skeleton-line" />
+            </div>
+          ))}
+        </div>
       ) : searching ? (
         <SearchResults
           results={results}
@@ -653,6 +657,9 @@ export default function DocsAllPage() {
         onCancel={() => setCreatingFolder(false)}
         onCreate={onCreateFolder}
       />
+
+      {/* Footer bản quyền: chỉ ở cuối trang chủ, KHÔNG cố định đè lên nội dung */}
+      <BottomNav />
     </div>
   );
 }
