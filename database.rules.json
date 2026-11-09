@@ -30,7 +30,7 @@
       ".read": true,
       "$type": {
         "$id": {
-          ".write": "auth != null && (!data.exists() ? newData.child('ownerId').val() === auth.uid : data.child('ownerId').val() === auth.uid)",
+          ".write": "auth != null && (!data.exists() ? (!newData.exists() || newData.child('ownerId').val() === auth.uid) : data.child('ownerId').val() === auth.uid)",
           "document": {
             "title": { ".validate": "newData.isString() && newData.val().length <= 500" },
             "content": { ".validate": "newData.isString() && newData.val().length <= 2000000" },

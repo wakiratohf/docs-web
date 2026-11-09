@@ -20,6 +20,7 @@ import SkillPrompts from '../components/SkillPrompts';
 import SkillEditModal from '../components/SkillEditModal';
 import { driveDownloadUrl } from '../lib/googleDrive';
 import { formatDate } from '../lib/formatDate';
+import { getSharedAncestors } from '../lib/folderTree';
 
 // Định dạng kích thước file gọn (KB/MB) để hiển thị cạnh nút tải về.
 function formatSize(bytes?: number): string | null {
@@ -85,6 +86,10 @@ export default function SkillDetailPage() {
   };
 
   const shareUrl = `${window.location.origin}/share/skill/${skill.id}`;
+  const isFolderShared = skill.folderId
+    ? getSharedAncestors(folders, skill.folderId).length > 0
+    : false;
+  const isSharedEffective = Boolean(skill.isShared || isFolderShared);
   const onCopyShare = async () => {
     try {
       await navigator.clipboard.writeText(shareUrl);
@@ -115,16 +120,22 @@ export default function SkillDetailPage() {
           </button>
           <button
             type="button"
-            className={`btn-icon ${skill.isShared ? 'primary' : ''}`}
+            className={`btn-icon ${isSharedEffective ? 'primary' : ''}`}
             onClick={() => toggleShareSkill(skill.id)}
-            title="Bật/tắt chia sẻ công khai skill này"
+            title={
+              isFolderShared
+                ? 'Đang chia sẻ theo thư mục'
+                : isSharedEffective
+                  ? 'Đang chia sẻ — bấm để tắt'
+                  : 'Chia sẻ công khai skill này'
+            }
           >
-            {skill.isShared ? (
+            {isSharedEffective ? (
               <Link2 size={16} aria-hidden="true" />
             ) : (
               <Share2 size={16} aria-hidden="true" />
             )}{' '}
-            {skill.isShared ? 'Đang chia sẻ' : 'Chia sẻ'}
+            {isSharedEffective ? 'Đang chia sẻ' : 'Chia sẻ'}
           </button>
           <button type="button" className="btn-icon danger" onClick={onDelete}>
             <Trash2 size={16} aria-hidden="true" /> Xóa
@@ -132,9 +143,13 @@ export default function SkillDetailPage() {
         </div>
       </header>
 
-      {skill.isShared && (
+      {isSharedEffective && (
         <div className="share-bar">
-          <span className="muted">Link công khai (ai có link đều xem được):</span>
+          <span className="muted">
+            {isFolderShared
+              ? 'Link công khai (skill nằm trong thư mục đang chia sẻ):'
+              : 'Link công khai (ai có link đều xem được):'}
+          </span>
           <input
             className="share-url"
             readOnly

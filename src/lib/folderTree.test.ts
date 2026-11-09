@@ -4,6 +4,7 @@ import {
   getRootFolders,
   getSubfolders,
   getFolderAncestors,
+  getSharedAncestors,
   getFolderBreadcrumb,
   getFolderDepth,
   getFolderDescendantIds,
@@ -60,6 +61,20 @@ describe('folderTree utility', () => {
 
     const ancestorsA = getFolderAncestors('f-a', sampleFolders);
     expect(ancestorsA).toEqual([]);
+  });
+
+  it('getSharedAncestors trả về các folder chia sẻ trong chuỗi', () => {
+    const foldersWithShare = [
+      makeFolder({ id: 'f-1', name: 'Root Shared', isShared: true }),
+      makeFolder({ id: 'f-2', name: 'Sub Normal', parentId: 'f-1', isShared: false }),
+      makeFolder({ id: 'f-3', name: 'Deep Sub', parentId: 'f-2', isShared: false }),
+      makeFolder({ id: 'f-unshared', name: 'Unshared', isShared: false }),
+    ];
+
+    expect(getSharedAncestors(foldersWithShare, 'f-3').map((f) => f.id)).toEqual(['f-1']);
+    expect(getSharedAncestors(foldersWithShare, 'f-1').map((f) => f.id)).toEqual(['f-1']);
+    expect(getSharedAncestors(foldersWithShare, 'f-unshared')).toEqual([]);
+    expect(getSharedAncestors(foldersWithShare, undefined)).toEqual([]);
   });
 
   it('getFolderBreadcrumb trả về chuỗi đầy đủ từ Root đến folder hiện tại', () => {

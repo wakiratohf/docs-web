@@ -28,7 +28,7 @@ import { collectAuthors } from '../lib/authors';
 import { getDriveAccessToken, deleteFileFromDrive } from '../lib/googleDrive';
 import { htmlToMarkdown, isMeaningfulHtml } from '../lib/htmlToMarkdown';
 import { calculateReadingStats } from '../lib/readingStats';
-import { buildFolderTreeOptions } from '../lib/folderTree';
+import { buildFolderTreeOptions, getSharedAncestors } from '../lib/folderTree';
 import BreadcrumbNav from './BreadcrumbNav';
 import { extractTocFromHtml, extractTocFromMarkdown } from '../lib/toc';
 import { getTasksSummary } from '../lib/taskLists';
@@ -140,6 +140,10 @@ export default function DocumentEditor({ doc }: { doc: DocItem }) {
   }, [content, type]);
 
   const shareUrl = `${window.location.origin}/share/d/${doc.id}`;
+  const isFolderShared = doc.folderId
+    ? getSharedAncestors(folders, doc.folderId).length > 0
+    : false;
+  const isSharedEffective = Boolean(doc.isShared || isFolderShared);
 
   const onCopyShare = async () => {
     try {
@@ -538,16 +542,22 @@ export default function DocumentEditor({ doc }: { doc: DocItem }) {
         {/* Nút chia sẻ/xóa gọn lại còn icon (chữ chỉ hiện qua tooltip) */}
         <button
           type="button"
-          className={`btn-icon btn-square ${doc.isShared ? 'primary' : ''}`}
+          className={`btn-icon btn-square ${isSharedEffective ? 'primary' : ''}`}
           onClick={() => {
             window.clearTimeout(timer.current);
             flush();
             toggleShareDocument(doc.id);
           }}
-          title={doc.isShared ? 'Đang chia sẻ — bấm để tắt' : 'Chia sẻ công khai'}
-          aria-label={doc.isShared ? 'Đang chia sẻ' : 'Chia sẻ'}
+          title={
+            isFolderShared
+              ? 'Đang chia sẻ theo thư mục'
+              : isSharedEffective
+                ? 'Đang chia sẻ — bấm để tắt'
+                : 'Chia sẻ công khai'
+          }
+          aria-label={isSharedEffective ? 'Đang chia sẻ' : 'Chia sẻ'}
         >
-          {doc.isShared ? (
+          {isSharedEffective ? (
             <Link2 size={16} aria-hidden="true" />
           ) : (
             <Share2 size={16} aria-hidden="true" />
@@ -580,7 +590,7 @@ export default function DocumentEditor({ doc }: { doc: DocItem }) {
         )}
       </div>
 
-      {doc.isShared && (
+      {isSharedEffective && (
         <div className="share-bar">
           <Link2 size={15} aria-hidden="true" className="share-bar-icon" />
           <input
@@ -588,7 +598,11 @@ export default function DocumentEditor({ doc }: { doc: DocItem }) {
             readOnly
             value={shareUrl}
             onFocus={(e) => e.target.select()}
-            title="Link công khai — ai có link đều xem được"
+            title={
+              isFolderShared
+                ? 'Link công khai (tài liệu nằm trong thư mục đang chia sẻ)'
+                : 'Link công khai — ai có link đều xem được'
+            }
           />
           <button
             type="button"

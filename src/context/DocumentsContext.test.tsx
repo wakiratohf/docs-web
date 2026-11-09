@@ -153,7 +153,7 @@ describe('updateDocument — đồng bộ shared mirror', () => {
     expect(shared.document.content).toBe('old content');
   });
 
-  it('tài liệu nằm trong folder đang chia sẻ (không tự chia sẻ lẻ) ⇒ chỉ đồng bộ shared/f/.../documents/{id}, KHÔNG đụng shared/d', () => {
+  it('tài liệu nằm trong folder đang chia sẻ (không tự chia sẻ lẻ) ⇒ tự động sang mode chia sẻ và đồng bộ cả shared/d lẫn shared/f', () => {
     const { result } = setup();
     seed({
       documents: [doc({ id: 'd3', folderId: 'f1', isShared: false })],
@@ -167,11 +167,18 @@ describe('updateDocument — đồng bộ shared mirror', () => {
       [
         `users/${UID}/documents/d3/updatedAt`,
         `users/${UID}/documents/d3/content`,
+        `users/${UID}/documents/d3/isShared`,
+        'shared/d/d3',
         `shared/f/f1/documents/d3`,
       ].sort(),
     );
-    const shared = writes['shared/f/f1/documents/d3'] as DocItem;
-    expect(shared.content).toBe('new content');
+    expect(writes[`users/${UID}/documents/d3/isShared`]).toBe(true);
+    const sharedD = writes['shared/d/d3'] as { document: DocItem; ownerId: string };
+    expect(sharedD.document.content).toBe('new content');
+    expect(sharedD.document.isShared).toBe(true);
+    const sharedF = writes['shared/f/f1/documents/d3'] as DocItem;
+    expect(sharedF.content).toBe('new content');
+    expect(sharedF.isShared).toBe(true);
   });
 
   it('tài liệu VỪA chia sẻ lẻ VỪA ở trong folder chia sẻ ⇒ đồng bộ CẢ HAI mirror', () => {
@@ -281,7 +288,7 @@ describe('setDocumentColor — field trang trí, đồng bộ cả hai mirror n�
 });
 
 describe('moveDocument', () => {
-  it('chuyển vào folder đang chia sẻ ⇒ thêm bản vào shared/f đích, không đụng shared/d (tài liệu không tự chia sẻ)', () => {
+  it('chuyển vào folder đang chia sẻ ⇒ tự động bật mode chia sẻ và đồng bộ cả shared/d lẫn shared/f đích', () => {
     const { result } = setup();
     seed({
       documents: [doc({ id: 'd10', isShared: false })],
@@ -292,8 +299,11 @@ describe('moveDocument', () => {
 
     const writes = lastWrites();
     expect(writes[`users/${UID}/documents/d10/folderId`]).toBe('f1');
+    expect(writes[`users/${UID}/documents/d10/isShared`]).toBe(true);
     expect(writes[`shared/f/f1/documents/d10`]).toBeTruthy();
-    expect(writes['shared/d/d10']).toBeUndefined();
+    expect(writes['shared/d/d10']).toBeTruthy();
+    const shared = writes['shared/d/d10'] as { document: DocItem };
+    expect(shared.document.isShared).toBe(true);
   });
 
   it('chuyển ra khỏi folder đang chia sẻ ⇒ gỡ khỏi shared/f nguồn', () => {
@@ -323,6 +333,22 @@ describe('moveDocument', () => {
     const writes = lastWrites();
     const shared = writes['shared/d/d12'] as { document: DocItem };
     expect(shared.document.folderId).toBe('f2');
+  });
+
+  it('chuyển từ folder chia sẻ ra ngoài (hoặc vào folder không chia sẻ) ⇒ tắt mode chia sẻ và xóa shared/d', () => {
+    const { result } = setup();
+    seed({
+      documents: [doc({ id: 'd13', folderId: 'f1', isShared: true })],
+      folders: [folder({ id: 'f1', isShared: true }), folder({ id: 'f2', isShared: false })],
+    });
+
+    act(() => result.current.moveDocument('d13', 'f2'));
+
+    const writes = lastWrites();
+    expect(writes[`users/${UID}/documents/d13/folderId`]).toBe('f2');
+    expect(writes[`users/${UID}/documents/d13/isShared`]).toBe(false);
+    expect(writes['shared/d/d13']).toBeNull();
+    expect(writes['shared/f/f1/documents/d13']).toBeNull();
   });
 });
 
@@ -375,7 +401,7 @@ describe('deleteFolder', () => {
 });
 
 describe('toggleShareFolder', () => {
-  it('bật chia sẻ folder list/sticky ⇒ gom toàn bộ document của folder vào shared/f/{id}.documents', () => {
+  it('bật chia sẻ folder list/sticky ⇒ gom toàn bộ document của folder vào shared/f/{id}.documents và chuyển các file sang mode chia sẻ', () => {
     const { result } = setup();
     seed({
       folders: [folder({ id: 'f1', isShared: false, viewType: 'list' })],
@@ -390,15 +416,21 @@ describe('toggleShareFolder', () => {
 
     const writes = lastWrites();
     expect(writes[`users/${UID}/folders/f1/isShared`]).toBe(true);
+    expect(writes[`users/${UID}/documents/d1/isShared`]).toBe(true);
+    expect(writes[`users/${UID}/documents/d2/isShared`]).toBe(true);
+    expect(writes['shared/d/d1']).toBeTruthy();
+    expect(writes['shared/d/d2']).toBeTruthy();
     const shared = writes['shared/f/f1'] as {
       documents: Record<string, DocItem>;
       ownerId: string;
     };
     expect(Object.keys(shared.documents).sort()).toEqual(['d1', 'd2']);
+    expect(shared.documents.d1.isShared).toBe(true);
+    expect(shared.documents.d2.isShared).toBe(true);
     expect(shared.ownerId).toBe(UID);
   });
 
-  it('bật chia sẻ folder skill ⇒ gom skill thay vì document', () => {
+  it('bật chia sẻ folder skill ⇒ gom skill thay vì document và chuyển skill sang mode chia sẻ', () => {
     const { result } = setup();
     seed({
       folders: [folder({ id: 'f1', isShared: false, viewType: 'skill' })],
@@ -408,19 +440,46 @@ describe('toggleShareFolder', () => {
     act(() => result.current.toggleShareFolder('f1'));
 
     const writes = lastWrites();
+    expect(writes[`users/${UID}/skills/s1/isShared`]).toBe(true);
+    expect(writes['shared/skill/s1']).toBeTruthy();
     const shared = writes['shared/f/f1'] as { skills: Record<string, SkillItem> };
     expect(Object.keys(shared.skills)).toEqual(['s1']);
+    expect(shared.skills.s1.isShared).toBe(true);
   });
 
-  it('tắt chia sẻ ⇒ null cả cụm shared/f/{id}', () => {
+  it('tắt chia sẻ ⇒ null cả cụm shared/f/{id} và gỡ mode chia sẻ của các file con', () => {
     const { result } = setup();
-    seed({ folders: [folder({ id: 'f1', isShared: true })] });
+    seed({
+      folders: [
+        folder({ id: 'f1', isShared: true }),
+        folder({ id: 'f1-sub', parentId: 'f1', isShared: false }),
+      ],
+      documents: [
+        doc({ id: 'd1', folderId: 'f1', isShared: true }),
+        doc({ id: 'd2', folderId: 'f1', isShared: false }),
+        doc({ id: 'd3', folderId: 'f1-sub', isShared: false }),
+      ],
+      skills: [
+        skill({ id: 's1', folderId: 'f1', isShared: true }),
+        skill({ id: 's2', folderId: 'f1-sub', isShared: false }),
+      ],
+    });
 
     act(() => result.current.toggleShareFolder('f1'));
 
     const writes = lastWrites();
     expect(writes[`users/${UID}/folders/f1/isShared`]).toBe(false);
     expect(writes['shared/f/f1']).toBeNull();
+    expect(writes[`users/${UID}/documents/d1/isShared`]).toBe(false);
+    expect(writes['shared/d/d1']).toBeNull();
+    expect(writes[`users/${UID}/documents/d2/isShared`]).toBe(false);
+    expect(writes['shared/d/d2']).toBeNull();
+    expect(writes[`users/${UID}/documents/d3/isShared`]).toBe(false);
+    expect(writes['shared/d/d3']).toBeNull();
+    expect(writes[`users/${UID}/skills/s1/isShared`]).toBe(false);
+    expect(writes['shared/skill/s1']).toBeNull();
+    expect(writes[`users/${UID}/skills/s2/isShared`]).toBe(false);
+    expect(writes['shared/skill/s2']).toBeNull();
   });
 });
 
@@ -469,7 +528,7 @@ describe('updateSkill / deleteSkill / toggleShareSkill — cùng pattern với d
     expect(shared.ownerId).toBe(UID);
   });
 
-  it('updateSkill: skill trong folder chia sẻ ⇒ đồng bộ shared/f/.../skills/{id}', () => {
+  it('updateSkill: skill trong folder chia sẻ ⇒ tự động sang mode chia sẻ và đồng bộ cả shared/skill lẫn shared/f', () => {
     const { result } = setup();
     seed({
       skills: [skill({ id: 's2', folderId: 'f1', isShared: false })],
@@ -481,7 +540,9 @@ describe('updateSkill / deleteSkill / toggleShareSkill — cùng pattern với d
     const writes = lastWrites();
     const shared = writes[`shared/f/f1/skills/s2`] as SkillItem;
     expect(shared.description).toBe('New desc');
-    expect(writes['shared/skill/s2']).toBeUndefined();
+    expect(writes['shared/skill/s2']).toBeTruthy();
+    const sharedSkill = writes['shared/skill/s2'] as { skill: SkillItem; ownerId: string };
+    expect(sharedSkill.skill.isShared).toBe(true);
   });
 
   it('toggleShareSkill bật/tắt giống toggleShareDocument', () => {
@@ -521,7 +582,7 @@ describe('updateSkill / deleteSkill / toggleShareSkill — cùng pattern với d
 });
 
 describe('addDocument / addSkill — tạo trong folder đang chia sẻ', () => {
-  it('addDocument trong folder chia sẻ ⇒ thêm luôn vào shared/f/.../documents', () => {
+  it('addDocument trong folder chia sẻ ⇒ tự động là mode chia sẻ (isShared: true), thêm vào cả shared/d và shared/f', () => {
     const { result } = setup();
     seed({ folders: [folder({ id: 'f1', isShared: true })] });
 
@@ -531,9 +592,36 @@ describe('addDocument / addSkill — tạo trong folder đang chia sẻ', () => 
     });
 
     expect(created).not.toBeNull();
+    expect(created!.isShared).toBe(true);
     const writes = lastWrites();
     expect(writes[`users/${UID}/documents/${created!.id}`]).toEqual(created);
+    expect(writes[`shared/d/${created!.id}`]).toBeTruthy();
     expect(writes[`shared/f/f1/documents/${created!.id}`]).toEqual(created);
+  });
+
+  it('addDocuments trong folder chia sẻ ⇒ tất cả tài liệu đều tự động là mode chia sẻ', () => {
+    const { result } = setup();
+    seed({ folders: [folder({ id: 'f1', isShared: true })] });
+
+    let createdList: DocItem[] = [];
+    act(() => {
+      createdList = result.current.addDocuments(
+        [
+          { type: 'markdown', title: 'Doc 1', content: 'C1' },
+          { type: 'note', title: 'Doc 2', content: 'C2' },
+        ],
+        'f1',
+      );
+    });
+
+    expect(createdList).toHaveLength(2);
+    expect(createdList[0].isShared).toBe(true);
+    expect(createdList[1].isShared).toBe(true);
+    const writes = lastWrites();
+    expect(writes[`shared/d/${createdList[0].id}`]).toBeTruthy();
+    expect(writes[`shared/d/${createdList[1].id}`]).toBeTruthy();
+    expect(writes[`shared/f/f1/documents/${createdList[0].id}`]).toBeTruthy();
+    expect(writes[`shared/f/f1/documents/${createdList[1].id}`]).toBeTruthy();
   });
 
   it('addDocument rồi gọi ngay updateDocument trong cùng một tick vẫn đồng bộ shared/f', () => {
@@ -554,6 +642,7 @@ describe('addDocument / addSkill — tạo trong folder đang chia sẻ', () => 
     expect(sharedDoc).toBeDefined();
     expect(sharedDoc.content).toBe('drive-file-id-999');
     expect(sharedDoc.driveOwned).toBe(true);
+    expect(sharedDoc.isShared).toBe(true);
   });
 
   it('addDocument ngoài folder (General) ⇒ không đụng shared/*', () => {
@@ -569,7 +658,7 @@ describe('addDocument / addSkill — tạo trong folder đang chia sẻ', () => 
     expect(keysOf(writes)).toEqual([`users/${UID}/documents/${created!.id}`]);
   });
 
-  it('addSkill trong folder skill chia sẻ ⇒ thêm luôn vào shared/f/.../skills', () => {
+  it('addSkill trong folder skill chia sẻ ⇒ tự động là mode chia sẻ và thêm vào cả shared/skill và shared/f', () => {
     const { result } = setup();
     seed({ folders: [folder({ id: 'f1', isShared: true, viewType: 'skill' })] });
 
@@ -585,7 +674,9 @@ describe('addDocument / addSkill — tạo trong folder đang chia sẻ', () => 
     });
 
     expect(created).not.toBeNull();
+    expect(created!.isShared).toBe(true);
     const writes = lastWrites();
+    expect(writes[`shared/skill/${created!.id}`]).toBeTruthy();
     expect(writes[`shared/f/f1/skills/${created!.id}`]).toEqual(created);
   });
 });
@@ -706,6 +797,33 @@ describe('Sub-folder operations: addFolder, moveFolder, deleteFolder đệ quy, 
     };
     expect(Object.keys(shared.subfolders).sort()).toEqual(['f-sub1', 'f-sub2']);
     expect(Object.keys(shared.documents).sort()).toEqual(['d1', 'd2', 'd3']);
+  });
+
+  it('moveFolder di chuyển thư mục con ra khỏi thư mục cha chia sẻ ⇒ tắt mode chia sẻ cho các file con', () => {
+    const { result } = setup();
+    seed({
+      folders: [
+        folder({ id: 'f-root', isShared: true }),
+        folder({ id: 'f-sub', parentId: 'f-root', isShared: false }),
+      ],
+      documents: [
+        doc({ id: 'd-sub', folderId: 'f-sub', isShared: true }),
+      ],
+      skills: [
+        skill({ id: 's-sub', folderId: 'f-sub', isShared: true }),
+      ],
+    });
+
+    act(() => {
+      result.current.moveFolder('f-sub', undefined);
+    });
+
+    const writes = lastWrites();
+    expect(writes[`users/${UID}/folders/f-sub/parentId`]).toBeNull();
+    expect(writes[`users/${UID}/documents/d-sub/isShared`]).toBe(false);
+    expect(writes['shared/d/d-sub']).toBeNull();
+    expect(writes[`users/${UID}/skills/s-sub/isShared`]).toBe(false);
+    expect(writes['shared/skill/s-sub']).toBeNull();
   });
 });
 

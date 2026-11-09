@@ -47,6 +47,7 @@ import {
   getSubfolders,
   getFolderDescendantIds,
   getFolderDepth,
+  getSharedAncestors,
   MAX_FOLDER_DEPTH,
 } from '../lib/folderTree';
 import { useDebouncedValue } from '../hooks/useDebouncedValue';
@@ -115,6 +116,9 @@ export default function FolderPage() {
   const navigate = useNavigate();
 
   const folder = folders.find((f) => f.id === folderId);
+  const isFolderShared = folder
+    ? Boolean(folder.isShared || getSharedAncestors(folders, folder.parentId).length > 0)
+    : false;
   // Tiêu chí sắp xếp trong folder: 'manual' theo order (kéo-thả), hoặc theo
   // tên/ngày tạo. Ghi chú ghim luôn ở trên, bất kể tiêu chí.
   const [sortBy, setSortBy] = useState<'manual' | 'name' | 'date'>('manual');
@@ -378,7 +382,7 @@ export default function FolderPage() {
           >
             <Droplet size={15} aria-hidden="true" />
           </button>
-          {d.isShared && (
+          {(d.isShared || isFolderShared) && (
             <span className="share-flag" title="Đang chia sẻ công khai">🔗</span>
           )}
           <span className="sticky-head-spacer" />
@@ -795,7 +799,7 @@ export default function FolderPage() {
               <Link to={`/docs/view/document/${d.id}`} className="doc-item">
                 <span className={`badge badge-${d.type}`}>{d.type}</span>
                 <span className="doc-title">{d.title || '(không tiêu đề)'}</span>
-                {d.isShared && (
+                {(d.isShared || isFolderShared) && (
                   <span className="share-flag" title="Đang chia sẻ công khai">🔗</span>
                 )}
                 <span className="doc-dates muted">

@@ -56,6 +56,23 @@ export function getFolderAncestors(
 }
 
 /**
+ * Trả về danh sách các folder đang được chia sẻ công khai (isShared === true)
+ * nằm trong chuỗi từ chính folderId lên các cấp tổ tiên của nó.
+ * Dùng để đồng bộ tài liệu/subfolder vào tất cả các folder cha/ông đang chia sẻ
+ * hoặc xác định một tài liệu/thư mục có đang thừa hưởng mode chia sẻ hay không.
+ */
+export function getSharedAncestors(
+  folders: readonly Folder[],
+  folderId?: string,
+): Folder[] {
+  if (!folderId) return [];
+  const ancestors = getFolderAncestors(folderId, folders);
+  const current = folders.find((x) => x.id === folderId);
+  const chain = current ? [...ancestors, current] : ancestors;
+  return chain.filter((f) => f.isShared);
+}
+
+/**
  * Lấy chuỗi breadcrumb đầy đủ bao gồm từ Root đến chính thư mục hiện tại.
  * Ví dụ: [A, B, C].
  */

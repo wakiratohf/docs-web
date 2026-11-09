@@ -13,8 +13,8 @@ import { db } from '../lib/firebase';
 import { useAuth } from '../auth/useAuth';
 import { useToast } from './ToastContext';
 import {
-  getFolderAncestors,
   getFolderDescendantIds,
+  getSharedAncestors,
   isValidMoveFolder,
 } from '../lib/folderTree';
 import type {
@@ -103,19 +103,6 @@ function findSharedFolder(
   return f?.isShared ? f : undefined;
 }
 
-/**
- * Trả về danh sách các folder đang được chia sẻ công khai (isShared === true)
- * nằm trong chuỗi từ chính folderId lên các cấp tổ tiên của nó.
- * Dùng để đồng bộ tài liệu/subfolder vào tất cả các folder cha/ông đang chia sẻ.
- */
-function getSharedAncestors(folders: Folder[], folderId?: string): Folder[] {
-  if (!folderId) return [];
-  const ancestors = getFolderAncestors(folderId, folders);
-  const current = folders.find((x) => x.id === folderId);
-  const chain = current ? [...ancestors, current] : ancestors;
-  return chain.filter((f) => f.isShared);
-}
-
 interface DocumentsState {
   documents: DocItem[];
   folders: Folder[];
@@ -178,7 +165,7 @@ export function DocumentsProvider({ children }: { children: ReactNode }) {
   // Tên mặc định gán cho author khi tạo tài liệu mới: ưu tiên tên hiển thị,
   // không có thì email. Người dùng vẫn sửa lại được trong hộp thoại note.
   const authorName = user?.displayName ?? user?.email ?? '';
-  const { toastError } = useToast();
+  const { toastError, toastInfo } = useToast();
 
   const [documents, setDocuments] = useState<DocItem[]>([]);
   const [folders, setFolders] = useState<Folder[]>([]);
@@ -289,6 +276,8 @@ export function DocumentsProvider({ children }: { children: ReactNode }) {
       const cur = stateRef.current.documents;
       // order tính trong phạm vi cùng folder (General = không folder).
       const scope = cur.filter((d) => (d.folderId ?? '') === (folderId ?? ''));
+      const sharedAncestors = getSharedAncestors(stateRef.current.folders, folderId);
+      const isFolderShared = sharedAncestors.length > 0;
       const now = new Date().toISOString();
       const created: DocItem = {
         id: uuidv4(),
@@ -306,12 +295,15 @@ export function DocumentsProvider({ children }: { children: ReactNode }) {
         order: scope.length,
         ...(authorName ? { author: authorName } : {}),
         ...(folderId ? { folderId } : {}),
+        ...(isFolderShared ? { isShared: true } : {}),
       };
       const writes: Record<string, unknown> = {
         [`users/${uid}/documents/${created.id}`]: created,
       };
-      // Tạo trong folder đang chia sẻ (hoặc có tổ tiên chia sẻ) ⇒ thêm luôn vào bản công khai.
-      const sharedAncestors = getSharedAncestors(stateRef.current.folders, folderId);
+      // Tạo trong folder đang chia sẻ (hoặc có tổ tiên chia sẻ) ⇒ thêm luôn vào bản công khai (cả shared/d và shared/f).
+      if (isFolderShared) {
+        writes[`shared/d/${created.id}`] = { document: created, ownerId: uid };
+      }
       for (const sf of sharedAncestors) {
         writes[`shared/f/${sf.id}/documents/${created.id}`] = created;
       }
@@ -332,6 +324,7 @@ export function DocumentsProvider({ children }: { children: ReactNode }) {
       // order tính trong phạm vi cùng folder; mỗi item nối tiếp nhau từ cuối.
       const scope = cur.filter((d) => (d.folderId ?? '') === (folderId ?? ''));
       const sharedAncestors = getSharedAncestors(stateRef.current.folders, folderId);
+      const isFolderShared = sharedAncestors.length > 0;
       const now = new Date().toISOString();
       const created: DocItem[] = [];
       // Gom toàn bộ đường dẫn rồi ghi MỘT lần (multi-path update, nguyên tử).
@@ -356,10 +349,14 @@ export function DocumentsProvider({ children }: { children: ReactNode }) {
           order: scope.length + i,
           ...(itemAuthor ? { author: itemAuthor } : {}),
           ...(folderId ? { folderId } : {}),
+          ...(isFolderShared ? { isShared: true } : {}),
         };
         created.push(doc);
         writes[`users/${uid}/documents/${doc.id}`] = doc;
         // Nếu tạo trong folder đang chia sẻ (hoặc có tổ tiên chia sẻ) ⇒ thêm luôn vào bản công khai.
+        if (isFolderShared) {
+          writes[`shared/d/${doc.id}`] = { document: doc, ownerId: uid };
+        }
         for (const sf of sharedAncestors) {
           writes[`shared/f/${sf.id}/documents/${doc.id}`] = doc;
         }
@@ -384,13 +381,23 @@ export function DocumentsProvider({ children }: { children: ReactNode }) {
         writes[`users/${uid}/documents/${id}/${k}`] = v;
       }
       if (cur) {
-        const merged: DocItem = { ...cur, ...updates, updatedAt: now };
-        // Nếu tài liệu đang chia sẻ công khai, cập nhật luôn bản sao shared/d/{id}.
-        if (cur.isShared) {
+        const sharedAncestors = getSharedAncestors(stateRef.current.folders, cur.folderId);
+        const isFolderShared = sharedAncestors.length > 0;
+        const willBeShared = cur.isShared || isFolderShared;
+        const merged: DocItem = {
+          ...cur,
+          ...updates,
+          updatedAt: now,
+          ...(willBeShared ? { isShared: true } : {}),
+        };
+        if (isFolderShared && !cur.isShared) {
+          writes[`users/${uid}/documents/${id}/isShared`] = true;
+        }
+        // Nếu tài liệu đang chia sẻ công khai hoặc trong folder chia sẻ, cập nhật bản sao shared/d/{id}.
+        if (willBeShared) {
           writes[`shared/d/${id}`] = { document: merged, ownerId: uid };
         }
         // Nếu tài liệu nằm trong folder đang chia sẻ (hoặc có tổ tiên chia sẻ), cập nhật bản trong folder công khai.
-        const sharedAncestors = getSharedAncestors(stateRef.current.folders, cur.folderId);
         for (const sf of sharedAncestors) {
           writes[`shared/f/${sf.id}/documents/${id}`] = merged;
         }
@@ -427,6 +434,12 @@ export function DocumentsProvider({ children }: { children: ReactNode }) {
       if (!db || !uid) return;
       const cur = stateRef.current.documents.find((d) => d.id === id);
       if (!cur) return;
+      const sharedAncestors = getSharedAncestors(stateRef.current.folders, cur.folderId);
+      const isFolderShared = sharedAncestors.length > 0;
+      if (isFolderShared && cur.isShared) {
+        toastInfo('Tài liệu nằm trong thư mục đang chia sẻ công khai. Hãy chuyển ra ngoài nếu không muốn chia sẻ.');
+        return;
+      }
       const enabling = !cur.isShared;
       const writes: Record<string, unknown> = {
         [`users/${uid}/documents/${id}/isShared`]: enabling,
@@ -440,7 +453,7 @@ export function DocumentsProvider({ children }: { children: ReactNode }) {
       }
       commit(writes);
     },
-    [uid, commit],
+    [uid, commit, toastInfo],
   );
 
   // Đổi màu sticky của tài liệu. Màu chỉ là trang trí (folder kiểu sticky) nên
@@ -449,13 +462,14 @@ export function DocumentsProvider({ children }: { children: ReactNode }) {
     (id: string, color: StickyColor) => {
       if (!db || !uid) return;
       const cur = stateRef.current.documents.find((d) => d.id === id);
+      const sharedAncestors = getSharedAncestors(stateRef.current.folders, cur?.folderId);
+      const isShared = cur?.isShared || sharedAncestors.length > 0;
       const writes: Record<string, unknown> = {
         [`users/${uid}/documents/${id}/color`]: color,
       };
-      // Tài liệu đang chia sẻ lẻ ⇒ cập nhật bản shared/d/{id}.
-      if (cur?.isShared) writes[`shared/d/${id}/document/color`] = color;
+      // Tài liệu đang chia sẻ lẻ (hoặc nằm trong folder chia sẻ) ⇒ cập nhật bản shared/d/{id}.
+      if (isShared) writes[`shared/d/${id}/document/color`] = color;
       // Tài liệu nằm trong folder đang chia sẻ ⇒ cập nhật bản trong folder công khai.
-      const sharedAncestors = getSharedAncestors(stateRef.current.folders, cur?.folderId);
       for (const sf of sharedAncestors) {
         writes[`shared/f/${sf.id}/documents/${id}/color`] = color;
       }
@@ -561,6 +575,64 @@ export function DocumentsProvider({ children }: { children: ReactNode }) {
 
       // Thêm vào các shared ancestors mới
       const newSharedAncestors = getSharedAncestors(stateRef.current.folders, targetParentId);
+      const isOldShared = oldSharedAncestors.length > 0;
+      const isTargetShared = newSharedAncestors.length > 0;
+
+      if (isTargetShared) {
+        for (const doc of stateRef.current.documents) {
+          if (doc.folderId && descendantSet.has(doc.folderId) && !doc.isShared) {
+            writes[`users/${uid}/documents/${doc.id}/isShared`] = true;
+            const updated = { ...doc, isShared: true };
+            writes[`shared/d/${doc.id}`] = { document: updated, ownerId: uid };
+          }
+        }
+        for (const s of stateRef.current.skills) {
+          if (descendantSet.has(s.folderId) && !s.isShared) {
+            writes[`users/${uid}/skills/${s.id}/isShared`] = true;
+            const updated = { ...s, isShared: true };
+            writes[`shared/skill/${s.id}`] = { skill: updated, ownerId: uid };
+          }
+        }
+        stateRef.current.documents = stateRef.current.documents.map((doc) =>
+          doc.folderId && descendantSet.has(doc.folderId) && !doc.isShared
+            ? { ...doc, isShared: true }
+            : doc,
+        );
+        stateRef.current.skills = stateRef.current.skills.map((s) =>
+          descendantSet.has(s.folderId) && !s.isShared
+            ? { ...s, isShared: true }
+            : s,
+        );
+      } else if (isOldShared && !cur.isShared) {
+        // Chuyển folder ra ngoài thư mục chia sẻ sang nơi không chia sẻ ⇒ tắt chia sẻ toàn bộ file bên trong.
+        for (const doc of stateRef.current.documents) {
+          if (doc.folderId && descendantSet.has(doc.folderId)) {
+            writes[`users/${uid}/documents/${doc.id}/isShared`] = false;
+            writes[`shared/d/${doc.id}`] = null;
+          }
+        }
+        for (const s of stateRef.current.skills) {
+          if (descendantSet.has(s.folderId)) {
+            writes[`users/${uid}/skills/${s.id}/isShared`] = false;
+            writes[`shared/skill/${s.id}`] = null;
+          }
+        }
+        stateRef.current.documents = stateRef.current.documents.map((doc) =>
+          doc.folderId && descendantSet.has(doc.folderId)
+            ? { ...doc, isShared: false }
+            : doc,
+        );
+        stateRef.current.skills = stateRef.current.skills.map((s) =>
+          descendantSet.has(s.folderId)
+            ? { ...s, isShared: false }
+            : s,
+        );
+      }
+
+      stateRef.current.folders = stateRef.current.folders.map((f) =>
+        f.id === id ? { ...f, parentId: targetParentId, order: scope.length } : f,
+      );
+
       for (const sf of newSharedAncestors) {
         for (const dId of descendantIds) {
           const f = stateRef.current.folders.find((x) => x.id === dId);
@@ -571,7 +643,8 @@ export function DocumentsProvider({ children }: { children: ReactNode }) {
         }
         for (const doc of stateRef.current.documents) {
           if (doc.folderId && descendantSet.has(doc.folderId)) {
-            writes[`shared/f/${sf.id}/documents/${doc.id}`] = doc;
+            const updatedDoc = isTargetShared ? { ...doc, isShared: true } : doc;
+            writes[`shared/f/${sf.id}/documents/${doc.id}`] = updatedDoc;
           }
         }
       }
@@ -687,6 +760,9 @@ export function DocumentsProvider({ children }: { children: ReactNode }) {
         [`users/${uid}/folders/${id}/isShared`]: enabling,
       };
       if (enabling) {
+        stateRef.current.folders = stateRef.current.folders.map((f) =>
+          f.id === id ? { ...f, isShared: true } : f,
+        );
         const allSubfolderIds = getFolderDescendantIds(id, stateRef.current.folders);
         const allFolderIds = [id, ...allSubfolderIds];
         const allFolderSet = new Set(allFolderIds);
@@ -698,11 +774,19 @@ export function DocumentsProvider({ children }: { children: ReactNode }) {
         }
 
         if (folder.viewType === 'skill') {
-          // Folder skill: gom toàn bộ SkillItem vào 'skills'.
+          // Folder skill: gom toàn bộ SkillItem vào 'skills', đồng thời đưa tất cả skill vào mode chia sẻ.
           const skillsMap: Record<string, SkillItem> = {};
-          for (const s of stateRef.current.skills) {
-            if (allFolderSet.has(s.folderId)) skillsMap[s.id] = s;
-          }
+          const updatedSkills = stateRef.current.skills.map((s) => {
+            if (allFolderSet.has(s.folderId)) {
+              const sharedSkill: SkillItem = { ...s, isShared: true };
+              skillsMap[s.id] = sharedSkill;
+              writes[`users/${uid}/skills/${s.id}/isShared`] = true;
+              writes[`shared/skill/${s.id}`] = { skill: sharedSkill, ownerId: uid };
+              return sharedSkill;
+            }
+            return s;
+          });
+          stateRef.current.skills = updatedSkills;
           writes[`shared/f/${id}`] = {
             folder: { ...folder, isShared: true },
             ownerId: uid,
@@ -710,11 +794,20 @@ export function DocumentsProvider({ children }: { children: ReactNode }) {
             subfolders: subfoldersMap,
           };
         } else {
-          // Gom toàn bộ tài liệu trong folder và các subfolder thành bản sao công khai.
+          // Gom toàn bộ tài liệu trong folder và các subfolder thành bản sao công khai,
+          // đồng thời chuyển toàn bộ tài liệu đang có trong đó sang mode chia sẻ (isShared: true + mirror shared/d/{id}).
           const docsMap: Record<string, DocItem> = {};
-          for (const d of stateRef.current.documents) {
-            if (d.folderId && allFolderSet.has(d.folderId)) docsMap[d.id] = d;
-          }
+          const updatedDocs = stateRef.current.documents.map((d) => {
+            if (d.folderId && allFolderSet.has(d.folderId)) {
+              const sharedDoc: DocItem = { ...d, isShared: true };
+              docsMap[d.id] = sharedDoc;
+              writes[`users/${uid}/documents/${d.id}/isShared`] = true;
+              writes[`shared/d/${d.id}`] = { document: sharedDoc, ownerId: uid };
+              return sharedDoc;
+            }
+            return d;
+          });
+          stateRef.current.documents = updatedDocs;
           writes[`shared/f/${id}`] = {
             folder: { ...folder, isShared: true },
             ownerId: uid,
@@ -725,6 +818,40 @@ export function DocumentsProvider({ children }: { children: ReactNode }) {
       } else {
         // Tắt chia sẻ → xóa cả cụm công khai.
         writes[`shared/f/${id}`] = null;
+        stateRef.current.folders = stateRef.current.folders.map((f) =>
+          f.id === id ? { ...f, isShared: false } : f,
+        );
+        // Tắt mode chia sẻ cho các file trong folder này nếu không còn folder cha nào đang chia sẻ.
+        const allSubfolderIds = getFolderDescendantIds(id, stateRef.current.folders);
+        const allFolderIds = [id, ...allSubfolderIds];
+        const allFolderSet = new Set(allFolderIds);
+
+        const currentFolder = stateRef.current.folders.find((f) => f.id === id);
+        const parentShared = currentFolder?.parentId
+          ? getSharedAncestors(stateRef.current.folders, currentFolder.parentId).length > 0
+          : false;
+
+        if (!parentShared) {
+          const updatedDocs = stateRef.current.documents.map((d) => {
+            if (d.folderId && allFolderSet.has(d.folderId)) {
+              writes[`users/${uid}/documents/${d.id}/isShared`] = false;
+              writes[`shared/d/${d.id}`] = null;
+              return { ...d, isShared: false };
+            }
+            return d;
+          });
+          stateRef.current.documents = updatedDocs;
+
+          const updatedSkills = stateRef.current.skills.map((s) => {
+            if (allFolderSet.has(s.folderId)) {
+              writes[`users/${uid}/skills/${s.id}/isShared`] = false;
+              writes[`shared/skill/${s.id}`] = null;
+              return { ...s, isShared: false };
+            }
+            return s;
+          });
+          stateRef.current.skills = updatedSkills;
+        }
       }
       commit(writes);
     },
@@ -767,12 +894,35 @@ export function DocumentsProvider({ children }: { children: ReactNode }) {
       const scope = stateRef.current.documents.filter(
         (d) => d.id !== id && (d.folderId ?? '') === (folderId ?? ''),
       );
+      const oldSharedAncestors = getSharedAncestors(stateRef.current.folders, cur.folderId);
+      const newSharedAncestors = getSharedAncestors(stateRef.current.folders, folderId);
+      const isTargetShared = newSharedAncestors.length > 0;
+      const isOldShared = oldSharedAncestors.length > 0;
+
+      // Vào folder chia sẻ ⇒ tự động chia sẻ; rời khỏi folder chia sẻ sang nơi không chia sẻ ⇒ tắt chia sẻ.
+      let willBeShared = Boolean(cur.isShared);
+      if (isTargetShared) {
+        willBeShared = true;
+      } else if (isOldShared) {
+        willBeShared = false;
+      }
+
       const writes: Record<string, unknown> = {
         // folderId = null để gỡ trường khi đưa ra ngoài (không folder).
         [`users/${uid}/documents/${id}/folderId`]: folderId ?? null,
         [`users/${uid}/documents/${id}/order`]: scope.length,
         [`users/${uid}/documents/${id}/updatedAt`]: now,
       };
+      if (willBeShared) {
+        if (!cur.isShared) {
+          writes[`users/${uid}/documents/${id}/isShared`] = true;
+        }
+      } else {
+        if (cur.isShared) {
+          writes[`users/${uid}/documents/${id}/isShared`] = false;
+          writes[`shared/d/${id}`] = null;
+        }
+      }
       // PDF: đánh dấu "cần đồng bộ Drive" (di chuyển file sang folder Drive mới) —
       // KHÔNG làm ngay vì không có Google token tại đây. Banner sẽ lo.
       // - driveOwned===false (dán-link): bỏ qua, app không đụng được file đó.
@@ -782,29 +932,28 @@ export function DocumentsProvider({ children }: { children: ReactNode }) {
       if (cur.type === 'pdf' && cur.driveOwned !== false) {
         writes[`users/${uid}/documents/${id}/drivePendingSync`] = true;
       }
-      // Đồng bộ bản chia sẻ nếu tài liệu đang công khai.
-      if (cur.isShared) {
-        const merged: DocItem = { ...cur, updatedAt: now };
-        if (folderId) merged.folderId = folderId;
-        else delete merged.folderId;
-        writes[`shared/d/${id}`] = { document: merged, ownerId: uid };
+      const moved: DocItem = {
+        ...cur,
+        folderId,
+        order: scope.length,
+        updatedAt: now,
+        isShared: willBeShared,
+      };
+      // Đồng bộ bản chia sẻ nếu tài liệu đang công khai hoặc chuyển vào folder chia sẻ.
+      if (willBeShared) {
+        writes[`shared/d/${id}`] = { document: moved, ownerId: uid };
       }
       // Gỡ khỏi folder cũ nếu folder cũ (hoặc tổ tiên) đang chia sẻ.
-      const oldSharedAncestors = getSharedAncestors(stateRef.current.folders, cur.folderId);
       for (const sf of oldSharedAncestors) {
         writes[`shared/f/${sf.id}/documents/${id}`] = null;
       }
       // Thêm vào folder mới nếu folder mới (hoặc tổ tiên) đang chia sẻ.
-      const newSharedAncestors = getSharedAncestors(stateRef.current.folders, folderId);
       for (const sf of newSharedAncestors) {
-        const moved: DocItem = {
-          ...cur,
-          folderId,
-          order: scope.length,
-          updatedAt: now,
-        };
         writes[`shared/f/${sf.id}/documents/${id}`] = moved;
       }
+      stateRef.current.documents = stateRef.current.documents.map((d) =>
+        d.id === id ? moved : d,
+      );
       commit(writes);
     },
     [uid, commit],
@@ -821,6 +970,8 @@ export function DocumentsProvider({ children }: { children: ReactNode }) {
       const cur = stateRef.current.skills;
       // order tính trong phạm vi cùng folder skill.
       const scope = cur.filter((s) => s.folderId === fields.folderId);
+      const sharedAncestors = getSharedAncestors(stateRef.current.folders, fields.folderId);
+      const isFolderShared = sharedAncestors.length > 0;
       const now = new Date().toISOString();
       const created: SkillItem = {
         id: uuidv4(),
@@ -843,13 +994,17 @@ export function DocumentsProvider({ children }: { children: ReactNode }) {
         ...((fields.author?.trim() || authorName)
           ? { author: fields.author?.trim() || authorName }
           : {}),
+        ...(isFolderShared ? { isShared: true } : {}),
       };
       const writes: Record<string, unknown> = {
         [`users/${uid}/skills/${created.id}`]: created,
       };
+      if (isFolderShared) {
+        writes[`shared/skill/${created.id}`] = { skill: created, ownerId: uid };
+      }
       // Tạo trong folder skill đang chia sẻ ⇒ thêm vào bản công khai của folder.
-      if (findSharedFolder(stateRef.current.folders, fields.folderId)) {
-        writes[`shared/f/${fields.folderId}/skills/${created.id}`] = created;
+      for (const sf of sharedAncestors) {
+        writes[`shared/f/${sf.id}/skills/${created.id}`] = created;
       }
       stateRef.current.skills = [...cur, created];
       commit(writes);
@@ -870,13 +1025,23 @@ export function DocumentsProvider({ children }: { children: ReactNode }) {
         writes[`users/${uid}/skills/${id}/${k}`] = v;
       }
       if (cur) {
-        const merged: SkillItem = { ...cur, ...updates, updatedAt: now };
-        // Skill đang chia sẻ lẻ ⇒ cập nhật bản shared/skill/{id}.
-        if (cur.isShared) {
+        const sharedAncestors = getSharedAncestors(stateRef.current.folders, cur.folderId);
+        const isFolderShared = sharedAncestors.length > 0;
+        const willBeShared = cur.isShared || isFolderShared;
+        const merged: SkillItem = {
+          ...cur,
+          ...updates,
+          updatedAt: now,
+          ...(willBeShared ? { isShared: true } : {}),
+        };
+        if (isFolderShared && !cur.isShared) {
+          writes[`users/${uid}/skills/${id}/isShared`] = true;
+        }
+        // Skill đang chia sẻ lẻ (hoặc nằm trong folder chia sẻ) ⇒ cập nhật bản shared/skill/{id}.
+        if (willBeShared) {
           writes[`shared/skill/${id}`] = { skill: merged, ownerId: uid };
         }
         // Skill nằm trong folder đang chia sẻ ⇒ cập nhật bản trong folder công khai.
-        const sharedAncestors = getSharedAncestors(stateRef.current.folders, cur.folderId);
         for (const sf of sharedAncestors) {
           writes[`shared/f/${sf.id}/skills/${id}`] = merged;
         }
@@ -926,6 +1091,12 @@ export function DocumentsProvider({ children }: { children: ReactNode }) {
       if (!db || !uid) return;
       const cur = stateRef.current.skills.find((s) => s.id === id);
       if (!cur) return;
+      const sharedAncestors = getSharedAncestors(stateRef.current.folders, cur.folderId);
+      const isFolderShared = sharedAncestors.length > 0;
+      if (isFolderShared && cur.isShared) {
+        toastInfo('Skill nằm trong thư mục đang chia sẻ công khai. Hãy chuyển ra ngoài nếu không muốn chia sẻ.');
+        return;
+      }
       const enabling = !cur.isShared;
       const writes: Record<string, unknown> = {
         [`users/${uid}/skills/${id}/isShared`]: enabling,
@@ -938,7 +1109,7 @@ export function DocumentsProvider({ children }: { children: ReactNode }) {
       }
       commit(writes);
     },
-    [uid, commit],
+    [uid, commit, toastInfo],
   );
 
   // --- Mutator phục vụ đồng bộ folder Drive (ghi cờ/đường dẫn đơn lẻ) ---------

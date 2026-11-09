@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { SearchX } from 'lucide-react';
 import type { Folder } from '../types';
 import { normalizeText, type SearchResult } from '../lib/search';
+import { getSharedAncestors } from '../lib/folderTree';
 import EmptyState from './EmptyState';
 
 // Biểu tượng theo loại tài liệu (đồng bộ với DocsAllPage).
@@ -80,6 +81,9 @@ export default function SearchResults({
           const folder = doc.folderId
             ? foldersById?.get(doc.folderId)
             : undefined;
+          const isFolderShared = folder
+            ? Boolean(folder.isShared || (foldersById && getSharedAncestors(Array.from(foldersById.values()), doc.folderId).length > 0))
+            : false;
           return (
             <li key={doc.id} className="doc-line">
               <Link to={`/docs/view/document/${doc.id}`} className="doc-item">
@@ -100,7 +104,7 @@ export default function SearchResults({
                     </span>
                   )}
                 </span>
-                {doc.isShared && (
+                {(doc.isShared || isFolderShared) && (
                   <span className="share-flag" title="Đang chia sẻ công khai">🔗</span>
                 )}
                 {showFolder && (

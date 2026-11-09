@@ -39,6 +39,7 @@ import { STICKY_COLORS, DEFAULT_STICKY_COLOR } from '../lib/stickyColors';
 import {
   getRootFolders,
   getFolderDescendantIds,
+  getSharedAncestors,
   countAllDocsInTree,
 } from '../lib/folderTree';
 import type { DocItem, DocumentType, Folder, FolderViewType, SkillItem } from '../types';
@@ -261,7 +262,7 @@ export default function DocsAllPage() {
     >
       <span className={`tile-icon icon-${d.type}`}>
         <span className="tile-glyph">{GLYPH[d.type]}</span>
-        {d.isShared && (
+        {(d.isShared || (d.folderId && getSharedAncestors(folders, d.folderId).length > 0)) && (
           <span className="tile-share" title="Đang chia sẻ công khai">🔗</span>
         )}
       </span>
@@ -302,7 +303,7 @@ export default function DocsAllPage() {
                   <span className="sr-only">Đã ghim</span>
                 </span>
               )}
-              {item.isShared && (
+              {(item.isShared || (item.folderId && getSharedAncestors(folders, item.folderId).length > 0)) && (
                 <span className="share-flag" title="Đang chia sẻ công khai">
                   <span aria-hidden="true">🔗</span>
                   <span className="sr-only">Đang chia sẻ công khai</span>
