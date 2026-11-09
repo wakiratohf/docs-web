@@ -181,9 +181,13 @@ function prepareHtmlDoc(raw: string): string {
  * - File HTML người dùng tải lên/tự soạn có CSS và JavaScript riêng.
  *   Iframe là một tài liệu tách biệt nên CSS của file giữ nguyên, KHÔNG bị CSS
  *   của web này đè lên, và CSS của web cũng không lọt vào trong.
- * - sandbox="allow-scripts allow-forms allow-modals allow-popups":
+ * - sandbox="allow-scripts allow-forms allow-modals allow-popups allow-popups-to-escape-sandbox":
  *   + Cho phép chạy JavaScript (chart, animation, canvas, xử lý DOM, tương tác...).
  *   + Cho phép submit form, alert/prompt/confirm, mở link tab mới.
+ *   + `allow-popups-to-escape-sandbox`: tab mở từ link trong tài liệu là tab bình thường, không mang
+ *     sandbox theo. Thiếu cờ này thì tab mới có origin 'null', localStorage báo SecurityError, nên link
+ *     tới chính Docs Web (vd `/share/d/<id>`) ra trang trắng. Cờ chỉ áp cho tab mới; iframe vẫn
+ *     ở origin 'null', vẫn không đọc được DOM, localStorage hay phiên đăng nhập của web chính.
  *   + TUYỆT ĐỐI KHÔNG có `allow-same-origin`: Iframe chạy ở origin 'null' biệt lập,
  *     hoàn toàn KHÔNG THỂ truy cập DOM của web chính, localStorage, cookie hay
  *     phiên đăng nhập Firebase (chống tấn công XSS / sandbox escape).
@@ -222,7 +226,7 @@ export default function HtmlDocument({ value }: { value: string }) {
       className="html-frame"
       title="Nội dung HTML"
       srcDoc={srcDoc}
-      sandbox="allow-scripts allow-forms allow-modals allow-popups"
+      sandbox="allow-scripts allow-forms allow-modals allow-popups allow-popups-to-escape-sandbox"
       style={{ height }}
     />
   );
