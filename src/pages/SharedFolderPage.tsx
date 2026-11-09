@@ -45,6 +45,9 @@ import {
   clearStoredSharedContent,
   resolveSharedContent,
 } from '../lib/sharedContentStorage';
+import { sharedFolderContentWrites } from '../lib/sharedOwnerWrites';
+import { useOwnerFolders } from '../hooks/useOwnerFolders';
+import { useToast } from '../context/ToastContext';
 
 // Bản công khai của một folder: metadata folder + tài liệu (hoặc skill) bên trong.
 interface SharedFolderPayload {
@@ -69,6 +72,8 @@ export default function SharedFolderPage() {
   const currentUidRef = useRef<string | null>(currentUid);
   currentUidRef.current = currentUid;
   const latestPayloadRef = useRef<SharedFolderPayload | null | undefined>(undefined);
+  const getOwnerFolders = useOwnerFolders();
+  const { toastError } = useToast();
 
   const applyServerPayload = useCallback(
     (val: SharedFolderPayload | null, uid: string | null) => {
@@ -181,20 +186,32 @@ export default function SharedFolderPage() {
 
       // 1. Nếu là CHỦ SỞ HỮU: Lưu trực tiếp lên Firebase Database
       if (isOwner && db && currentUid) {
+        const database = db;
+        const uid = currentUid;
         const now = new Date().toISOString();
         originalDocsRef.current[currentDoc.id] = newContent;
-        const writes: Record<string, unknown> = {
-          [`users/${currentUid}/documents/${currentDoc.id}/content`]: newContent,
-          [`users/${currentUid}/documents/${currentDoc.id}/updatedAt`]: now,
-          [`shared/f/${id}/documents/${currentDoc.id}/content`]: newContent,
-          [`shared/f/${id}/documents/${currentDoc.id}/updatedAt`]: now,
-        };
-        if (currentDoc.isShared) {
-          writes[`shared/d/${currentDoc.id}/document/content`] = newContent;
-          writes[`shared/d/${currentDoc.id}/document/updatedAt`] = now;
-        }
         clearStoredSharedContent(currentDoc.id);
-        void update(ref(db), writes);
+        void (async () => {
+          // Đồng bộ MỌI folder tổ tiên đang chia sẻ chứa tài liệu (không chỉ folder đang xem).
+          const folders = await getOwnerFolders(database, uid);
+          const writes: Record<string, unknown> = {
+            [`users/${uid}/documents/${currentDoc.id}/content`]: newContent,
+            [`users/${uid}/documents/${currentDoc.id}/updatedAt`]: now,
+            ...sharedFolderContentWrites(
+              folders,
+              currentDoc.folderId,
+              currentDoc.id,
+              newContent,
+              now,
+              [id],
+            ),
+          };
+          if (currentDoc.isShared) {
+            writes[`shared/d/${currentDoc.id}/document/content`] = newContent;
+            writes[`shared/d/${currentDoc.id}/document/updatedAt`] = now;
+          }
+          await update(ref(database), writes);
+        })().catch(() => toastError('Lưu thất bại — kiểm tra kết nối mạng.'));
       } else {
         // 2. Nếu là NGƯỜI ĐỌC THƯỜNG: Lưu vào localStorage kèm bản gốc để nhận biết khi file bị ghi đè
         const original = originalDocsRef.current[currentDoc.id] ?? currentDoc.content;
@@ -205,7 +222,7 @@ export default function SharedFolderPage() {
         }
       }
     },
-    [payload, id, isOwner, currentUid],
+    [payload, id, isOwner, currentUid, getOwnerFolders, toastError],
   );
 
   const handleResetCurrentDoc = (currentDoc: DocItem) => {

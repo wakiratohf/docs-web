@@ -31,7 +31,7 @@ Web app quản lý & chia sẻ tài liệu: **Vite 6 + React 19 + React Router 7
 - Mọi route còn lại đi qua `<AppShell>`, vốn chặn lại nếu chưa đăng nhập và chỉ bọc `<DocumentsProvider>` cho phần này. Nghĩa là các trang `/share/*` **không** có quyền truy cập `useDocuments()` — chúng tự `get()` dữ liệu công khai trực tiếp từ Realtime Database.
 
 ### Single source of truth cho mọi mutation: src/context/DocumentsContext.tsx
-Toàn bộ thao tác ghi dữ liệu (tạo/sửa/xóa/di chuyển/chia sẻ document và folder) **chỉ** sống trong context này. Các component không được tự gọi Firebase write. Hai pattern bắt buộc phải hiểu:
+Toàn bộ thao tác ghi dữ liệu (tạo/sửa/xóa/di chuyển/chia sẻ document và folder) **chỉ** sống trong context này. Các component không được tự gọi Firebase write. **Ngoại lệ duy nhất:** trang `/share/*` (nằm ngoài `DocumentsProvider`) cho chủ sở hữu tô sáng ngay trên trang công khai — phải dựng đường dẫn mirror qua `src/lib/sharedOwnerWrites.ts` + `useOwnerFolders` để đồng bộ đủ mọi folder tổ tiên đang chia sẻ. Hai pattern bắt buộc phải hiểu:
 
 1. **`stateRef` thay cho closure.** Các mutator đọc state qua `stateRef.current` chứ không qua biến closure. Lý do (có comment trong file): tạo nhiều item liên tiếp trong cùng một tick mà đọc closure cũ sẽ chỉ lưu được item cuối. Khi viết mutator mới, đọc state từ `stateRef.current`, đừng đọc `documents`/`folders` trực tiếp.
 
@@ -48,7 +48,7 @@ Toàn bộ thao tác ghi dữ liệu (tạo/sửa/xóa/di chuyển/chia sẻ doc
 
 ### Bảo mật (database.rules.json)
 - `users/{uid}`: chỉ chủ sở hữu đọc/ghi (`auth.uid === $uid`).
-- `shared`: **ai cũng đọc được** (`.read: true`); chỉ owner mới ghi được (kiểm qua `ownerId`). Vì vậy mọi payload `shared/*` đều phải kèm `ownerId: uid` — nếu không, lần ghi sau sẽ bị luật chặn.
+- `shared`: ai cũng đọc được **theo từng id** (`.read: true` đặt ở `shared/$type/$id`, KHÔNG ở gốc `shared` — để không ai tải hết toàn bộ dữ liệu công khai bằng `/shared.json`); `$type` chỉ nhận `d` | `f` | `skill`. Chỉ owner mới ghi được (kiểm qua `ownerId`). Vì vậy mọi payload `shared/*` đều phải kèm `ownerId: uid` — nếu không, lần ghi sau sẽ bị luật chặn.
 - Config `VITE_FIREBASE_*` lộ công khai là bình thường (client config); bảo mật dựa vào rules, không phải vào việc giấu key.
 
 ### Firebase null-safety (src/lib/firebase.ts)
@@ -60,7 +60,7 @@ Nếu thiếu `.env`, mọi export (`db`, `auth`, `googleProvider`) là `null` t
 - **Tránh nhảy con trỏ.** `DocumentEditor` cố tình **không** đồng bộ `content` từ props mỗi lần Firebase dội data về (effect chỉ phụ thuộc `doc.id`), nếu không con trỏ sẽ nhảy khi đang gõ. Tương tự, `NoteEditor` chỉ set `innerHTML` lúc mount.
 - **Auto-save có debounce ~600ms** trong `DocumentEditor`, và `flush()` phần còn treo khi unmount.
 - **`NoteEditor`** là rich-text dựa trên `contentEditable` + `document.execCommand` (API cũ nhưng còn chạy), nội dung dán bị strip về plain text + bỏ BBCode.
-- **`HtmlContent`** render nội dung `note` bằng `dangerouslySetInnerHTML` **không sanitize** — HTML do người dùng tự tạo trong editor của họ, nhưng lưu ý đây là điểm cần cân nhắc nếu mở rộng tính năng chia sẻ/nhập từ ngoài. Lưu ý kỹ thuật trong file: không đặt `dangerouslySetInnerHTML` chung thẻ với children JSX (bản production sẽ crash React #60) → đã tách 2 nhánh return.
+- **`HtmlContent`** render nội dung `note` bằng `dangerouslySetInnerHTML` **sau khi sanitize bằng DOMPurify** (instance riêng, ép `rel=noopener` cho link `target=_blank`) — bắt buộc vì note chia sẻ công khai được người ẩn danh xem. Lưu ý kỹ thuật trong file: không đặt `dangerouslySetInnerHTML` chung thẻ với children JSX (bản production sẽ crash React #60) → đã tách 2 nhánh return.
 
 ## Tài liệu tham khảo trong repo
 - `README.md` — tổng quan tính năng, bảng route, cách chạy local.

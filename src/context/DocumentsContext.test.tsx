@@ -843,3 +843,133 @@ describe('không có user đăng nhập ⇒ mọi mutator no-op', () => {
     vi.doUnmock('../auth/useAuth');
   });
 });
+
+describe('cây thư mục lồng nhau — giữ shared mirror khớp (review tổng thể)', () => {
+  it('xóa subfolder trong folder chia sẻ ⇒ gỡ cả documents/skills khỏi shared/f của tổ tiên', () => {
+    const { result } = setup();
+    seed({
+      folders: [
+        folder({ id: 'A', isShared: true }),
+        folder({ id: 'B', parentId: 'A' }),
+      ],
+      documents: [doc({ id: 'd1', folderId: 'B', isShared: true })],
+      skills: [skill({ id: 's1', folderId: 'B', isShared: true })],
+    });
+
+    act(() => result.current.deleteFolder('B'));
+
+    const writes = lastWrites();
+    expect(writes['shared/f/A/subfolders/B']).toBeNull();
+    expect(writes['shared/f/A/documents/d1']).toBeNull();
+    expect(writes['shared/f/A/skills/s1']).toBeNull();
+    expect(writes['shared/d/d1']).toBeNull();
+    expect(writes['shared/skill/s1']).toBeNull();
+  });
+
+  it('moveFolder folder skill vào folder chia sẻ ⇒ thêm skill vào shared/f của folder đích', () => {
+    const { result } = setup();
+    seed({
+      folders: [
+        folder({ id: 'A', isShared: true }),
+        folder({ id: 'K', viewType: 'skill' }),
+      ],
+      skills: [skill({ id: 's1', folderId: 'K' })],
+    });
+
+    act(() => result.current.moveFolder('K', 'A'));
+
+    const writes = lastWrites();
+    expect(writes[`users/${UID}/skills/s1/isShared`]).toBe(true);
+    expect(writes['shared/skill/s1']).toBeTruthy();
+    expect((writes['shared/f/A/skills/s1'] as SkillItem).isShared).toBe(true);
+  });
+
+  it('moveFolder folder skill ra khỏi folder chia sẻ ⇒ gỡ skill khỏi shared/f của folder cũ', () => {
+    const { result } = setup();
+    seed({
+      folders: [
+        folder({ id: 'A', isShared: true }),
+        folder({ id: 'K', parentId: 'A', viewType: 'skill' }),
+      ],
+      skills: [skill({ id: 's1', folderId: 'K', isShared: true })],
+    });
+
+    act(() => result.current.moveFolder('K', undefined));
+
+    const writes = lastWrites();
+    expect(writes['shared/f/A/skills/s1']).toBeNull();
+    expect(writes[`users/${UID}/skills/s1/isShared`]).toBe(false);
+    expect(writes['shared/skill/s1']).toBeNull();
+  });
+
+  it('tắt chia sẻ A khi folder con B vẫn tự chia sẻ ⇒ tài liệu trong B giữ chia sẻ', () => {
+    const { result } = setup();
+    seed({
+      folders: [
+        folder({ id: 'A', isShared: true }),
+        folder({ id: 'B', parentId: 'A', isShared: true }),
+      ],
+      documents: [
+        doc({ id: 'dA', folderId: 'A', isShared: true }),
+        doc({ id: 'dB', folderId: 'B', isShared: true }),
+      ],
+    });
+
+    act(() => result.current.toggleShareFolder('A'));
+
+    const writes = lastWrites();
+    expect(writes['shared/f/A']).toBeNull();
+    expect(writes[`users/${UID}/documents/dA/isShared`]).toBe(false);
+    expect(writes['shared/d/dA']).toBeNull();
+    expect(`users/${UID}/documents/dB/isShared` in writes).toBe(false);
+    expect('shared/d/dB' in writes).toBe(false);
+  });
+
+  it('moveFolder ra ngoài khi folder con vẫn tự chia sẻ ⇒ tài liệu trong folder con giữ chia sẻ', () => {
+    const { result } = setup();
+    seed({
+      folders: [
+        folder({ id: 'A', isShared: true }),
+        folder({ id: 'B', parentId: 'A' }),
+        folder({ id: 'C', parentId: 'B', isShared: true }),
+      ],
+      documents: [
+        doc({ id: 'dB', folderId: 'B', isShared: true }),
+        doc({ id: 'dC', folderId: 'C', isShared: true }),
+      ],
+    });
+
+    act(() => result.current.moveFolder('B', undefined));
+
+    const writes = lastWrites();
+    expect(writes[`users/${UID}/documents/dB/isShared`]).toBe(false);
+    expect(writes['shared/d/dB']).toBeNull();
+    expect(`users/${UID}/documents/dC/isShared` in writes).toBe(false);
+    expect('shared/d/dC' in writes).toBe(false);
+    expect(writes['shared/f/A/documents/dC']).toBeNull();
+  });
+
+  it('bật chia sẻ folder list có folder con kiểu skill ⇒ shared/f/{id}.skills có skill đó', () => {
+    const { result } = setup();
+    seed({
+      folders: [
+        folder({ id: 'A', viewType: 'list' }),
+        folder({ id: 'K', parentId: 'A', viewType: 'skill' }),
+      ],
+      documents: [doc({ id: 'd1', folderId: 'A' })],
+      skills: [skill({ id: 's1', folderId: 'K' })],
+    });
+
+    act(() => result.current.toggleShareFolder('A'));
+
+    const writes = lastWrites();
+    const shared = writes['shared/f/A'] as {
+      documents: Record<string, DocItem>;
+      skills: Record<string, SkillItem>;
+    };
+    expect(Object.keys(shared.documents)).toEqual(['d1']);
+    expect(Object.keys(shared.skills)).toEqual(['s1']);
+    expect(writes[`users/${UID}/skills/s1/isShared`]).toBe(true);
+    expect(writes['shared/skill/s1']).toBeTruthy();
+  });
+});

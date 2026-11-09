@@ -3,6 +3,9 @@ import { Link, useParams } from 'react-router-dom';
 import { get, onValue, ref, update } from 'firebase/database';
 import { Download, FileX, Type, ListTree, FoldHorizontal, UnfoldHorizontal, RotateCcw } from 'lucide-react';
 import { auth, db } from '../lib/firebase';
+import { sharedFolderContentWrites } from '../lib/sharedOwnerWrites';
+import { useOwnerFolders } from '../hooks/useOwnerFolders';
+import { useToast } from '../context/ToastContext';
 import type { DocItem } from '../types';
 import HtmlContent from '../components/HtmlContent';
 import HtmlDocument from '../components/HtmlDocument';
@@ -44,6 +47,8 @@ export default function SharePage() {
   currentUidRef.current = currentUid;
   // Lưu snapshot gần nhất từ Firebase để đồng bộ lại nếu trạng thái đăng nhập đổi sau đó
   const latestPayloadRef = useRef<SharedPayload | null | undefined>(undefined);
+  const getOwnerFolders = useOwnerFolders();
+  const { toastError } = useToast();
 
   const applyServerPayload = useCallback(
     (val: SharedPayload | null, uid: string | null) => {
@@ -152,21 +157,26 @@ export default function SharePage() {
               ownerId: currentUid,
             },
           };
-          if (doc.folderId) {
+          // Đồng bộ MỌI folder đang chia sẻ chứa tài liệu (folder trực tiếp + tổ tiên).
+          const folders = await getOwnerFolders(database, currentUid);
+          let fallbackFolderIds: string[] = [];
+          if (folders === null && doc.folderId) {
+            // Không đọc được cây folder ⇒ dự phòng: chỉ đồng bộ folder trực tiếp nếu đang chia sẻ.
             try {
               const folderOwnerSnap = await get(
                 ref(database, `shared/f/${doc.folderId}/ownerId`),
               );
-              if (folderOwnerSnap.val() === currentUid) {
-                writes[`shared/f/${doc.folderId}/documents/${id}/content`] = newContent;
-                writes[`shared/f/${doc.folderId}/documents/${id}/updatedAt`] = now;
-              }
+              if (folderOwnerSnap.val() === currentUid) fallbackFolderIds = [doc.folderId];
             } catch {
               // Bỏ qua nếu không kiểm tra được folder chia sẻ
             }
           }
+          Object.assign(
+            writes,
+            sharedFolderContentWrites(folders, doc.folderId, id, newContent, now, fallbackFolderIds),
+          );
           await update(ref(database), writes);
-        })();
+        })().catch(() => toastError('Lưu thất bại — kiểm tra kết nối mạng.'));
       } else {
         // 2. Nếu là NGƯỜI ĐỌC THƯỜNG: Lưu vào localStorage của trình duyệt người xem
         if (newContent === originalContentRef.current) {
@@ -178,7 +188,7 @@ export default function SharePage() {
         }
       }
     },
-    [doc, id, isOwner, currentUid],
+    [doc, id, isOwner, currentUid, getOwnerFolders, toastError],
   );
 
   // Đặt lại về bản gốc của tác giả (chỉ áp dụng cho người đọc có highlight cá nhân)

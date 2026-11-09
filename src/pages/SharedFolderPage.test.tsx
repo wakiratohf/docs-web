@@ -3,6 +3,7 @@ import { render, act, cleanup, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { onValue, ref } from 'firebase/database';
 import { ThemeProvider } from '../context/ThemeContext';
+import { ToastProvider } from '../context/ToastContext';
 import SharedFolderPage from './SharedFolderPage';
 import type { DocItem, Folder } from '../types';
 
@@ -76,12 +77,14 @@ describe('SharedFolderPage — tự động cập nhật ngầm khi file trong f
   it('cập nhật ngay bài đọc đang mở trong folder chia sẻ khi chủ sở hữu ghi đè file', () => {
     render(
       <ThemeProvider>
+      <ToastProvider>
         <MemoryRouter initialEntries={['/share/f/f1/d1']}>
           <Routes>
             <Route path="/share/f/:id/:docId" element={<SharedFolderPage />} />
           </Routes>
         </MemoryRouter>
-      </ThemeProvider>,
+        </ToastProvider>
+    </ThemeProvider>,
     );
 
     emitSharedFolder({
@@ -113,12 +116,14 @@ describe('SharedFolderPage — tự động cập nhật ngầm khi file trong f
   it('cập nhật danh sách tài liệu của folder khi có file mới thêm vào hoặc đổi tên folder', () => {
     render(
       <ThemeProvider>
+      <ToastProvider>
         <MemoryRouter initialEntries={['/share/f/f1']}>
           <Routes>
             <Route path="/share/f/:id" element={<SharedFolderPage />} />
           </Routes>
         </MemoryRouter>
-      </ThemeProvider>,
+        </ToastProvider>
+    </ThemeProvider>,
     );
 
     emitSharedFolder({
@@ -148,12 +153,14 @@ describe('SharedFolderPage — tự động cập nhật ngầm khi file trong f
   it('hiển thị danh sách tài liệu dạng card với badge và hỗ trợ tìm kiếm', () => {
     const { container } = render(
       <ThemeProvider>
+      <ToastProvider>
         <MemoryRouter initialEntries={['/share/f/f1']}>
           <Routes>
             <Route path="/share/f/:id" element={<SharedFolderPage />} />
           </Routes>
         </MemoryRouter>
-      </ThemeProvider>,
+        </ToastProvider>
+    </ThemeProvider>,
     );
 
     emitSharedFolder({
@@ -183,12 +190,14 @@ describe('SharedFolderPage — tự động cập nhật ngầm khi file trong f
   it('tối ưu giao diện đọc tài liệu trong folder: ẩn hero thư mục và đưa breadcrumb lên header', () => {
     const { container } = render(
       <ThemeProvider>
+      <ToastProvider>
         <MemoryRouter initialEntries={['/share/f/f1/d1']}>
           <Routes>
             <Route path="/share/f/:id/:docId" element={<SharedFolderPage />} />
           </Routes>
         </MemoryRouter>
-      </ThemeProvider>,
+        </ToastProvider>
+    </ThemeProvider>,
     );
 
     emitSharedFolder({

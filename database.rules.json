@@ -27,9 +27,10 @@
       }
     },
     "shared": {
-      ".read": true,
       "$type": {
         "$id": {
+          ".read": true,
+          ".validate": "$type === 'd' || $type === 'f' || $type === 'skill'",
           ".write": "auth != null && (!data.exists() ? (!newData.exists() || newData.child('ownerId').val() === auth.uid) : data.child('ownerId').val() === auth.uid)",
           "document": {
             "title": { ".validate": "newData.isString() && newData.val().length <= 500" },

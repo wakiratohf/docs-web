@@ -3,6 +3,7 @@ import { render, act, cleanup, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { onValue, ref } from 'firebase/database';
 import { ThemeProvider } from '../context/ThemeContext';
+import { ToastProvider } from '../context/ToastContext';
 import SharePage from './SharePage';
 import { saveStoredSharedContent, getStoredSharedContent } from '../lib/sharedContentStorage';
 import type { DocItem } from '../types';
@@ -39,11 +40,13 @@ function makeDoc(overrides: Partial<DocItem> = {}): DocItem {
 function renderSharePage(docId = 'd1') {
   return render(
     <ThemeProvider>
+      <ToastProvider>
       <MemoryRouter initialEntries={[`/share/d/${docId}`]}>
         <Routes>
           <Route path="/share/d/:id" element={<SharePage />} />
         </Routes>
       </MemoryRouter>
+      </ToastProvider>
     </ThemeProvider>,
   );
 }
