@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { SearchX } from 'lucide-react';
 import type { Folder } from '../types';
 import { normalizeText, type SearchResult } from '../lib/search';
-import { getSharedAncestors } from '../lib/folderTree';
+import { folderPathLabel, getSharedAncestors } from '../lib/folderTree';
 import EmptyState from './EmptyState';
 
 // Biểu tượng theo loại tài liệu (đồng bộ với DocsAllPage).
@@ -53,6 +53,7 @@ export default function SearchResults({
 }: Props) {
   const q = query.trim();
   const a = author.trim();
+  const allFolders = foldersById ? Array.from(foldersById.values()) : [];
   // Mô tả điều kiện đang lọc thành câu chữ: theo từ khóa và/hoặc theo tác giả.
   const criteria = [
     q ? `khớp “${q}”` : '',
@@ -82,8 +83,9 @@ export default function SearchResults({
             ? foldersById?.get(doc.folderId)
             : undefined;
           const isFolderShared = folder
-            ? Boolean(folder.isShared || (foldersById && getSharedAncestors(Array.from(foldersById.values()), doc.folderId).length > 0))
+            ? Boolean(folder.isShared || getSharedAncestors(allFolders, doc.folderId).length > 0)
             : false;
+          const path = showFolder && doc.folderId ? folderPathLabel(doc.folderId, allFolders) : null;
           return (
             <li key={doc.id} className="doc-line">
               <Link to={`/docs/view/document/${doc.id}`} className="doc-item">
@@ -108,8 +110,11 @@ export default function SearchResults({
                   <span className="share-flag" title="Đang chia sẻ công khai">🔗</span>
                 )}
                 {showFolder && (
-                  <span className="search-folder muted" title="Folder chứa tài liệu">
-                    {folder ? `📁 ${folder.name}` : 'General'}
+                  <span
+                    className="search-folder muted"
+                    title={path ? `Nằm trong: ${path.full}` : 'Không thuộc thư mục nào'}
+                  >
+                    {path ? `📁 ${path.short}` : 'General'}
                   </span>
                 )}
               </Link>

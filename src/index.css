@@ -4761,13 +4761,17 @@ mark.hl-orange {
   font-size: 0.75rem;
 }
 
+/* Gọn 1 dòng (trước là một khối lớn viền nét đứt chiếm nhiều chỗ) */
 .subfolders-empty-direct {
-  padding: 24px 16px;
-  margin: 16px 0;
-  text-align: center;
-  background: var(--subtle);
-  border: 1px dashed var(--border);
-  border-radius: var(--radius);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 4px 0 16px;
+  padding: 0 4px;
+  font-size: 13.5px;
+}
+.subfolders-empty-direct svg {
+  flex-shrink: 0;
 }
 
 /* Badge số thư mục con trên Home tile */
@@ -5112,3 +5116,37 @@ mark.hl-orange {
   min-width: 0;
 }
 
+/* Ô tiêu đề / tác giả trên thanh công cụ tài liệu: có dấu hiệu "sửa được"
+   (viền đậm khi rê chuột) và biểu tượng ✍ cố định trước tên tác giả — trước đây
+   tên tác giả đứng một mình, không biết là ô gì. */
+.doc-editor-bar .title-input:hover,
+.doc-editor-bar .doc-author-input:hover {
+  border-color: var(--muted);
+}
+.doc-editor-bar .author-combo::before {
+  content: '✍';
+  position: absolute;
+  left: 9px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 13px;
+  color: var(--muted);
+  pointer-events: none;
+}
+.doc-editor-bar .doc-author-input {
+  padding-left: 27px;
+}
+
+
+/* Menu "New" có 6 mục kèm mô tả (~52px/mục): trần 320px chung của dropdown cắt mất
+   mục cuối "Import từ Web / HTML", phải cuộn trong menu mới thấy. */
+.dropdown-menu-pop.new-doc-menu-pop {
+  max-block-size: min(400px, calc(100dvh - 24px));
+}
+
+/* Ẩn nút "×" có sẵn của trình duyệt trong <input type="search"> — app đã có nút
+   xóa riêng (.search-clear); để cả hai thì ô tìm kiếm hiện HAI dấu X cạnh nhau. */
+.search-input::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+  appearance: none;
+}

@@ -13,3 +13,11 @@ export function useDebouncedValue<T>(value: T, delayMs = 200): T {
 
   return debounced;
 }
+
+// Bản dành cho ô tìm kiếm: gõ chữ thì vẫn trễ như trên, nhưng XÓA RỖNG (bấm X /
+// xóa hết) thì áp dụng NGAY. Nếu không, danh sách kết quả cũ còn nán lại thêm
+// `delayMs` sau khi bấm X — cú bấm tiếp theo dễ rơi nhầm vào một kết quả.
+export function useDebouncedSearch(query: string, delayMs = 200): string {
+  const debounced = useDebouncedValue(query, delayMs);
+  return query.trim() ? debounced : '';
+}

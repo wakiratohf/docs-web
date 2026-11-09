@@ -487,6 +487,8 @@ export default function DocumentEditor({ doc }: { doc: DocItem }) {
           value={title}
           onChange={(e) => onTitle(e.target.value)}
           placeholder="Tiêu đề tài liệu"
+          aria-label="Tiêu đề tài liệu"
+          title="Tiêu đề tài liệu — bấm để sửa"
         />
         {/* Tác giả gộp luôn vào thanh công cụ cho gọn (trước đây chiếm 1 hàng riêng) */}
         <label htmlFor="doc-author" className="sr-only">
@@ -497,7 +499,8 @@ export default function DocumentEditor({ doc }: { doc: DocItem }) {
           className="doc-author-input"
           value={author}
           authors={authors}
-          placeholder="✍ Tác giả"
+          placeholder="Tác giả"
+          title="Tác giả — bấm để sửa hoặc chọn tên đã dùng"
           onChange={onAuthor}
         />
         {/* PDF không đổi loại được (nội dung là fileId Drive, không phải text) */}

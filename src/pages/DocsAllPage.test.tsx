@@ -248,6 +248,14 @@ describe('DocsAllPage view modes dropdown', () => {
           order: 1,
           createdAt: '2026-01-03T00:00:00.000Z',
         },
+        // Thư mục cháu (cấp 2) — KHÔNG được tính vào số thư mục con của folder cha
+        {
+          id: 'f-sub2-ios',
+          name: 'iOS',
+          parentId: 'f-sub2',
+          order: 0,
+          createdAt: '2026-01-03T00:00:00.000Z',
+        },
       ],
       documents: [
         {
@@ -272,8 +280,10 @@ describe('DocsAllPage view modes dropdown', () => {
     expect(screen.queryByText('v1.52')).toBeNull();
     expect(screen.queryByText('v1.53')).toBeNull();
 
-    // Hiển thị badge số thư mục con dưới tên
+    // Badge số thư mục con dưới tên: chỉ đếm cấp trực tiếp (2), không tính thư mục cháu
     expect(screen.getByText('📁 2 thư mục con')).toBeTruthy();
+    // Số tài liệu luôn hiện, kể cả khi folder có thư mục con
+    expect(screen.getByText('1 tài liệu')).toBeTruthy();
 
     // Hiển thị badge nhỏ trên icon box
     const subBadge = container.querySelector('.folder-sub-badge');

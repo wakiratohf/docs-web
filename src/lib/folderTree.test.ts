@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import type { Folder, DocItem } from '../types';
 import {
+  folderPathLabel,
   getRootFolders,
   getSubfolders,
   getFolderAncestors,
@@ -185,3 +186,38 @@ describe('folderTree utility', () => {
     expect(countAllDocsInTree('f-e', sampleFolders, docsByFolder)).toBe(1);
   });
 });
+
+describe('folderPathLabel — đường dẫn thư mục trong kết quả tìm kiếm', () => {
+  const mk = (id: string, name: string, parentId?: string): Folder => ({
+    id,
+    name,
+    parentId,
+    order: 0,
+    createdAt: '2026-01-01T00:00:00.000Z',
+  });
+  const folders = [
+    mk('a', 'VPN TOH'),
+    mk('b', 'iOS', 'a'),
+    mk('c', 'v1.0', 'b'),
+  ];
+
+  it('thư mục gốc: chỉ tên của nó', () => {
+    expect(folderPathLabel('a', folders)).toEqual({ full: 'VPN TOH', short: 'VPN TOH' });
+  });
+
+  it('lồng 2 cấp: hiện đủ', () => {
+    expect(folderPathLabel('b', folders)?.short).toBe('VPN TOH › iOS');
+  });
+
+  it('lồng sâu hơn 2 cấp: bản rút gọn giữ 2 cấp cuối, bản đầy đủ giữ hết', () => {
+    expect(folderPathLabel('c', folders)).toEqual({
+      full: 'VPN TOH › iOS › v1.0',
+      short: '… › iOS › v1.0',
+    });
+  });
+
+  it('id không tồn tại → null', () => {
+    expect(folderPathLabel('x', folders)).toBeNull();
+  });
+});
+

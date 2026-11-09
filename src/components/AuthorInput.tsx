@@ -16,6 +16,8 @@ interface Props {
   id?: string;
   className?: string;
   placeholder?: string;
+  /** Tooltip của ô nhập (vd. "Tác giả") — giúp nhận ra ô khi đã có giá trị. */
+  title?: string;
   /** Nhãn dòng "thêm mục mới" trong dropdown. Mặc định cho ô tác giả. */
   addLabel?: string;
 }
@@ -34,6 +36,7 @@ export default function AuthorInput({
   id,
   className,
   placeholder,
+  title,
   addLabel = 'Thêm tác giả mới:',
 }: Props) {
   const listId = useId();
@@ -111,6 +114,7 @@ export default function AuthorInput({
         className={className}
         value={value}
         placeholder={placeholder}
+        title={title}
         role="combobox"
         aria-expanded={showList}
         aria-controls={listId}

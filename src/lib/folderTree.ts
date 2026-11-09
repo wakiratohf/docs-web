@@ -266,3 +266,20 @@ export function countAllDocsInTree(
   }
   return total;
 }
+
+/**
+ * Đường dẫn thư mục của một kết quả, vd. "VPN TOH › iOS › v1.0".
+ * Trả về cả bản đầy đủ (tooltip) và bản rút gọn để hiển thị: lồng sâu hơn 2 cấp
+ * thì chỉ giữ 2 cấp cuối, thêm "… ›" ở đầu cho biết còn cấp phía trên.
+ */
+export function folderPathLabel(
+  folderId: string,
+  folders: readonly Folder[],
+): { full: string; short: string } | null {
+  const self = folders.find((f) => f.id === folderId);
+  if (!self) return null;
+  const names = [...getFolderAncestors(folderId, folders), self].map((f) => f.name);
+  const full = names.join(' › ');
+  const short = names.length > 2 ? `… › ${names.slice(-2).join(' › ')}` : full;
+  return { full, short };
+}

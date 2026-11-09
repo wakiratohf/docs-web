@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import { useDocuments } from '../context/DocumentsContext';
 import { useUploadDocuments } from '../hooks/useUploadDocuments';
-import { useDebouncedValue } from '../hooks/useDebouncedValue';
+import { useDebouncedSearch } from '../hooks/useDebouncedValue';
 import { useHomeViewPreferences } from '../hooks/useHomeViewPreferences';
 import AccountMenu from '../components/AccountMenu';
 import BottomNav from '../components/BottomNav';
@@ -121,7 +121,7 @@ export default function DocsAllPage() {
   );
   // Trễ 200ms trước khi search thật sự chạy, tránh tính search (DOMParser cho
   // note/html) trên mỗi keystroke khi gõ nhanh.
-  const debouncedQuery = useDebouncedValue(query, 200);
+  const debouncedQuery = useDebouncedSearch(query, 200);
   // Đang ở chế độ tìm/lọc khi có từ khóa HOẶC đã chọn một tác giả cụ thể.
   const searching = debouncedQuery.trim().length > 0 || author !== ALL_AUTHORS;
   const results = useMemo(
@@ -515,7 +515,9 @@ export default function DocsAllPage() {
           {/* Ô folder — bấm để mở trang chi tiết */}
           {sortedFolders.map((f) => {
             const descendantIds = getFolderDescendantIds(f.id, folders);
-            const subCount = descendantIds.length;
+            // Số thư mục con = CẤP TRỰC TIẾP (khớp mục "Thư mục con (N)" bên trong
+            // trang thư mục); số tài liệu = tổng cả cây (ghi rõ ở tooltip).
+            const subCount = folders.filter((x) => x.parentId === f.id).length;
             const isSkill = f.viewType === 'skill';
 
             // Tính tổng số tệp (tài liệu hoặc skill) trong cả cây thư mục
@@ -560,7 +562,7 @@ export default function DocsAllPage() {
                 onDragOver={(e) => allowDrop(e, f.id)}
                 onDragLeave={() => setDragOver((k) => (k === f.id ? null : k))}
                 onDrop={(e) => onDropToFolder(e, f.id)}
-                title={`${f.name}${subCount > 0 ? ` (${subCount} thư mục con, ${count} tệp)` : ` (${count} tệp)`}`}
+                title={`${f.name}${subCount > 0 ? ` — ${subCount} thư mục con` : ''} — ${count} ${isSkill ? 'skill' : 'tài liệu'} (tính cả bên trong thư mục con)`}
               >
                 <span className="folder-icon-box">
                   {/* Nút ghim: bấm để ghim/bỏ ghim, chặn nổi bọt để không mở folder */}
@@ -585,7 +587,7 @@ export default function DocsAllPage() {
                   {subCount > 0 && (
                     <span
                       className="folder-sub-badge"
-                      title={`${subCount} thư mục con bên trong`}
+                      title={`${subCount} thư mục con trực tiếp`}
                     >
                       📁 {subCount}
                     </span>
@@ -616,18 +618,18 @@ export default function DocsAllPage() {
                 </span>
                 <span className="tile-label">
                   <span className="tile-name">{f.name}</span>
-                  {subCount > 0 ? (
+                  {subCount > 0 && (
                     <span
                       className="tile-subfolder-count"
-                      title={`${subCount} thư mục con bên trong`}
+                      title={`${subCount} thư mục con trực tiếp`}
                     >
                       📁 {subCount} thư mục con
                     </span>
-                  ) : count > 0 ? (
-                    <span className="tile-doc-count muted">
-                      {count} {isSkill ? 'skill' : 'tài liệu'}
-                    </span>
-                  ) : null}
+                  )}
+                  {/* Luôn hiện số tài liệu (trước đây bị ẩn khi có thư mục con) */}
+                  <span className="tile-doc-count muted">
+                    {count} {isSkill ? 'skill' : 'tài liệu'}
+                  </span>
                 </span>
               </div>
             );

@@ -48,7 +48,7 @@ import {
   getSharedAncestors,
   MAX_FOLDER_DEPTH,
 } from '../lib/folderTree';
-import { useDebouncedValue } from '../hooks/useDebouncedValue';
+import { useDebouncedSearch } from '../hooks/useDebouncedValue';
 import { STICKY_COLORS, DEFAULT_STICKY_COLOR } from '../lib/stickyColors';
 import type { DocItem, DocumentType, FolderViewType, StickyColor } from '../types';
 
@@ -109,7 +109,7 @@ export default function FolderPage() {
   const defaultAuthor = user?.displayName ?? user?.email ?? '';
   // Danh sách tác giả đã từng dùng (mọi tài liệu) để nạp sẵn dropdown gợi ý.
   const authors = useMemo(() => collectAuthors(documents), [documents]);
-  const { toastSuccess } = useToast();
+  const { toast, toastSuccess } = useToast();
   const confirm = useConfirm();
   const navigate = useNavigate();
 
@@ -182,7 +182,7 @@ export default function FolderPage() {
   // Tìm kiếm trong phạm vi folder này. Trễ 200ms trước khi lọc thật sự chạy,
   // tránh tính search (DOMParser cho note/html) trên mỗi keystroke khi gõ nhanh.
   const [query, setQuery] = useState('');
-  const debouncedQuery = useDebouncedValue(query, 200);
+  const debouncedQuery = useDebouncedSearch(query, 200);
   const searching = debouncedQuery.trim().length > 0;
   const results = useMemo(
     () => (searching ? searchDocs(docs, debouncedQuery) : []),
@@ -348,6 +348,18 @@ export default function FolderPage() {
   };
 
   // Xóa hẳn một ghi chú (nút close ở góc thẻ). Hỏi xác nhận vì không hoàn tác được.
+  // Đưa tài liệu ra trang chủ (General). Có "Hoàn tác" vì trước đây một cú bấm là
+  // tài liệu biến khỏi thư mục mà không báo gì.
+  const onMoveOut = (d: DocItem) => {
+    const fromFolderId = folder.id;
+    moveDocument(d.id, undefined);
+    toast(`Đã đưa “${d.title || 'tài liệu'}” ra trang chủ.`, {
+      type: 'success',
+      duration: 6000,
+      action: { label: 'Hoàn tác', onClick: () => moveDocument(d.id, fromFolderId) },
+    });
+  };
+
   const onDeleteNote = async (d: DocItem) => {
     const ok = await confirm({
       title: 'Xóa ghi chú',
@@ -687,7 +699,8 @@ export default function FolderPage() {
               </div>
               <div className="subfolders-grid">
                 {subfolders.map((sub) => {
-                  const childSubs = getFolderDescendantIds(sub.id, folders).length;
+                  // Thư mục con = cấp trực tiếp; tài liệu = tổng cả cây (cùng quy ước với trang chủ)
+                  const childSubs = folders.filter((x) => x.parentId === sub.id).length;
                   const allSubTreeDocCount = [sub.id, ...getFolderDescendantIds(sub.id, folders)].reduce(
                     (sum, fid) => sum + documents.filter((d) => d.folderId === fid).length,
                     0,
@@ -710,7 +723,7 @@ export default function FolderPage() {
                         setSubfolderDragOver((id) => (id === sub.id ? null : id))
                       }
                       onDrop={(e) => onDropToSubfolder(e, sub.id)}
-                      title={`Mở thư mục con "${sub.name}" (${childSubs > 0 ? `${childSubs} thư mục con, ` : ''}${allSubTreeDocCount} tài liệu)`}
+                      title={`Mở thư mục con "${sub.name}" (${childSubs > 0 ? `${childSubs} thư mục con, ` : ''}${allSubTreeDocCount} tài liệu, tính cả bên trong)`}
                     >
                       <span className="subfolder-icon">📁</span>
                       <div className="subfolder-info">
@@ -755,11 +768,11 @@ export default function FolderPage() {
             <SearchResults results={results} query={query} />
           ) : docs.length === 0 ? (
             subfolders.length > 0 ? (
-              <div className="empty-state subfolders-empty-direct">
-                <p className="muted">
-                  Thư mục này hiện chưa có tài liệu trực tiếp (đang chứa {subfolders.length} thư mục con ở trên).
-                </p>
-              </div>
+              // Gọn 1 dòng: tài liệu đang nằm trong các thư mục con ở trên, không phải "trống"
+              <p className="subfolders-empty-direct muted">
+                <Inbox size={15} aria-hidden="true" />
+                Chưa có tài liệu nằm trực tiếp ở đây — mở thư mục con phía trên để xem.
+              </p>
             ) : (
               <EmptyState
                 icon={<Inbox size={40} aria-hidden="true" />}
@@ -796,15 +809,20 @@ export default function FolderPage() {
                   </span>
                 </span>
               </Link>
-              <button
-                type="button"
-                className="doc-remove"
-                title="Đưa tài liệu ra khỏi folder"
-                aria-label="Đưa tài liệu ra khỏi folder"
-                onClick={() => moveDocument(d.id, undefined)}
-              >
-                <CornerUpLeft size={16} aria-hidden="true" />
-              </button>
+              {/* Thao tác của từng dòng gom vào "⋯" — biểu tượng "↶" đứng riêng trước đây
+                  khó hiểu mà lại nổi bật như hành động chính. */}
+              <ActionMenu
+                label={`Thao tác cho “${d.title || 'tài liệu'}”`}
+                triggerClassName="doc-remove"
+                items={[
+                  {
+                    key: 'move-out',
+                    label: 'Đưa ra khỏi thư mục',
+                    icon: <CornerUpLeft size={16} aria-hidden="true" />,
+                    onSelect: () => onMoveOut(d),
+                  },
+                ]}
+              />
             </li>
           ))}
         </ul>
