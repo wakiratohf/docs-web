@@ -102,6 +102,8 @@ function MermaidZoomModal({ svg, onClose }: { svg: string; onClose: () => void }
   const [translate, setTranslate] = useState({ x: 0, y: 0 });
   const [isResetting, setIsResetting] = useState(false);
   const dragRef = useRef<{ x: number; y: number; tx: number; ty: number } | null>(null);
+  // Đánh dấu vừa kéo (pan) để không coi cú thả chuột sau khi kéo là "bấm ra ngoài".
+  const movedRef = useRef(false);
 
   const reset = () => {
     setIsResetting(true);
@@ -117,6 +119,7 @@ function MermaidZoomModal({ svg, onClose }: { svg: string; onClose: () => void }
   };
 
   const onPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
+    movedRef.current = false;
     dragRef.current = { x: e.clientX, y: e.clientY, tx: translate.x, ty: translate.y };
     e.currentTarget.setPointerCapture(e.pointerId);
   };
@@ -124,6 +127,7 @@ function MermaidZoomModal({ svg, onClose }: { svg: string; onClose: () => void }
   const onPointerMove = (e: ReactPointerEvent<HTMLDivElement>) => {
     const drag = dragRef.current;
     if (!drag) return;
+    if (Math.abs(e.clientX - drag.x) + Math.abs(e.clientY - drag.y) > 4) movedRef.current = true;
     setTranslate({ x: drag.tx + (e.clientX - drag.x), y: drag.ty + (e.clientY - drag.y) });
   };
 
@@ -163,7 +167,12 @@ function MermaidZoomModal({ svg, onClose }: { svg: string; onClose: () => void }
       </div>
       <div
         className="mermaid-modal-content"
-        onClick={(e) => e.stopPropagation()}
+        onClick={(e) => {
+          e.stopPropagation();
+          // Bấm vào vùng trống (không phải sơ đồ) và không phải kéo → đóng.
+          const onDiagram = (e.target as HTMLElement).closest('.mermaid-modal-canvas svg');
+          if (!onDiagram && !movedRef.current) onClose();
+        }}
         onWheel={onWheel}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}

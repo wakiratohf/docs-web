@@ -4,6 +4,7 @@ import { Sun, Moon, LogOut } from 'lucide-react';
 import { useAuth } from '../auth/useAuth';
 import { useTheme } from '../context/ThemeContext';
 import { useAnchoredPopover } from '../hooks/useAnchoredPopover';
+import ThemeToggle from './ThemeToggle';
 
 // Nút tài khoản dùng chung ở góc phải header của MỌI trang cần đăng nhập
 // (trang chủ, thư mục, tài liệu, skill, tải lên hàng loạt).
@@ -24,6 +25,8 @@ export default function AccountMenu() {
 
   return (
     <>
+      {/* Nút đổi sáng/tối hiện sẵn cạnh avatar, không phải mở menu mới thấy */}
+      <ThemeToggle />
       <button
         ref={triggerRef}
         type="button"

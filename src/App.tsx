@@ -6,6 +6,7 @@ import { ThemeProvider } from './context/ThemeContext';
 import { ToastProvider } from './context/ToastContext';
 import { ConfirmProvider } from './context/ConfirmContext';
 import Spinner from './components/Spinner';
+import BottomNav from './components/BottomNav';
 import DriveSyncBanner from './components/DriveSyncBanner';
 import LoginPage from './pages/LoginPage';
 
@@ -81,6 +82,8 @@ export default function App() {
                 <Route path="/*" element={<AppShell />} />
               </Routes>
             </Suspense>
+            {/* Footer cố định: bản quyền + công nghệ, hiện trên mọi trang */}
+            <BottomNav />
           </AuthProvider>
         </ConfirmProvider>
       </ToastProvider>

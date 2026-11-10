@@ -18,7 +18,6 @@ import { useUploadDocuments } from '../hooks/useUploadDocuments';
 import { useDebouncedSearch } from '../hooks/useDebouncedValue';
 import { useHomeViewPreferences } from '../hooks/useHomeViewPreferences';
 import AccountMenu from '../components/AccountMenu';
-import BottomNav from '../components/BottomNav';
 import SearchResults from '../components/SearchResults';
 import EmptyState from '../components/EmptyState';
 import CreateFolderModal from '../components/CreateFolderModal';
@@ -661,7 +660,6 @@ export default function DocsAllPage() {
       />
 
       {/* Footer bản quyền: chỉ ở cuối trang chủ, KHÔNG cố định đè lên nội dung */}
-      <BottomNav />
     </div>
   );
 }

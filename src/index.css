@@ -44,9 +44,7 @@
   --dropdown-item-selected: rgba(0, 113, 227, 0.1);
 
   /* Bo góc — thang đo nhất quán kiểu Apple (góc bo lớn, mềm) */
-  /* Footer không còn cố định (chỉ nằm cuối trang chủ) → không cần chừa chỗ.
-     Giữ biến = 0 để các công thức calc(100dvh - var(--bottom-nav-h)) vẫn đúng. */
-  --bottom-nav-h: 0px;
+  --bottom-nav-h: 26px; /* chiều cao footer cố định tối giản */
 
   --radius-sm: 8px;
   --radius: 12px;
@@ -3051,9 +3049,12 @@ a.btn-icon:hover {
    Footer cố định: bản quyền + công nghệ đã triển khai
    ============================================================ */
 .bottom-nav {
-  /* Footer tĩnh ở cuối trang chủ (trước đây cố định, che phần cuối danh sách) */
-  position: static;
-  margin: 32px -28px -64px;
+  /* Luôn cố định ở đáy màn hình; body đã chừa padding-bottom để không che nội dung */
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 50;
   height: var(--bottom-nav-h);
   min-height: var(--bottom-nav-h);
   /* Nền kính mờ mỏng nhẹ, tinh tế (đồng bộ với --glass-*) */
@@ -4920,21 +4921,7 @@ mark.hl-orange {
    Đợt 2 UI/UX: header thống nhất, màn hẹp, skeleton
    ============================================================ */
 
-/* Giới hạn bề rộng NỘI DUNG trên màn rất rộng (2K/4K): danh sách kéo căng 2560px
-   khiến tên tài liệu và ngày sửa cách nhau quá xa, khó dò. Dải header vẫn trải hết
-   bề ngang, chỉ phần chữ/nút bên trong canh thẳng với nội dung.
-   Trang đọc (.doc-page) và trang chia sẻ (.share-view) không bị giới hạn. */
-.container:not(.share-view) > :not(.app-header) {
-  max-width: var(--content-max);
-  margin-inline: auto;
-}
-.container:not(.share-view) > .app-header {
-  /* Header rộng hơn container 56px (margin âm 28px mỗi bên) */
-  padding-inline: max(28px, calc((100% + 56px - var(--content-max)) / 2));
-}
-:root {
-  --content-max: 1384px;
-}
+/* Nội dung trải hết bề ngang màn hình (không giới hạn bề rộng tối đa). */
 
 /* Nút tài khoản (AccountMenu): avatar tròn ở cuối header */
 .account-trigger {
