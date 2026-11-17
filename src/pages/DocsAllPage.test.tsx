@@ -225,7 +225,7 @@ describe('DocsAllPage view modes dropdown', () => {
     expect(document.activeElement).toBe(viewTrigger);
   });
 
-  it('hiển thị số thư mục con và badge thư mục con cho folder cha ở trang chủ', () => {
+  it('hiển thị badge thư mục con và badge số tài liệu trên folder cho folder cha ở trang chủ', () => {
     mockDocsState = {
       folders: [
         {
@@ -280,10 +280,9 @@ describe('DocsAllPage view modes dropdown', () => {
     expect(screen.queryByText('v1.52')).toBeNull();
     expect(screen.queryByText('v1.53')).toBeNull();
 
-    // Badge số thư mục con dưới tên: chỉ đếm cấp trực tiếp (2), không tính thư mục cháu
-    expect(screen.getByText('📁 2 thư mục con')).toBeTruthy();
-    // Số tài liệu luôn hiện, kể cả khi folder có thư mục con
-    expect(screen.getByText('1 tài liệu')).toBeTruthy();
+    // Không còn dòng chữ số thư mục con và số tài liệu dưới nhãn vì trên icon folder đã thể hiện rõ
+    expect(screen.queryByText('📁 2 thư mục con')).toBeNull();
+    expect(screen.queryByText('1 tài liệu')).toBeNull();
 
     // Hiển thị badge nhỏ trên icon box
     const subBadge = container.querySelector('.folder-sub-badge');

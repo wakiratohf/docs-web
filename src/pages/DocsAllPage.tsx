@@ -617,18 +617,6 @@ export default function DocsAllPage() {
                 </span>
                 <span className="tile-label">
                   <span className="tile-name">{f.name}</span>
-                  {subCount > 0 && (
-                    <span
-                      className="tile-subfolder-count"
-                      title={`${subCount} thư mục con trực tiếp`}
-                    >
-                      📁 {subCount} thư mục con
-                    </span>
-                  )}
-                  {/* Luôn hiện số tài liệu (trước đây bị ẩn khi có thư mục con) */}
-                  <span className="tile-doc-count muted">
-                    {count} {isSkill ? 'skill' : 'tài liệu'}
-                  </span>
                 </span>
               </div>
             );
